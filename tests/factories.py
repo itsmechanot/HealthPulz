@@ -3,6 +3,8 @@
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
+NODE = "BRGY-08-K7QX"
+
 
 def make_record(**overrides) -> dict:
     record = {
@@ -18,7 +20,7 @@ def make_record(**overrides) -> dict:
     return {**record, **overrides}
 
 
-def make_batch(node_id: str = "BRGY-08-K7QX", records: list[dict] | None = None, count: int = 10) -> dict:
+def make_batch(node_id: str = NODE, records: list[dict] | None = None, count: int = 10) -> dict:
     return {
         "type": "SUBMIT_BATCH",
         "protocol_version": 1,

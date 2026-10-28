@@ -3,7 +3,8 @@
 Run with:  uvicorn rhu.main:app --host 0.0.0.0 --port 8000
 """
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -11,8 +12,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from rhu import config, db
-from rhu.api import router
+from rhu import api, config, db, ws
+from rhu.hub import Hub
 from rhu.ingest import IngestPipeline
 
 
@@ -22,14 +23,27 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         db.init_db(db_path)
-        app.state.pipeline = IngestPipeline(db_path)
-        app.state.pipeline.start()
+        hub = Hub()
+        hub.bind_loop(asyncio.get_running_loop())
+        pipeline = IngestPipeline(db_path, on_stored=hub.send_to_node_threadsafe)
+        pipeline.start()
+        app.state.hub = hub
+        app.state.pipeline = pipeline
+        feed = asyncio.create_task(ws.monitor_feed(app))
+
         yield
-        app.state.pipeline.stop()  # finishes queued batches before shutting down
+
+        feed.cancel()
+        with suppress(asyncio.CancelledError):
+            await feed
+        # Finish queued batches before shutting down (in a thread, so the event
+        # loop stays free to deliver the last STORED messages).
+        await asyncio.to_thread(pipeline.stop)
 
     app = FastAPI(title="HealthPulz RHU Server", version="0.1.0", lifespan=lifespan)
     app.state.db_path = db_path
-    app.include_router(router)
+    app.include_router(api.router)
+    app.include_router(ws.router)
 
     # Temporary: point the root URL to the API docs until the web pages exist.
     @app.get("/", include_in_schema=False)

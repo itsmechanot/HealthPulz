@@ -121,12 +121,14 @@ class IngestPipeline:
         self.stats.add(batches_received=1)
         return self._ingest_queue.qsize()
 
-    def queue_depths(self) -> dict:
-        return {"ingest_queue": self._ingest_queue.qsize(), "write_queue": self._write_queue.qsize()}
-
-    @property
-    def worker_count(self) -> int:
-        return self._worker_count
+    def snapshot(self) -> dict:
+        """Counters plus current queue depths, for the System Monitor."""
+        return {
+            **self.stats.snapshot(),
+            "ingest_queue": self._ingest_queue.qsize(),
+            "write_queue": self._write_queue.qsize(),
+            "validator_threads": self._worker_count,
+        }
 
     # ---- validator threads -----------------------------------------------
 

@@ -15,6 +15,8 @@ rhu/             RHU server (FastAPI)
   schema.sql     Database schema (SQLite, WAL mode)
   api.py         HTTP endpoints
   ingest.py      Ingestion pipeline (queues, validator threads, DB writer thread)
+  hub.py         Live WebSocket connections (nodes, monitors) and node presence
+  ws.py          WebSocket endpoints and the System Monitor feed
   db.py          Database connection and setup
   models.py      Protocol message models
   main.py        App entry point

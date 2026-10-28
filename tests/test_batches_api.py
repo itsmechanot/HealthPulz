@@ -2,18 +2,8 @@
 
 import time
 
-import pytest
-
 from rhu.ingest import PipelineBusy
-from tests.factories import make_batch
-
-NODE = "BRGY-08-K7QX"
-
-
-@pytest.fixture
-def registered(client):
-    client.post("/api/nodes/register", json={"type": "REGISTER", "node_id": NODE, "barangay_id": "BRGY-08"})
-    return client
+from tests.factories import NODE, make_batch
 
 
 def wait_for_stored(client, batch_id, timeout=5.0):

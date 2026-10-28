@@ -98,8 +98,4 @@ def batch_status(batch_id: UUID, conn: sqlite3.Connection = Depends(get_conn)) -
 
 @router.get("/monitor/stats")
 def monitor_stats(pipeline: IngestPipeline = Depends(get_pipeline)) -> dict:
-    return {
-        **pipeline.stats.snapshot(),
-        **pipeline.queue_depths(),
-        "validator_threads": pipeline.worker_count,
-    }
+    return pipeline.snapshot()

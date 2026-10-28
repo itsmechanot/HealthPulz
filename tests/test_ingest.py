@@ -9,9 +9,7 @@ import pytest
 from rhu import db
 from rhu.ingest import IngestPipeline, PipelineBusy
 from rhu.models import SubmitBatch
-from tests.factories import make_batch, make_record
-
-NODE = "BRGY-08-K7QX"
+from tests.factories import NODE, make_batch, make_record
 
 
 @pytest.fixture

@@ -109,13 +109,21 @@ The bounded queue and the `503` response are **backpressure**: the server protec
 
 | Direction | Type | Payload |
 |---|---|---|
-| Node → RHU | `HELLO` | `node_id`, `pending_batches` |
+| Node → RHU | `HELLO` (must be the first message) | `node_id`, `pending_batches` |
+| RHU → Node | `WELCOME` | `node_id` |
 | Node → RHU | `HEARTBEAT` (every 10 s) | `node_id`, `pending_batches` |
 | RHU → Node | `STORED` | see above |
 | RHU → Node | `ALERT` | `alert_id`, `level`, `disease_code`, `barangay_id`, `message`, `observed`, `threshold` |
 | Node → RHU | `ALERT_ACK` | `alert_id` |
+| RHU → Node | `ERROR` | `reason` (e.g. `UNKNOWN_TYPE`) |
 
-A node with no heartbeat for **30 s** is marked **OFFLINE** on the System Monitor.
+**Handshake:** the node connects, sends `HELLO`, and waits for `WELCOME`. The RHU closes the connection with:
+- `4400` if the first message isn't a `HELLO` for the `node_id` in the URL
+- `4404` if the node isn't registered (register first, then reconnect)
+
+A node with no heartbeat for **30 s**, or with no open connection, is shown as **OFFLINE** on the System Monitor. A node may have several connections open (e.g. two tabs); each receives the messages.
+
+**If the node is offline when its batch is stored**, the `STORED` message is not queued for later. The node recovers by checking `GET /api/batches/{batch_id}` or by resending (safe, see above).
 
 Example `ALERT`:
 ```json
@@ -143,4 +151,22 @@ Alerts are sent to every node of the affected barangay **and** to the nodes of i
 | `GET` | `/api/barangays` | Barangay list for the dropdown |
 | `GET` | `/api/batches/{batch_id}` | Batch status: `PENDING` (not stored yet) or `STORED` with counts |
 | `GET` | `/api/monitor/stats` | Pipeline counters and queue depths (polling version of `/ws/monitor`) |
-| `WS` | `/ws/monitor` | Live stats for the System Monitor (queue depth, throughput, worker activity, node status) |
+| `WS` | `/ws/monitor` | Live stats for the System Monitor (see below) |
+
+### System Monitor feed (`/ws/monitor`)
+
+The RHU sends one `MONITOR` message on connect, then one every second. The monitor page only listens.
+```json
+{
+  "type": "MONITOR",
+  "at": "2026-11-18T01:15:03.120+00:00",
+  "pipeline": {
+    "batches_received": 200, "batches_busy": 0, "batches_stored": 200, "batches_resent": 0,
+    "records_accepted": 20000, "records_duplicate": 0, "records_rejected": 0,
+    "ingest_queue": 0, "write_queue": 0, "validator_threads": 4, "records_per_second": 12401.6
+  },
+  "nodes": [
+    { "node_id": "BRGY-08-K7QX", "barangay_id": "BRGY-08", "status": "ONLINE", "pending_batches": 0 }
+  ]
+}
+```

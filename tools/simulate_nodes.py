@@ -1,8 +1,8 @@
 """Simulates many BHS nodes sending case batches to the RHU at the same time.
 
-Every node runs concurrently, sends its batches over real HTTP, retries on 503
-(backpressure), then the script waits until every batch is STORED and checks
-that no record was lost.
+Every node behaves like the real node app: it registers, opens its WebSocket
+(HELLO), sends its batches over HTTP (retrying on 503 backpressure), and waits
+for a STORED message for each batch. The script then checks that no record was lost.
 
 Usage (with the RHU server running):
     python tools/simulate_nodes.py --nodes 40 --batches 5 --records 100
@@ -10,6 +10,7 @@ Usage (with the RHU server running):
 
 import argparse
 import asyncio
+import json
 import random
 import string
 import time
@@ -17,8 +18,10 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
+import websockets
 
 DISEASES = ["DEN", "ILI", "AWD", "LEP", "TYP", "MEA"]
+STORED_TIMEOUT_SECONDS = 30
 
 
 def random_record() -> dict:
@@ -58,23 +61,30 @@ async def send_batch(client: httpx.AsyncClient, node_id: str, records: int, stat
         return batch["batch_id"]
 
 
-async def run_node(client: httpx.AsyncClient, barangay_id: str, args, stats: dict) -> list[str]:
+async def run_node(client: httpx.AsyncClient, barangay_id: str, args, stats: dict) -> int:
+    """Returns the number of records the RHU accepted from this node."""
     node_id = random_node_id(barangay_id)
     res = await client.post(
         "/api/nodes/register", json={"type": "REGISTER", "node_id": node_id, "barangay_id": barangay_id}
     )
     res.raise_for_status()
-    return [await send_batch(client, node_id, args.records, stats) for _ in range(args.batches)]
 
+    ws_url = args.url.replace("http", "ws", 1) + f"/ws/node/{node_id}"
+    async with websockets.connect(ws_url) as ws:
+        await ws.send(json.dumps({"type": "HELLO", "node_id": node_id, "pending_batches": 0}))
+        json.loads(await ws.recv())  # WELCOME
 
-async def wait_until_stored(client: httpx.AsyncClient, batch_ids: list[str]) -> int:
-    """Returns the total number of accepted records across all batches."""
-    accepted = 0
-    for batch_id in batch_ids:
-        while (body := (await client.get(f"/api/batches/{batch_id}")).json())["status"] != "STORED":
-            await asyncio.sleep(0.05)
-        accepted += body["accepted"]
-    return accepted
+        waiting = {await send_batch(client, node_id, args.records, stats) for _ in range(args.batches)}
+        stats["last_received"] = time.perf_counter()
+
+        # STORED messages may already have arrived while we were sending; they wait in the socket.
+        accepted = 0
+        while waiting:
+            message = json.loads(await asyncio.wait_for(ws.recv(), STORED_TIMEOUT_SECONDS))
+            if message["type"] == "STORED" and message["batch_id"] in waiting:
+                waiting.discard(message["batch_id"])
+                accepted += message["accepted"]
+        return accepted
 
 
 async def main(args) -> None:
@@ -85,16 +95,13 @@ async def main(args) -> None:
         stats = {"busy_retries": 0}
 
         start = time.perf_counter()
-        per_node = await asyncio.gather(*(run_node(client, b, args, stats) for b in node_barangays))
-        received_at = time.perf_counter()
-        batch_ids = [batch_id for ids in per_node for batch_id in ids]
-        accepted = await wait_until_stored(client, batch_ids)
+        accepted = sum(await asyncio.gather(*(run_node(client, b, args, stats) for b in node_barangays)))
         stored_at = time.perf_counter()
 
     expected = args.nodes * args.batches * args.records
-    print(f"Nodes: {args.nodes}   Batches: {len(batch_ids)}   Records sent: {expected:,}")
-    print(f"All RECEIVED in:  {received_at - start:6.2f} s")
-    print(f"All STORED in:    {stored_at - start:6.2f} s   ({expected / (stored_at - start):,.0f} records/s)")
+    print(f"Nodes: {args.nodes}   Batches: {args.nodes * args.batches}   Records sent: {expected:,}")
+    print(f"All RECEIVED in:  {stats['last_received'] - start:6.2f} s")
+    print(f"All STORED in:    {stored_at - start:6.2f} s   ({expected / (stored_at - start):,.0f} records/s, confirmed over WebSocket)")
     print(f"503 retries:      {stats['busy_retries']}")
     print(f"Records accepted: {accepted:,} / {expected:,}  ->  {'OK, nothing lost' if accepted == expected else 'MISMATCH'}")
 
