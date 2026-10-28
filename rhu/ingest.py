@@ -1,0 +1,283 @@
+"""Ingestion pipeline: how case batches from the BHS nodes reach the database.
+
+    HTTP receiver ──► ingest queue ──► validator threads (N) ──► write queue ──► DB writer thread
+                       (bounded)                                                 (group commit)
+
+The threads share no state except the queues: every hand-off is a message
+placed on a queue (producer–consumer). Only the single DB writer thread
+writes cases, so SQLite never has competing writers.
+"""
+
+import logging
+import queue
+import sqlite3
+import threading
+from collections.abc import Callable
+from dataclasses import dataclass, field, fields
+from datetime import date, timedelta
+from pathlib import Path
+
+from rhu import config, db, rules
+from rhu.models import CaseRecord, SubmitBatch, barangay_of
+
+log = logging.getLogger(__name__)
+
+# Tells a thread to finish. Queued before it, all real work is still processed (graceful drain).
+_STOP = object()
+
+StoredCallback = Callable[[str, dict], None]
+
+
+class PipelineBusy(Exception):
+    """The ingest queue is full; the node should retry later (backpressure)."""
+
+
+@dataclass
+class _ReceivedBatch:
+    batch: SubmitBatch
+    received_at: str
+
+
+@dataclass
+class _ValidatedBatch:
+    batch: SubmitBatch
+    received_at: str
+    valid: list[CaseRecord]
+    rejected: list[dict]
+
+
+@dataclass
+class PipelineStats:
+    """Counters shown on the System Monitor. Updated from several threads, so guarded by a lock."""
+
+    batches_received: int = 0
+    batches_busy: int = 0  # refused with 503 because the queue was full
+    batches_stored: int = 0
+    batches_resent: int = 0  # a batch that was already stored arrived again
+    records_accepted: int = 0
+    records_duplicate: int = 0
+    records_rejected: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def add(self, **counts: int) -> None:
+        with self._lock:
+            for name, value in counts.items():
+                setattr(self, name, getattr(self, name) + value)
+
+    def snapshot(self) -> dict:
+        with self._lock:
+            return {f.name: getattr(self, f.name) for f in fields(self) if not f.name.startswith("_")}
+
+
+class IngestPipeline:
+    def __init__(
+        self,
+        db_path: Path,
+        *,
+        workers: int = config.INGEST_WORKERS,
+        queue_size: int = config.INGEST_QUEUE_SIZE,
+        on_stored: StoredCallback | None = None,
+    ) -> None:
+        self._db_path = db_path
+        self._worker_count = workers
+        self._on_stored = on_stored
+        self._ingest_queue: queue.Queue = queue.Queue(maxsize=queue_size)
+        self._write_queue: queue.Queue = queue.Queue(maxsize=queue_size)
+        self._validators: list[threading.Thread] = []
+        self._writer: threading.Thread | None = None
+        self._disease_codes = {d["disease_code"] for d in rules.diseases()}
+        self.stats = PipelineStats()
+
+    # ---- lifecycle -------------------------------------------------------
+
+    def start(self) -> None:
+        self._validators = [
+            threading.Thread(target=self._validate_loop, name=f"validator-{i + 1}", daemon=True)
+            for i in range(self._worker_count)
+        ]
+        self._writer = threading.Thread(target=self._write_loop, name="db-writer", daemon=True)
+        for thread in [*self._validators, self._writer]:
+            thread.start()
+
+    def stop(self) -> None:
+        """Finish every batch already queued, then stop the threads."""
+        for _ in self._validators:
+            self._ingest_queue.put(_STOP)
+        for thread in self._validators:
+            thread.join()
+        if self._writer is not None:
+            self._write_queue.put(_STOP)
+            self._writer.join()
+
+    # ---- receiver side (called by the HTTP endpoint) --------------------
+
+    def submit(self, batch: SubmitBatch) -> int:
+        """Queue a batch without waiting for it to be processed. Returns the queue depth."""
+        try:
+            self._ingest_queue.put_nowait(_ReceivedBatch(batch, db.utc_now()))
+        except queue.Full:
+            self.stats.add(batches_busy=1)
+            raise PipelineBusy from None
+        self.stats.add(batches_received=1)
+        return self._ingest_queue.qsize()
+
+    def queue_depths(self) -> dict:
+        return {"ingest_queue": self._ingest_queue.qsize(), "write_queue": self._write_queue.qsize()}
+
+    @property
+    def worker_count(self) -> int:
+        return self._worker_count
+
+    # ---- validator threads -----------------------------------------------
+
+    def _validate_loop(self) -> None:
+        while (item := self._ingest_queue.get()) is not _STOP:
+            self._write_queue.put(self._validate(item))
+
+    def _validate(self, item: _ReceivedBatch) -> _ValidatedBatch:
+        # One day of slack so a node whose clock or timezone is slightly ahead isn't rejected.
+        latest_allowed = date.today() + timedelta(days=1)
+        valid: list[CaseRecord] = []
+        rejected: list[dict] = []
+        seen: set = set()
+
+        for record in item.batch.records:
+            reason = self._rejection_reason(record, seen, latest_allowed)
+            if reason:
+                rejected.append({"record_id": str(record.record_id), "reason": reason})
+            else:
+                valid.append(record)
+            seen.add(record.record_id)
+
+        return _ValidatedBatch(item.batch, item.received_at, valid, rejected)
+
+    def _rejection_reason(self, record: CaseRecord, seen: set, latest_allowed: date) -> str | None:
+        if record.record_id in seen:
+            return "DUPLICATE_IN_BATCH"
+        if record.disease_code not in self._disease_codes:
+            return "INVALID_DISEASE_CODE"
+        if record.consult_date < record.onset_date:
+            return "CONSULT_BEFORE_ONSET"
+        if record.consult_date > latest_allowed:
+            return "FUTURE_DATE"
+        return None
+
+    # ---- DB writer thread --------------------------------------------------
+
+    def _write_loop(self) -> None:
+        conn = db.connect(self._db_path)
+        try:
+            stopping = False
+            while not stopping:
+                first = self._write_queue.get()
+                if first is _STOP:
+                    break
+                # Group commit: take whatever else is already waiting (up to a limit)
+                # and write it all in one transaction. Under a burst this is far
+                # faster than one commit per batch.
+                group = [first]
+                while len(group) < config.WRITE_GROUP_MAX:
+                    try:
+                        item = self._write_queue.get_nowait()
+                    except queue.Empty:
+                        break
+                    if item is _STOP:
+                        stopping = True
+                        break
+                    group.append(item)
+                self._write_group(conn, group)
+        finally:
+            conn.close()
+
+    def _write_group(self, conn: sqlite3.Connection, group: list[_ValidatedBatch]) -> None:
+        try:
+            with conn:
+                messages = [self._write_batch(conn, item) for item in group]
+        except sqlite3.Error:
+            # One bad batch must not lose the others: retry them one at a time.
+            log.exception("Group commit of %d batches failed; retrying individually", len(group))
+            messages = []
+            for item in group:
+                try:
+                    with conn:
+                        messages.append(self._write_batch(conn, item))
+                except sqlite3.Error:
+                    log.exception("Could not store batch %s", item.batch.batch_id)
+
+        # Count and notify only after the commit, so STORED always means the data is safe on disk.
+        for node_id, message, resent in messages:
+            if resent:
+                self.stats.add(batches_resent=1)
+            else:
+                self.stats.add(
+                    batches_stored=1,
+                    records_accepted=message["accepted"],
+                    records_duplicate=message["duplicates"],
+                    records_rejected=len(message["rejected"]),
+                )
+            self._notify(node_id, message)
+
+    def _write_batch(self, conn: sqlite3.Connection, item: _ValidatedBatch) -> tuple[str, dict, bool]:
+        """Write one batch inside the caller's transaction. Returns (node_id, STORED message, was_resent)."""
+        batch = item.batch
+        batch_id = str(batch.batch_id)
+
+        previous = conn.execute(
+            "SELECT accepted, duplicates FROM batches WHERE batch_id = ?", (batch_id,)
+        ).fetchone()
+        if previous is not None:
+            # The node resent a batch we already stored (e.g. it missed the STORED message).
+            message = _stored_message(batch_id, previous["accepted"], previous["duplicates"], item.rejected)
+            return batch.node_id, message, True
+
+        conn.execute(
+            """
+            INSERT INTO batches (batch_id, node_id, record_count, sent_at, received_at, status)
+            VALUES (?, ?, ?, ?, ?, 'STORED')
+            """,
+            (batch_id, batch.node_id, len(batch.records), batch.sent_at.isoformat(), item.received_at),
+        )
+        barangay_id = barangay_of(batch.node_id)
+        cursor = conn.executemany(
+            """
+            INSERT OR IGNORE INTO cases (
+              record_id, batch_id, node_id, barangay_id, disease_code, onset_date,
+              consult_date, age_years, sex, purok, case_status, received_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    str(r.record_id), batch_id, batch.node_id, barangay_id, r.disease_code,
+                    r.onset_date.isoformat(), r.consult_date.isoformat(), r.age_years,
+                    r.sex, r.purok, r.case_status, item.received_at,
+                )
+                for r in item.valid
+            ],
+        )
+        # INSERT OR IGNORE skips record_ids we already have, so those are the duplicates.
+        accepted = cursor.rowcount if item.valid else 0
+        duplicates = len(item.valid) - accepted
+        conn.execute(
+            "UPDATE batches SET accepted = ?, duplicates = ?, rejected = ?, stored_at = ? WHERE batch_id = ?",
+            (accepted, duplicates, len(item.rejected), db.utc_now(), batch_id),
+        )
+        return batch.node_id, _stored_message(batch_id, accepted, duplicates, item.rejected), False
+
+    def _notify(self, node_id: str, message: dict) -> None:
+        if self._on_stored is None:
+            return
+        try:
+            self._on_stored(node_id, message)
+        except Exception:
+            # A failed notification must never stop the writer thread.
+            log.exception("on_stored callback failed for batch %s", message["batch_id"])
+
+
+def _stored_message(batch_id: str, accepted: int, duplicates: int, rejected: list[dict]) -> dict:
+    return {
+        "type": "STORED",
+        "batch_id": batch_id,
+        "accepted": accepted,
+        "duplicates": duplicates,
+        "rejected": rejected,
+    }

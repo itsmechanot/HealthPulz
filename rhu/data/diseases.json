@@ -1,0 +1,88 @@
+[
+  {
+    "disease_code": "DEN",
+    "name": "Dengue",
+    "category": "VECTOR",
+    "base_rate": 1.5,
+    "season": [1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 1, 1],
+    "age_profile": [
+      { "min": 0, "max": 4, "weight": 1 },
+      { "min": 5, "max": 19, "weight": 6 },
+      { "min": 20, "max": 59, "weight": 3 },
+      { "min": 60, "max": 90, "weight": 1 }
+    ],
+    "male_ratio": 0.5,
+    "single_case_alert": false
+  },
+  {
+    "disease_code": "ILI",
+    "name": "Influenza-like illness",
+    "category": "RESPIRATORY",
+    "base_rate": 4.0,
+    "season": [2, 2, 1, 1, 1, 1, 2, 2, 2, 1, 1, 2],
+    "age_profile": [
+      { "min": 0, "max": 4, "weight": 2 },
+      { "min": 5, "max": 19, "weight": 3 },
+      { "min": 20, "max": 59, "weight": 4 },
+      { "min": 60, "max": 90, "weight": 2 }
+    ],
+    "male_ratio": 0.5,
+    "single_case_alert": false
+  },
+  {
+    "disease_code": "AWD",
+    "name": "Acute watery diarrhea",
+    "category": "WATERBORNE",
+    "base_rate": 2.5,
+    "season": [1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1],
+    "age_profile": [
+      { "min": 0, "max": 4, "weight": 5 },
+      { "min": 5, "max": 19, "weight": 2 },
+      { "min": 20, "max": 59, "weight": 2 },
+      { "min": 60, "max": 90, "weight": 3 }
+    ],
+    "male_ratio": 0.5,
+    "single_case_alert": false
+  },
+  {
+    "disease_code": "LEP",
+    "name": "Leptospirosis",
+    "category": "WATERBORNE",
+    "base_rate": 0.3,
+    "season": [1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 1, 1],
+    "age_profile": [
+      { "min": 5, "max": 19, "weight": 1 },
+      { "min": 20, "max": 59, "weight": 8 },
+      { "min": 60, "max": 90, "weight": 1 }
+    ],
+    "male_ratio": 0.8,
+    "single_case_alert": false
+  },
+  {
+    "disease_code": "TYP",
+    "name": "Typhoid fever",
+    "category": "WATERBORNE",
+    "base_rate": 0.4,
+    "season": [1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 1.5, 1, 1, 1],
+    "age_profile": [
+      { "min": 0, "max": 4, "weight": 1 },
+      { "min": 5, "max": 39, "weight": 7 },
+      { "min": 40, "max": 90, "weight": 2 }
+    ],
+    "male_ratio": 0.5,
+    "single_case_alert": false
+  },
+  {
+    "disease_code": "MEA",
+    "name": "Measles",
+    "category": "VACCINE_PREVENTABLE",
+    "base_rate": 0.05,
+    "season": [2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1],
+    "age_profile": [
+      { "min": 0, "max": 9, "weight": 8 },
+      { "min": 10, "max": 19, "weight": 2 }
+    ],
+    "male_ratio": 0.5,
+    "single_case_alert": true
+  }
+]

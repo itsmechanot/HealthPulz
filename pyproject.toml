@@ -1,0 +1,9 @@
+[project]
+name = "healthpulz"
+version = "0.1.0"
+description = "Distributed disease surveillance for RHU Naval and its Barangay Health Stations"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

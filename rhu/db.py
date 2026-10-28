@@ -1,0 +1,63 @@
+"""SQLite connection helpers and database setup.
+
+A connection is never used by two threads at the same time: each HTTP request
+and the DB writer thread open their own.
+"""
+
+import json
+import sqlite3
+from contextlib import closing
+from datetime import datetime, timezone
+from pathlib import Path
+
+from rhu import rules
+from rhu.config import SCHEMA_PATH
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+def connect(db_path: Path) -> sqlite3.Connection:
+    # check_same_thread=False: FastAPI may open a request's connection in one
+    # worker thread and run the endpoint in another. The connection is still
+    # used by only one request at a time, so this is safe.
+    conn = sqlite3.connect(db_path, timeout=30, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def init_db(db_path: Path) -> None:
+    """Create the tables (if missing) and load the reference data."""
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(connect(db_path)) as conn:
+        conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+        seed_reference_data(conn)
+
+
+def seed_reference_data(conn: sqlite3.Connection) -> None:
+    """Upsert barangays and diseases so edits to the rules files take effect on restart."""
+    with conn:
+        conn.executemany(
+            """
+            INSERT INTO barangays (barangay_id, name, population, neighbors)
+            VALUES (:barangay_id, :name, :population, :neighbors)
+            ON CONFLICT (barangay_id) DO UPDATE SET
+              name = excluded.name,
+              population = excluded.population,
+              neighbors = excluded.neighbors
+            """,
+            [{**b, "neighbors": json.dumps(b["neighbors"])} for b in rules.barangays()],
+        )
+        conn.executemany(
+            """
+            INSERT INTO diseases (disease_code, name, category, single_case_alert)
+            VALUES (:disease_code, :name, :category, :single_case_alert)
+            ON CONFLICT (disease_code) DO UPDATE SET
+              name = excluded.name,
+              category = excluded.category,
+              single_case_alert = excluded.single_case_alert
+            """,
+            [{**d, "single_case_alert": int(d["single_case_alert"])} for d in rules.diseases()],
+        )
