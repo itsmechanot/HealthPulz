@@ -94,10 +94,12 @@ async def build_snapshot(app: FastAPI, records_per_second: float) -> dict:
     for node_id, barangay_id in registered:
         status, pending = hub.node_status(node_id)
         nodes.append({"node_id": node_id, "barangay_id": barangay_id, "status": status, "pending_batches": pending})
+    analytics = app.state.analytics.last_result
     return {
         "type": "MONITOR",
         "at": db.utc_now(),
         "pipeline": {**app.state.pipeline.snapshot(), "records_per_second": round(records_per_second, 1)},
+        "analytics": analytics.to_dict() if analytics else None,
         "nodes": nodes,
     }
 

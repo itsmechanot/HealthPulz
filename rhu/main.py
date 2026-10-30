@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from rhu import api, config, db, ws
+from rhu.analytics import Analytics, run_when_cases_change
 from rhu.hub import Hub
 from rhu.ingest import IngestPipeline
 
@@ -23,7 +24,12 @@ from rhu.ingest import IngestPipeline
 mimetypes.add_type("text/javascript", ".js")
 
 
-def create_app(db_path: Path | None = None) -> FastAPI:
+def create_app(
+    db_path: Path | None = None,
+    *,
+    analytics_workers: int = config.ANALYTICS_WORKERS,
+    analytics_interval: float = config.ANALYTICS_INTERVAL_SECONDS,
+) -> FastAPI:
     db_path = db_path or config.DB_PATH
 
     @asynccontextmanager
@@ -33,18 +39,25 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         hub.bind_loop(asyncio.get_running_loop())
         pipeline = IngestPipeline(db_path, on_stored=hub.send_to_node_threadsafe)
         pipeline.start()
+        analytics = Analytics(db_path, workers=analytics_workers)
         app.state.hub = hub
         app.state.pipeline = pipeline
-        feed = asyncio.create_task(ws.monitor_feed(app))
+        app.state.analytics = analytics
+        background = [
+            asyncio.create_task(ws.monitor_feed(app)),
+            asyncio.create_task(run_when_cases_change(analytics, analytics_interval)),
+        ]
 
         yield
 
-        feed.cancel()
-        with suppress(asyncio.CancelledError):
-            await feed
+        for task in background:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
         # Finish queued batches before shutting down (in a thread, so the event
         # loop stays free to deliver the last STORED messages).
         await asyncio.to_thread(pipeline.stop)
+        analytics.close()
 
     app = FastAPI(title="HealthPulz RHU Server", version="0.1.0", lifespan=lifespan)
     app.state.db_path = db_path

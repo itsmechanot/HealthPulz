@@ -8,7 +8,8 @@ from tests.factories import NODE
 @pytest.fixture
 def client(tmp_path):
     """A test client backed by a fresh, temporary database."""
-    app = create_app(tmp_path / "test.db")
+    # One analytics worker: starting worker processes is slow on Windows (test_analytics covers the pool).
+    app = create_app(tmp_path / "test.db", analytics_workers=1)
     with TestClient(app) as c:  # the context manager runs the startup (init_db)
         yield c
 

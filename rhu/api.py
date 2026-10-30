@@ -1,5 +1,6 @@
 """HTTP endpoints used by the BHS nodes and the RHU dashboard."""
 
+import asyncio
 import sqlite3
 from collections.abc import Iterator
 
@@ -94,6 +95,20 @@ def batch_status(batch_id: UUID, conn: sqlite3.Connection = Depends(get_conn)) -
     if row is None:
         return {"type": "BATCH_STATUS", "batch_id": str(batch_id), "status": "PENDING"}
     return {"type": "BATCH_STATUS", "batch_id": str(batch_id), "status": "STORED", **dict(row)}
+
+
+@router.get("/analytics")
+def analytics_status(request: Request) -> dict:
+    """The last analytics run (workers used, cases read, map/reduce time)."""
+    result = request.app.state.analytics.last_result
+    return {"last_run": result.to_dict() if result else None}
+
+
+@router.post("/analytics/run")
+async def run_analytics(request: Request) -> dict:
+    """Run the analytics now instead of waiting for the scheduler."""
+    result = await asyncio.to_thread(request.app.state.analytics.run)
+    return {"last_run": result.to_dict()}
 
 
 @router.get("/monitor/stats")

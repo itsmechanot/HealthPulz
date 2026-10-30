@@ -15,6 +15,7 @@ rhu/             RHU server (FastAPI)
   schema.sql     Database schema (SQLite, WAL mode)
   api.py         HTTP endpoints
   ingest.py      Ingestion pipeline (queues, validator threads, DB writer thread)
+  analytics.py   Parallel analytics: weekly counts and thresholds (process pool, MapReduce)
   synthetic.py   Synthetic case generator (Python twin of the node page's generator)
   history.py     Imports synthetic past data (python -m rhu.history)
   hub.py         Live WebSocket connections (nodes, monitors) and node presence
@@ -78,8 +79,18 @@ python tools/simulate_nodes.py --nodes 40 --batches 5 --records 100
 It reports how long it took until every batch was RECEIVED and STORED, records per second, how many
 `503` retries happened, and whether every record arrived.
 
+## Benchmark the parallel analytics
+
+```powershell
+python -m rhu.history --db var/bench.db --scale 50
+python tools/benchmark_analytics.py --db var/bench.db --workers 1 2 4 8
+```
+
+Reports time, speedup and efficiency per worker count. See [parallel analytics](docs/analytics.md).
+
 ## Documentation
 
 - [Message protocol](docs/protocol.md)
 - [Synthetic data rules](docs/synthetic-data.md)
+- [Parallel analytics and benchmark](docs/analytics.md)
 - [Database schema](rhu/schema.sql)
