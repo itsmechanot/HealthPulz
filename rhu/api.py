@@ -1,6 +1,7 @@
 """HTTP endpoints used by the BHS nodes and the RHU dashboard."""
 
 import asyncio
+import socket
 import sqlite3
 from collections.abc import Iterator
 from datetime import date
@@ -32,6 +33,17 @@ def get_pipeline(request: Request) -> IngestPipeline:
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@router.get("/server/addresses")
+def server_addresses(request: Request) -> dict:
+    """This server's LAN addresses, so the System Monitor can show classmates where to connect."""
+    try:
+        infos = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
+    except OSError:
+        infos = []
+    addresses = sorted({info[4][0] for info in infos if not info[4][0].startswith("127.")})
+    return {"addresses": addresses, "port": request.url.port}
 
 
 @router.get("/config")

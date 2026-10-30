@@ -22,6 +22,18 @@ def test_node_page_is_served(client):
     assert "/js/node/main.js" in res.text
 
 
+def test_monitor_page_is_served(client):
+    res = client.get("/monitor/")
+    assert res.status_code == 200
+    assert "/js/monitor/main.js" in res.text
+
+
+def test_server_addresses(client):
+    body = client.get("/api/server/addresses").json()
+    assert isinstance(body["addresses"], list)
+    assert not any(ip.startswith("127.") for ip in body["addresses"])
+
+
 def test_scripts_are_served_as_javascript(client):
     # Browsers refuse ES module scripts with any other content type.
     res = client.get("/js/node/main.js")

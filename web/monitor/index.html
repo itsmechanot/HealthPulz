@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HealthPulz · System Monitor</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/css/base.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" style="text-decoration: none">
+      <span class="brand-name">HealthPulz</span>
+      <span class="brand-role">System Monitor</span>
+    </a>
+    <span id="connection" class="pill" data-state="connecting" role="status">Connecting…</span>
+  </header>
+
+  <main class="container" style="max-width: 1200px">
+    <!-- 1. Join address for classmates -->
+    <section class="card join" aria-label="How to join">
+      <div>BHS nodes join at <span id="join-urls" class="mono">…</span></div>
+      <div class="muted small">Same Wi-Fi as this RHU server. Choose a barangay, then Generate &amp; Send.</div>
+    </section>
+
+    <!-- 2. Key numbers -->
+    <section class="stats kpis" aria-label="Key numbers">
+      <div class="stat"><div id="kpi-rate" class="stat-value">0</div><div class="stat-label">Records / second</div><div id="kpi-peak" class="stat-sub">Peak 0</div></div>
+      <div class="stat"><div id="kpi-accepted" class="stat-value">0</div><div class="stat-label">Records stored</div><div id="kpi-batches" class="stat-sub">0 batches</div></div>
+      <div class="stat"><div id="kpi-nodes" class="stat-value">0</div><div class="stat-label">Nodes online</div><div id="kpi-nodes-total" class="stat-sub">of 0 registered</div></div>
+      <div class="stat"><div id="kpi-queue" class="stat-value">0</div><div class="stat-label">Batches in queue</div><div id="kpi-busy" class="stat-sub">0 refused (busy)</div></div>
+      <div class="stat"><div id="kpi-accounted" class="stat-value">–</div><div class="stat-label">Records accounted for</div><div id="kpi-accounted-sub" class="stat-sub">stored + duplicates + rejected</div></div>
+    </section>
+
+    <!-- 3. Live charts -->
+    <div class="grid-2">
+      <section class="card" aria-labelledby="throughput-title">
+        <div class="card-header">
+          <h2 id="throughput-title">Throughput</h2>
+          <div class="legend"><span style="--swatch: var(--accent)">records stored / s</span></div>
+        </div>
+        <div class="chart">
+          <svg id="chart-throughput" role="img" aria-label="Records stored per second, last 2 minutes"></svg>
+          <span id="scale-throughput" class="scale"></span>
+        </div>
+        <span class="muted small">Last 2 minutes, updated every second</span>
+      </section>
+
+      <section class="card" aria-labelledby="queues-title">
+        <div class="card-header">
+          <h2 id="queues-title">Queue depth</h2>
+          <div class="legend">
+            <span style="--swatch: var(--warn)">ingest queue</span>
+            <span style="--swatch: var(--text-muted)">write queue</span>
+          </div>
+        </div>
+        <div class="chart">
+          <svg id="chart-queues" role="img" aria-label="Batches waiting in the ingest and write queues, last 2 minutes"></svg>
+          <span id="scale-queues" class="scale"></span>
+        </div>
+        <span class="muted small">Rises during a burst, drains back to 0 as the threads catch up</span>
+      </section>
+    </div>
+
+    <!-- 4. Ingestion pipeline -->
+    <section class="card" aria-labelledby="pipeline-title">
+      <h2 id="pipeline-title">Ingestion pipeline</h2>
+      <div class="flow">
+        <div class="flow-stage">
+          <span class="stage-name">1 · Receiver (HTTP)</span>
+          <span id="st-received" class="stage-value">0</span>
+          <span class="muted small">batches received</span>
+        </div>
+        <span class="flow-arrow" aria-hidden="true">→</span>
+        <div class="flow-stage">
+          <span class="stage-name">2 · Ingest queue</span>
+          <span id="st-ingest" class="stage-value">0</span>
+          <div id="meter-ingest" class="meter"><div></div></div>
+          <span id="st-capacity" class="muted small">of 0 (full → 503)</span>
+        </div>
+        <span class="flow-arrow" aria-hidden="true">→</span>
+        <div class="flow-stage">
+          <span class="stage-name">3 · Validator threads</span>
+          <span id="st-validators" class="stage-value">0</span>
+          <span id="st-rejected" class="muted small">0 records rejected</span>
+        </div>
+        <span class="flow-arrow" aria-hidden="true">→</span>
+        <div class="flow-stage">
+          <span class="stage-name">4 · Write queue</span>
+          <span id="st-write" class="stage-value">0</span>
+          <div id="meter-write" class="meter"><div></div></div>
+        </div>
+        <span class="flow-arrow" aria-hidden="true">→</span>
+        <div class="flow-stage">
+          <span class="stage-name">5 · DB writer thread</span>
+          <span id="st-stored" class="stage-value">0</span>
+          <span id="st-duplicates" class="muted small">batches stored · 0 duplicates</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid-2">
+      <!-- 5. Parallel analytics -->
+      <section class="card" aria-labelledby="analytics-title">
+        <h2 id="analytics-title">Parallel analytics (last run)</h2>
+        <dl id="analytics" class="kv">
+          <dt>Status</dt><dd>Waiting for the first run…</dd>
+        </dl>
+      </section>
+
+      <!-- 6. Drill vs live -->
+      <section class="card" aria-labelledby="note-title">
+        <h2 id="note-title">How to read this screen</h2>
+        <p class="small muted" style="margin: 0">
+          Nodes send batches over HTTP. The receiver only queues them (fast reply), validator threads check
+          every record in parallel, and a single DB writer thread saves them in groups. Every record is
+          accounted for: <strong>received = stored + duplicates + rejected</strong>. Stress-test (drill)
+          data is stored but not analyzed. The analytics re-run in a pool of worker processes whenever new
+          cases arrive.
+        </p>
+      </section>
+    </div>
+
+    <!-- 7. Nodes -->
+    <section class="card" aria-labelledby="nodes-title">
+      <div class="card-header">
+        <h2 id="nodes-title">BHS nodes</h2>
+        <span id="nodes-count" class="muted small"></span>
+      </div>
+      <div id="nodes" class="node-grid"></div>
+      <p id="nodes-empty" class="empty">No nodes yet. They appear here as soon as a classmate starts a station.</p>
+    </section>
+  </main>
+
+  <script type="module" src="/js/monitor/main.js"></script>
+</body>
+</html>

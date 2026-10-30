@@ -168,6 +168,7 @@ Example `ALERT`:
 |---|---|---|
 | `GET` | `/api/config` | Disease rules + barangay list (shared by both generators and the dropdown) |
 | `GET` | `/api/barangays` | Barangay list for the dropdown |
+| `GET` | `/api/server/addresses` | This server's LAN IPv4 addresses and port, shown on the System Monitor as the join address |
 | `GET` | `/api/batches/{batch_id}` | Batch status: `PENDING` (not stored yet) or `STORED` with counts |
 | `GET` | `/api/monitor/stats` | Pipeline counters and queue depths (polling version of `/ws/monitor`) |
 | `GET` | `/api/analytics` | Last analytics run: workers, cases read, map/reduce time |
@@ -208,10 +209,11 @@ The RHU sends one `MONITOR` message on connect, then one every second. The monit
   "type": "MONITOR",
   "at": "2026-11-18T01:15:03.120+00:00",
   "pipeline": {
-    "batches_received": 200, "batches_busy": 0, "batches_stored": 200, "batches_resent": 0,
+    "batches_received": 200, "batches_busy": 0, "batches_stored": 200, "batches_resent": 0, "records_received": 20000,
     "records_accepted": 20000, "records_duplicate": 0, "records_rejected": 0,
-    "ingest_queue": 0, "write_queue": 0, "validator_threads": 4, "records_per_second": 12401.6
+    "ingest_queue": 0, "write_queue": 0, "queue_capacity": 1000, "validator_threads": 4, "records_per_second": 12401.6
   },
+  "analytics": { "workers": 4, "partitions": 26, "cases": 18472, "rows": 31200, "map_seconds": 0.39, "reduce_seconds": 0.21, "total_seconds": 0.6, "finished_at": "2026-10-30T09:18:36.410+00:00" },
   "nodes": [
     { "node_id": "BRGY-08-K7QX", "barangay_id": "BRGY-08", "status": "ONLINE", "pending_batches": 0 }
   ]

@@ -54,6 +54,8 @@ class PipelineStats:
     batches_busy: int = 0  # refused with 503 because the queue was full
     batches_stored: int = 0
     batches_resent: int = 0  # a batch that was already stored arrived again
+    # Once the queues are empty: records_received = accepted + duplicate + rejected (nothing lost).
+    records_received: int = 0
     records_accepted: int = 0
     records_duplicate: int = 0
     records_rejected: int = 0
@@ -118,7 +120,7 @@ class IngestPipeline:
         except queue.Full:
             self.stats.add(batches_busy=1)
             raise PipelineBusy from None
-        self.stats.add(batches_received=1)
+        self.stats.add(batches_received=1, records_received=len(batch.records))
         return self._ingest_queue.qsize()
 
     def snapshot(self) -> dict:
@@ -127,6 +129,7 @@ class IngestPipeline:
             **self.stats.snapshot(),
             "ingest_queue": self._ingest_queue.qsize(),
             "write_queue": self._write_queue.qsize(),
+            "queue_capacity": self._ingest_queue.maxsize,
             "validator_threads": self._worker_count,
         }
 
@@ -209,7 +212,9 @@ class IngestPipeline:
         # Count and notify only after the commit, so STORED always means the data is safe on disk.
         for node_id, message, resent in messages:
             if resent:
-                self.stats.add(batches_resent=1)
+                # Every record of a resent batch is already stored, so all of them count as duplicates.
+                batch_size = message["accepted"] + message["duplicates"] + len(message["rejected"])
+                self.stats.add(batches_resent=1, records_duplicate=batch_size)
             else:
                 self.stats.add(
                     batches_stored=1,

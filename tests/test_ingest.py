@@ -89,7 +89,10 @@ def test_resent_batch_is_not_stored_twice(db_path):
     assert [m["accepted"] for m in stored] == [5, 5]
     assert count(db_path, "cases") == 5
     assert count(db_path, "batches") == 1
-    assert pipeline.stats.snapshot()["batches_resent"] == 1
+    stats = pipeline.stats.snapshot()
+    assert stats["batches_resent"] == 1
+    assert stats["records_received"] == 10
+    assert (stats["records_accepted"], stats["records_duplicate"]) == (5, 5)
 
 
 def test_full_queue_refuses_new_batches(db_path):
@@ -122,5 +125,20 @@ def test_burst_from_40_nodes_loses_nothing(db_path):
     assert count(db_path, "batches") == 200
     assert len(stored) == 200
     stats = pipeline.stats.snapshot()
-    assert stats["records_accepted"] == 20_000
+    assert stats["records_accepted"] == stats["records_received"] == 20_000
     assert stats["batches_busy"] == 0
+
+
+def test_every_received_record_is_accounted_for(db_path):
+    """The System Monitor's zero-loss check: received = accepted + duplicate + rejected."""
+    record = make_record()
+    batches = [
+        make_batch(NODE, records=[record, make_record(disease_code="XYZ"), make_record()]),
+        make_batch(NODE, records=[record]),  # duplicate record in a new batch
+    ]
+    batches.append(batches[0])  # the same batch resent
+    pipeline, _ = run(db_path, batches)
+
+    s = pipeline.stats.snapshot()
+    assert s["records_received"] == 7
+    assert s["records_received"] == s["records_accepted"] + s["records_duplicate"] + s["records_rejected"]
