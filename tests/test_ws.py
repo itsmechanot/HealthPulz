@@ -3,6 +3,7 @@
 import pytest
 from fastapi import WebSocketDisconnect
 
+from rhu.history import import_history
 from tests.factories import NODE, make_batch
 
 
@@ -69,6 +70,12 @@ def test_monitor_shows_connected_node_online(registered):
         "node_id": NODE, "barangay_id": "BRGY-08", "status": "ONLINE", "pending_batches": 3,
     }
     assert {"records_per_second", "ingest_queue", "validator_threads"} <= snapshot["pipeline"].keys()
+
+
+def test_monitor_lists_only_live_nodes(registered):
+    import_history(registered.app.state.db_path, years=1)
+    with registered.websocket_connect("/ws/monitor") as monitor:
+        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [NODE]
 
 
 def test_monitor_shows_registered_but_unconnected_node_offline(registered):

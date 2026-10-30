@@ -127,4 +127,5 @@ def _set_node_status(db_path: Path, node_id: str, status: str) -> None:
 
 def _registered_nodes(db_path: Path) -> list[tuple[str, str]]:
     with closing(db.connect(db_path)) as conn:
-        return [tuple(row) for row in conn.execute("SELECT node_id, barangay_id FROM nodes ORDER BY node_id")]
+        rows = conn.execute("SELECT node_id, barangay_id FROM nodes WHERE kind = 'LIVE' ORDER BY node_id")
+        return [tuple(row) for row in rows]

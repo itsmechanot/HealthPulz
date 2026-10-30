@@ -15,6 +15,8 @@ rhu/             RHU server (FastAPI)
   schema.sql     Database schema (SQLite, WAL mode)
   api.py         HTTP endpoints
   ingest.py      Ingestion pipeline (queues, validator threads, DB writer thread)
+  synthetic.py   Synthetic case generator (Python twin of the node page's generator)
+  history.py     Imports synthetic past data (python -m rhu.history)
   hub.py         Live WebSocket connections (nodes, monitors) and node presence
   ws.py          WebSocket endpoints and the System Monitor feed
   db.py          Database connection and setup
@@ -48,6 +50,16 @@ uvicorn rhu.main:app --host 0.0.0.0 --port 8000 --reload
 - API docs: http://localhost:8000/docs
 - The database is created automatically at `var/healthpulz.db` (override with the `HEALTHPULZ_DB` environment variable).
 - `--host 0.0.0.0` lets classmates' devices on the same network connect.
+
+## Load past (synthetic) data
+
+Outbreak thresholds compare this week with the same week in past years, so load the history once:
+
+```powershell
+python -m rhu.history
+```
+
+Run it again any time to replace the history; live data from nodes is kept. See [synthetic data rules](docs/synthetic-data.md).
 
 ## Run the tests
 

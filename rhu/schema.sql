@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS nodes (
   barangay_id   TEXT NOT NULL REFERENCES barangays(barangay_id),
   registered_at TEXT NOT NULL,
   last_seen_at  TEXT,
-  status        TEXT NOT NULL DEFAULT 'OFFLINE'   -- ONLINE | OFFLINE
+  status        TEXT NOT NULL DEFAULT 'OFFLINE',  -- ONLINE | OFFLINE
+  kind          TEXT NOT NULL DEFAULT 'LIVE'      -- LIVE (a real node) | HISTORY (imported past data)
 );
 
 CREATE TABLE IF NOT EXISTS diseases (
@@ -62,6 +63,7 @@ CREATE TABLE IF NOT EXISTS cases (
 );
 CREATE INDEX IF NOT EXISTS idx_cases_brgy_disease_date ON cases(barangay_id, disease_code, onset_date);
 CREATE INDEX IF NOT EXISTS idx_cases_disease_date      ON cases(disease_code, onset_date);
+CREATE INDEX IF NOT EXISTS idx_cases_node              ON cases(node_id);
 
 -- Output of the parallel analytics (process pool). Dashboards read this
 -- instead of scanning every case.

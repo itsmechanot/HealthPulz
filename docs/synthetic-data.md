@@ -101,6 +101,19 @@ Outbreaks are added on purpose so the alert system has something to detect:
 
 Both the Python and JS generators read the **same rules file** (`diseases.json`, served at `GET /api/config`), so they can't drift apart.
 
+### Running the history backfill
+
+```powershell
+python -m rhu.history                # 3 past years + this year up to last week (seed 42)
+python -m rhu.history --scale 50     # ~930,000 cases, for the speedup benchmark
+```
+
+- History covers ISO week 1 of three years ago up to **last week**. The current week is left for live data from the nodes.
+- It is stored under one `HISTORY` node per barangay (e.g. `BRGY-08-HIST`). These nodes are hidden from the System Monitor.
+- Running it again **replaces** the previous history. Live data sent by nodes is never touched.
+- The command prints the injected outbreaks, which the docs team can use as the "expected answers" when checking that alerts fire correctly.
+- Reference run (seed 42, scale 1): 199 weeks, ~18,500 cases, 16 injected outbreaks, under 1 second. Scale 50: ~930,000 cases in ~50 seconds.
+
 ---
 
 ## 6. Alert thresholds

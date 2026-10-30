@@ -33,7 +33,22 @@ def init_db(db_path: Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with closing(connect(db_path)) as conn:
         conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+        add_missing_columns(conn)
         seed_reference_data(conn)
+
+
+# Columns added after the first schema version. CREATE TABLE IF NOT EXISTS
+# doesn't change existing tables, so older databases get them here.
+_ADDED_COLUMNS = [
+    ("nodes", "kind", "TEXT NOT NULL DEFAULT 'LIVE'"),
+]
+
+
+def add_missing_columns(conn: sqlite3.Connection) -> None:
+    for table, column, definition in _ADDED_COLUMNS:
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def seed_reference_data(conn: sqlite3.Connection) -> None:
