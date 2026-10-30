@@ -1,19 +1,7 @@
 """Tests for the batch endpoints (HTTP side of the ingestion pipeline)."""
 
-import time
-
 from rhu.ingest import PipelineBusy
-from tests.factories import NODE, make_batch
-
-
-def wait_for_stored(client, batch_id, timeout=5.0):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        body = client.get(f"/api/batches/{batch_id}").json()
-        if body["status"] == "STORED":
-            return body
-        time.sleep(0.02)
-    raise AssertionError(f"batch {batch_id} was not stored within {timeout}s")
+from tests.factories import NODE, make_batch, wait_for_stored
 
 
 def test_batch_is_received_then_stored(registered):

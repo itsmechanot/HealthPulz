@@ -37,14 +37,15 @@ async def node_socket(ws: WebSocket, node_id: str) -> None:
         joined = True
         await asyncio.to_thread(_set_node_status, db_path, node_id, "ONLINE")
         await ws.send_json({"type": "WELCOME", "node_id": node_id})
+        await ws.app.state.alerts.send_pending(node_id)  # alerts it missed while offline
 
         while True:
             message = await ws.receive_json()
             match _type(message):
                 case "HEARTBEAT":
                     hub.heartbeat(node_id, _pending_batches(message))
-                case "ALERT_ACK":
-                    pass  # recorded in alert_deliveries once alerts are implemented
+                case "ALERT_ACK" if isinstance(message.get("alert_id"), str):
+                    await ws.app.state.alerts.acknowledge(message["alert_id"], node_id)
                 case _:
                     await ws.send_json({"type": "ERROR", "reason": "UNKNOWN_TYPE"})
     except WebSocketDisconnect:

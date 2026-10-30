@@ -11,6 +11,7 @@ Thresholds compare a week with the same ISO week ±1 in up to 5 previous years
     alert    = mean + 2·SD
     epidemic = mean + 3·SD
 A threshold needs at least 2 previous years of data; otherwise it is NULL.
+Cases from drill (stress-test) batches are left out.
 
 Separate processes (not threads) are used because the map step is CPU-bound
 Python, and Python's GIL lets only one thread run Python code at a time.
@@ -23,6 +24,7 @@ import statistics
 import threading
 import time
 from collections import Counter
+from collections.abc import Awaitable, Callable
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import closing
 from dataclasses import asdict, dataclass
@@ -132,7 +134,11 @@ def _map_barangay(db_path: str, barangay_id: str, diseases: list[str], weeks: li
     uri = Path(db_path).as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True)) as conn:
         for disease_code, onset in conn.execute(
-            "SELECT disease_code, onset_date FROM cases WHERE barangay_id = ?", (barangay_id,)
+            """
+            SELECT disease_code, onset_date FROM cases
+            WHERE barangay_id = ? AND batch_id NOT IN (SELECT batch_id FROM batches WHERE drill = 1)
+            """,
+            (barangay_id,),
         ):
             day = date.fromisoformat(onset)
             counts[disease_code, day - timedelta(days=day.weekday())] += 1
@@ -175,8 +181,13 @@ def _weeks_in_year(year: int) -> int:
 
 # ---- scheduler (runs in the server) ---------------------------------------------
 
-async def run_when_cases_change(analytics: Analytics, interval: float) -> None:
-    """Background task: re-run the analytics whenever cases were added or replaced."""
+async def run_when_cases_change(
+    analytics: Analytics,
+    interval: float,
+    after_run: Callable[[AnalyticsResult], Awaitable[object]] | None = None,
+) -> None:
+    """Background task: re-run the analytics whenever cases were added or replaced,
+    then call `after_run` (used to check for outbreak alerts)."""
     last_signature = None
     while True:
         try:
@@ -185,6 +196,8 @@ async def run_when_cases_change(analytics: Analytics, interval: float) -> None:
                 result = await asyncio.to_thread(analytics.run)
                 last_signature = signature
                 log.info("Analytics: %d cases in %.2fs with %d worker(s)", result.cases, result.total_seconds, result.workers)
+                if after_run is not None:
+                    await after_run(result)
         except Exception:
             log.exception("Analytics run failed; will retry")
         await asyncio.sleep(interval)

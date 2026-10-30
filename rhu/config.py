@@ -22,7 +22,10 @@ RETRY_AFTER_SECONDS = 2  # sent to nodes with 503 when the ingest queue is full
 
 # Analytics process pool
 ANALYTICS_WORKERS = int(os.environ.get("HEALTHPULZ_ANALYTICS_WORKERS", min(4, os.cpu_count() or 1)))
-ANALYTICS_INTERVAL_SECONDS = 30  # how often the server checks for new cases to analyze
+ANALYTICS_INTERVAL_SECONDS = 10  # how often the server checks for new cases to analyze
+
+# Alerts
+MIN_ALERT_CASES = 3  # fewer cases never raise a threshold alert (cuts false alarms; see docs/analytics.md)
 
 # WebSockets
 HEARTBEAT_TIMEOUT_SECONDS = 30  # a node with no heartbeat for this long is OFFLINE

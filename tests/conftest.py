@@ -9,7 +9,8 @@ from tests.factories import NODE
 def client(tmp_path):
     """A test client backed by a fresh, temporary database."""
     # One analytics worker: starting worker processes is slow on Windows (test_analytics covers the pool).
-    app = create_app(tmp_path / "test.db", analytics_workers=1)
+    # A long interval keeps the scheduler to its startup run; tests trigger runs via POST /api/analytics/run.
+    app = create_app(tmp_path / "test.db", analytics_workers=1, analytics_interval=3600)
     with TestClient(app) as c:  # the context manager runs the startup (init_db)
         yield c
 

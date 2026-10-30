@@ -1,5 +1,6 @@
-"""Builders for protocol messages used across the tests."""
+"""Builders for protocol messages and other helpers used across the tests."""
 
+import time
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
@@ -29,3 +30,13 @@ def make_batch(node_id: str = NODE, records: list[dict] | None = None, count: in
         "sent_at": datetime.now(timezone.utc).isoformat(),
         "records": records if records is not None else [make_record() for _ in range(count)],
     }
+
+
+def wait_for_stored(client, batch_id, timeout=5.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        body = client.get(f"/api/batches/{batch_id}").json()
+        if body["status"] == "STORED":
+            return body
+        time.sleep(0.02)
+    raise AssertionError(f"batch {batch_id} was not stored within {timeout}s")

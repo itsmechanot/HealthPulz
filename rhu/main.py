@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from rhu import api, config, db, ws
+from rhu.alerts import AlertService
 from rhu.analytics import Analytics, run_when_cases_change
 from rhu.hub import Hub
 from rhu.ingest import IngestPipeline
@@ -40,12 +41,18 @@ def create_app(
         pipeline = IngestPipeline(db_path, on_stored=hub.send_to_node_threadsafe)
         pipeline.start()
         analytics = Analytics(db_path, workers=analytics_workers)
+        alerts = AlertService(db_path, hub)
         app.state.hub = hub
         app.state.pipeline = pipeline
         app.state.analytics = analytics
+        app.state.alerts = alerts
+
+        async def check_alerts(_result) -> None:
+            await alerts.check_and_publish()
+
         background = [
             asyncio.create_task(ws.monitor_feed(app)),
-            asyncio.create_task(run_when_cases_change(analytics, analytics_interval)),
+            asyncio.create_task(run_when_cases_change(analytics, analytics_interval, after_run=check_alerts)),
         ]
 
         yield

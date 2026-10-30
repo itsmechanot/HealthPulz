@@ -29,11 +29,12 @@ cases table ──►  ├─ worker process 2: Brgy. Anislagan  ─┤ ──�
 
 - **Partitioning:** one task per barangay (26 tasks). Workers take tasks one at a time (`chunksize=1`), so a worker that finishes a small barangay immediately takes the next. This is **dynamic load balancing**: barangays differ a lot in size (Caraycaray 6,800 vs Libtong 1,550).
 - **Processes, not threads:** the map step is CPU-bound Python code. Python's GIL lets only one *thread* run Python code at a time, so threads would not speed it up. Separate *processes* each have their own interpreter and run truly in parallel on different CPU cores.
+- **Drill data is skipped:** cases from batches marked `drill` (stress tests) are not read.
 - **No shared memory:** each worker opens its own read-only database connection and returns its results as a message (the rows). Only the main process writes.
 - **The pool is created once** when the server starts and reused, because starting processes is slow (about a second on Windows).
 
 ### When it runs
-The server re-runs the analytics automatically every 30 s **if cases changed** (new batches stored, or history re-imported). It can also be triggered with `POST /api/analytics/run`. `GET /api/analytics` and the System Monitor feed show the last run: worker count, cases read, map time and reduce time.
+The server re-runs the analytics automatically every 10 s **if cases changed** (new batches stored, or history re-imported), then checks for outbreak alerts (see [protocol.md](protocol.md#alerts)). It can also be triggered with `POST /api/analytics/run`. `GET /api/analytics` and the System Monitor feed show the last run: worker count, cases read, map time and reduce time.
 
 ## Benchmark results
 

@@ -50,6 +50,7 @@ async def send_batch(client: httpx.AsyncClient, node_id: str, records: int, stat
         "batch_id": str(uuid.uuid4()),
         "sent_at": datetime.now(timezone.utc).isoformat(),
         "records": [random_record() for _ in range(records)],
+        "drill": True,  # load-test data must not raise outbreak alerts
     }
     while True:
         res = await client.post("/api/batches", json=batch)

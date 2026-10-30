@@ -3,15 +3,15 @@
 import asyncio
 import sqlite3
 from collections.abc import Iterator
-
+from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from rhu import db, rules
 from rhu.config import PROTOCOL_VERSION, RETRY_AFTER_SECONDS
 from rhu.ingest import IngestPipeline, PipelineBusy
-from rhu.models import RegisterRequest, RegisterResponse, SubmitBatch
+from rhu.models import AlertStatusUpdate, RegisterRequest, RegisterResponse, SubmitBatch
 
 router = APIRouter(prefix="/api")
 
@@ -106,9 +106,43 @@ def analytics_status(request: Request) -> dict:
 
 @router.post("/analytics/run")
 async def run_analytics(request: Request) -> dict:
-    """Run the analytics now instead of waiting for the scheduler."""
+    """Run the analytics (and alert detection) now instead of waiting for the scheduler."""
     result = await asyncio.to_thread(request.app.state.analytics.run)
-    return {"last_run": result.to_dict()}
+    alerts = await request.app.state.alerts.check_and_publish()
+    return {"last_run": result.to_dict(), "alerts_sent": len(alerts)}
+
+
+@router.get("/alerts")
+def list_alerts(
+    status: Literal["OPEN", "ACKNOWLEDGED", "RESOLVED"] | None = None,
+    limit: int = Query(default=100, ge=1, le=1000),
+    conn: sqlite3.Connection = Depends(get_conn),
+) -> list[dict]:
+    """Newest first, with how many nodes received and acknowledged each alert."""
+    rows = conn.execute(
+        """
+        SELECT a.*,
+               COUNT(d.delivered_at) AS nodes_delivered,
+               COUNT(d.acked_at) AS nodes_acknowledged
+        FROM alerts a LEFT JOIN alert_deliveries d ON d.alert_id = a.alert_id
+        WHERE ? IS NULL OR a.status = ?
+        GROUP BY a.alert_id
+        ORDER BY a.created_at DESC
+        LIMIT ?
+        """,
+        (status, status, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.post("/alerts/{alert_id}/status")
+def update_alert_status(alert_id: str, update: AlertStatusUpdate, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    """RHU staff: acknowledge or resolve an alert."""
+    with conn:
+        changed = conn.execute("UPDATE alerts SET status = ? WHERE alert_id = ?", (update.status, alert_id)).rowcount
+    if not changed:
+        raise HTTPException(status_code=404, detail="Unknown alert_id")
+    return {"alert_id": alert_id, "status": update.status}
 
 
 @router.get("/monitor/stats")

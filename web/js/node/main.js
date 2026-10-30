@@ -179,6 +179,7 @@ function setupGenerator(config, identity, barangay, sender) {
       batch_id: uuid4(),
       sent_at: new Date().toISOString(),
       records: part,
+      drill: mode === "stress", // stress-test data is stored but not analyzed, so it can't trigger alerts
     }));
     await sender.enqueue(batches);
 
@@ -214,18 +215,29 @@ async function refreshPending() {
   $("stat-pending").textContent = pendingBatches;
 }
 
+const alertCards = new Map(); // alert_id -> card; an alert can arrive again (reconnect, escalation)
+
 function showAlert(alert, config) {
   const disease = config.diseases.find((d) => d.disease_code === alert.disease_code)?.name ?? alert.disease_code;
-  const card = document.createElement("div");
+  const where = alert.scope === "NEIGHBOR"
+    ? `Nearby: Brgy. ${config.barangays.find((b) => b.barangay_id === alert.barangay_id)?.name ?? alert.barangay_id}`
+    : "In your barangay";
+
+  const isNew = !alertCards.has(alert.alert_id);
+  const card = alertCards.get(alert.alert_id) ?? document.createElement("div");
   card.className = "alert-card";
   card.dataset.level = alert.level;
-  card.append(
+  card.replaceChildren(
     Object.assign(document.createElement("strong"), { textContent: `${alert.level}: ${disease}` }),
-    Object.assign(document.createElement("span"), { textContent: alert.message }),
+    Object.assign(document.createElement("span"), { className: "small muted", textContent: where }),
+    Object.assign(document.createElement("div"), { textContent: alert.message }),
   );
-  $("alerts").querySelector(".empty")?.remove();
-  $("alerts").prepend(card);
-  log(`Alert received: ${disease} (${alert.level})`, "error");
+  if (isNew) {
+    alertCards.set(alert.alert_id, card);
+    $("alerts").querySelector(".empty")?.remove();
+    $("alerts").prepend(card);
+  }
+  log(`${isNew ? "Alert received" : "Alert updated"}: ${disease} (${alert.level})`, "error");
 }
 
 function setConnectionState(state) {

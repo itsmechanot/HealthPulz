@@ -234,10 +234,10 @@ class IngestPipeline:
 
         conn.execute(
             """
-            INSERT INTO batches (batch_id, node_id, record_count, sent_at, received_at, status)
-            VALUES (?, ?, ?, ?, ?, 'STORED')
+            INSERT INTO batches (batch_id, node_id, record_count, sent_at, received_at, status, drill)
+            VALUES (?, ?, ?, ?, ?, 'STORED', ?)
             """,
-            (batch_id, batch.node_id, len(batch.records), batch.sent_at.isoformat(), item.received_at),
+            (batch_id, batch.node_id, len(batch.records), batch.sent_at.isoformat(), item.received_at, int(batch.drill)),
         )
         barangay_id = barangay_of(batch.node_id)
         cursor = conn.executemany(

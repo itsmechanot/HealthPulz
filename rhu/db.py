@@ -41,6 +41,7 @@ def init_db(db_path: Path) -> None:
 # doesn't change existing tables, so older databases get them here.
 _ADDED_COLUMNS = [
     ("nodes", "kind", "TEXT NOT NULL DEFAULT 'LIVE'"),
+    ("batches", "drill", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

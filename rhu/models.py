@@ -57,3 +57,8 @@ class SubmitBatch(BaseModel):
     batch_id: UUID
     sent_at: datetime
     records: list[CaseRecord] = Field(min_length=1, max_length=MAX_RECORDS_PER_BATCH)
+    drill: bool = False  # stress-test data: stored and counted, but left out of analytics and alerts
+
+
+class AlertStatusUpdate(BaseModel):
+    status: Literal["OPEN", "ACKNOWLEDGED", "RESOLVED"]

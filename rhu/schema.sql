@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS batches (
   sent_at       TEXT NOT NULL,
   received_at   TEXT NOT NULL,
   stored_at     TEXT,
-  status        TEXT NOT NULL                     -- QUEUED | STORED | FAILED
+  status        TEXT NOT NULL,                    -- QUEUED | STORED | FAILED
+  drill         INTEGER NOT NULL DEFAULT 0        -- 1 = stress-test data: stored, but not analyzed
 );
 
 -- record_id is the idempotency key: inserts use INSERT OR IGNORE.
@@ -91,6 +92,8 @@ CREATE TABLE IF NOT EXISTS alerts (
   status        TEXT NOT NULL DEFAULT 'OPEN',     -- OPEN | ACKNOWLEDGED | RESOLVED
   created_at    TEXT NOT NULL
 );
+-- One alert per barangay × disease × week (escalations update it).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_cell ON alerts(barangay_id, disease_code, iso_year, iso_week);
 
 CREATE TABLE IF NOT EXISTS alert_deliveries (
   alert_id      TEXT NOT NULL REFERENCES alerts(alert_id),

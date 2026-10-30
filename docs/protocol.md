@@ -63,6 +63,7 @@ Rules:
 - `batch_id` and `record_id` are UUID v4s created **on the node**. They make retries safe (idempotency). The node page builds them with `crypto.getRandomValues()`, because `crypto.randomUUID()` is unavailable on plain-HTTP LAN addresses such as `http://192.168.1.5:8000`.
 - At most **100 records per batch**.
 - **No names or addresses** are sent, only the purok number (Data Privacy Act of 2012).
+- Optional `"drill": true` marks **stress-test data**. It is validated, stored and counted like any batch, but **left out of the analytics**, so it can never raise an alert. The node page sets it in Stress test mode, and the load-test simulator always sets it.
 
 ### Two-stage acknowledgement
 
@@ -113,7 +114,7 @@ The bounded queue and the `503` response are **backpressure**: the server protec
 | RHU → Node | `WELCOME` | `node_id` |
 | Node → RHU | `HEARTBEAT` (every 10 s) | `node_id`, `pending_batches` |
 | RHU → Node | `STORED` | see above |
-| RHU → Node | `ALERT` | `alert_id`, `level`, `disease_code`, `barangay_id`, `message`, `observed`, `threshold` |
+| RHU → Node | `ALERT` | `alert_id`, `scope`, `level`, `disease_code`, `barangay_id`, `iso_year`, `iso_week`, `observed`, `threshold`, `message`, `created_at` |
 | Node → RHU | `ALERT_ACK` | `alert_id` |
 | RHU → Node | `ERROR` | `reason` (e.g. `UNKNOWN_TYPE`) |
 
@@ -125,21 +126,39 @@ A node with no heartbeat for **30 s**, or with no open connection, is shown as *
 
 **If the node is offline when its batch is stored**, the `STORED` message is not queued for later. The node recovers by checking `GET /api/batches/{batch_id}` or by resending (safe, see above).
 
+### Alerts
+
 Example `ALERT`:
 ```json
 {
   "type": "ALERT",
   "alert_id": "a91e…",
+  "scope": "LOCAL",
   "level": "ALERT",
   "disease_code": "DEN",
   "barangay_id": "BRGY-08",
-  "message": "Dengue cases in Caraycaray this week (14) exceed the alert threshold (6.2).",
-  "observed": 14,
-  "threshold": 6.2
+  "iso_year": 2026,
+  "iso_week": 43,
+  "observed": 9,
+  "threshold": 8.58,
+  "message": "Dengue cases in Brgy. Caraycaray in week 2026-W43: 9, above the alert threshold of 8.6.",
+  "created_at": "2026-10-30T08:04:12.511+00:00"
 }
 ```
 
-Alerts are sent to every node of the affected barangay **and** to the nodes of its neighboring barangays.
+**When alerts are raised:** after every analytics run (every 10 s when cases changed), the RHU checks the **previous and current ISO week**. Cases are often reported a few days after onset, so last week can still change.
+
+| Level | Condition |
+|---|---|
+| `EPIDEMIC` | count > epidemic threshold and count ≥ 3 |
+| `ALERT` | count > alert threshold and count ≥ 3 |
+| `ALERT` (measles) | any single case |
+
+**One alert per barangay × disease × week.** If the count keeps rising at the same level, the alert's count is updated quietly. It is sent again only if it **escalates** from `ALERT` to `EPIDEMIC`, with the same `alert_id`, so the node updates its card instead of adding a new one.
+
+**Who receives it:** every live node of the affected barangay (`scope: "LOCAL"`) and of its neighboring barangays (`scope: "NEIGHBOR"`).
+
+**Store-and-forward:** a node that is offline when an alert is raised receives it right after its next `WELCOME`, unless it already acknowledged it or the RHU marked it `RESOLVED`. Each delivery and each `ALERT_ACK` is recorded in `alert_deliveries`, so the RHU can see which stations have seen an alert.
 
 ---
 
@@ -151,6 +170,10 @@ Alerts are sent to every node of the affected barangay **and** to the nodes of i
 | `GET` | `/api/barangays` | Barangay list for the dropdown |
 | `GET` | `/api/batches/{batch_id}` | Batch status: `PENDING` (not stored yet) or `STORED` with counts |
 | `GET` | `/api/monitor/stats` | Pipeline counters and queue depths (polling version of `/ws/monitor`) |
+| `GET` | `/api/analytics` | Last analytics run: workers, cases read, map/reduce time |
+| `POST` | `/api/analytics/run` | Run analytics + alert detection now; returns the run and `alerts_sent` |
+| `GET` | `/api/alerts?status=OPEN&limit=100` | Alerts, newest first, with `nodes_delivered` and `nodes_acknowledged` |
+| `POST` | `/api/alerts/{alert_id}/status` | RHU staff: `{"status": "ACKNOWLEDGED" \| "RESOLVED" \| "OPEN"}` |
 | `WS` | `/ws/monitor` | Live stats for the System Monitor (see below) |
 
 ### System Monitor feed (`/ws/monitor`)
