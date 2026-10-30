@@ -20,6 +20,7 @@ def test_node_page_is_served(client):
     res = client.get("/node/")
     assert res.status_code == 200
     assert "/js/node/main.js" in res.text
+    assert "Trends from RHU Naval" in res.text
 
 
 def test_dashboard_page_is_served(client):

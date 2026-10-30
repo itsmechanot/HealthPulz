@@ -69,7 +69,7 @@ function pressGroup(selector, onPress) {
 
 async function refresh() {
   try {
-    summary = await getJson("/api/stats/summary");
+    summary = await api.fetchJson("/api/stats/summary");
     await Promise.all([renderCards(), renderAlerts(), renderTrend(), renderGrid()]);
     renderHeader();
     setConnection("online", "Live");
@@ -83,12 +83,6 @@ function renderAll() {
   renderCards();
   renderTrend();
   renderGrid();
-}
-
-async function getJson(url, options) {
-  const res = await fetch(url, options);
-  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
-  return res.json();
 }
 
 function setConnection(state, text) {
@@ -110,7 +104,7 @@ function renderHeader() {
 
 async function renderCards() {
   const trends = await Promise.all(
-    summary.diseases.map((d) => getJson(trendUrl(d.disease_code, state.barangay, SPARKLINE_WEEKS))),
+    summary.diseases.map((d) => api.fetchJson(api.trendUrl(d.disease_code, state.barangay, SPARKLINE_WEEKS))),
   );
   $("disease-cards").replaceChildren(
     ...summary.diseases.map((d, i) => {
@@ -147,7 +141,7 @@ async function renderCards() {
 
 async function renderAlerts() {
   const query = state.alertFilter === "RESOLVED" ? "?status=RESOLVED" : "";
-  let alerts = await getJson(`/api/alerts${query}`);
+  let alerts = await api.fetchJson(`/api/alerts${query}`);
   if (state.alertFilter === "active") alerts = alerts.filter((a) => a.status !== "RESOLVED");
 
   if (!alerts.length) {
@@ -164,7 +158,7 @@ function alertRow(alert) {
     const button = el("button", { type: "button", className: `btn btn-small ${primary ? "btn-primary" : "btn-ghost"}`, textContent: label });
     button.addEventListener("click", async () => {
       button.disabled = true;
-      await getJson(`/api/alerts/${alert.alert_id}/status`, {
+      await api.fetchJson(`/api/alerts/${alert.alert_id}/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -214,7 +208,7 @@ function alertRow(alert) {
 // ---- trend chart --------------------------------------------------------------------
 
 async function renderTrend() {
-  const data = await getJson(trendUrl(state.disease, state.barangay, state.weeks));
+  const data = await api.fetchJson(api.trendUrl(state.disease, state.barangay, state.weeks));
   const weeks = data.weeks;
   const withThresholds = Boolean(state.barangay);
   const series = [{ values: weeks.map((w) => w.cases), className: "series-accent" }];
@@ -243,7 +237,7 @@ async function renderTrend() {
 
 async function renderGrid() {
   const week = state.gridWeek === "current" ? summary.week : summary.previous_week;
-  const data = await getJson(`/api/stats/barangays?week=${week.label}`);
+  const data = await api.fetchJson(`/api/stats/barangays?week=${week.label}`);
   $("grid-title").textContent = `Barangays · ${week.label}${state.gridWeek === "current" ? " (so far)" : ""}`;
 
   $("grid-head").replaceChildren(
@@ -285,12 +279,6 @@ async function renderGrid() {
 }
 
 // ---- helpers -------------------------------------------------------------------------
-
-function trendUrl(disease, barangay, weeks) {
-  const params = new URLSearchParams({ disease, weeks });
-  if (barangay) params.set("barangay_id", barangay);
-  return `/api/stats/trend?${params}`;
-}
 
 const diseaseName = (code) => config.diseases.find((d) => d.disease_code === code)?.name ?? code;
 const barangayName = (id) => config.barangays.find((b) => b.barangay_id === id)?.name ?? id;

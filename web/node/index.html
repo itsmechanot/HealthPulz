@@ -89,6 +89,46 @@
           <ul id="log" class="log" aria-live="polite"></ul>
         </section>
       </div>
+
+      <section class="card" aria-labelledby="trends-title">
+        <div class="card-header">
+          <h2 id="trends-title">Trends from RHU Naval</h2>
+          <span id="trends-week" class="muted small"></span>
+        </div>
+        <p class="muted small" style="margin: 0">
+          Weekly totals shared by the RHU. Only aggregated counts are shared, never individual cases.
+        </p>
+        <div class="table-wrap">
+          <table class="heat">
+            <thead>
+              <tr>
+                <th scope="col">Disease</th>
+                <th scope="col">Your barangay<br><span class="small">this week</span></th>
+                <th scope="col">Naval<br><span class="small">this week</span></th>
+                <th scope="col">Naval<br><span class="small">last week</span></th>
+                <th scope="col">Barangays<br><span class="small">on alert</span></th>
+              </tr>
+            </thead>
+            <tbody id="trends-body"></tbody>
+          </table>
+        </div>
+
+        <div class="card-header">
+          <h3 id="trend-chart-title" class="small">Your barangay, last 12 weeks</h3>
+          <select id="trend-disease" aria-label="Disease to chart" style="width: auto"></select>
+        </div>
+        <div class="legend">
+          <span style="--swatch: var(--accent)">cases per week</span>
+          <span style="--swatch: var(--warn)">alert threshold</span>
+          <span style="--swatch: var(--danger)">epidemic threshold</span>
+        </div>
+        <div class="chart">
+          <svg id="trend-chart" role="img" style="height: 160px"></svg>
+          <span id="trend-scale" class="scale"></span>
+        </div>
+        <div id="trend-axis" class="axis"></div>
+        <p id="trends-note" class="muted small" style="margin: 0"></p>
+      </section>
     </div>
   </main>
 

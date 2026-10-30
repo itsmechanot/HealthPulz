@@ -1,5 +1,18 @@
 // Calls to the RHU server. The page is served by the RHU itself, so paths are relative.
 
+/** fetch + JSON; throws on network errors and non-2xx responses. */
+export async function fetchJson(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  return res.json();
+}
+
+export function trendUrl(disease, barangayId, weeks) {
+  const params = new URLSearchParams({ disease, weeks });
+  if (barangayId) params.set("barangay_id", barangayId);
+  return `/api/stats/trend?${params}`;
+}
+
 export async function getConfig() {
   const res = await fetch("/api/config");
   if (!res.ok) throw new Error(`Could not load config (HTTP ${res.status})`);

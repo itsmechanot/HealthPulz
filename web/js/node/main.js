@@ -7,6 +7,7 @@ import { NodeConnection } from "./connection.js";
 import { realisticWeek, stressRecords } from "./generator.js";
 import * as outbox from "./outbox.js";
 import { Sender } from "./sender.js";
+import { startTrendsPanel } from "./trends.js";
 
 const PROTOCOL_VERSION = 1;
 const MAX_RECORDS_PER_BATCH = 100;
@@ -82,6 +83,7 @@ async function startStation(config, identity, barangay) {
 
   const sender = new Sender(register);
   const connection = new NodeConnection(identity.node_id, () => pendingBatches);
+  const trends = startTrendsPanel(config, barangay);
 
   connection.addEventListener("status", ({ detail: state }) => {
     setConnectionState(state);
@@ -99,6 +101,7 @@ async function startStation(config, identity, barangay) {
       case "ALERT":
         showAlert(message, config);
         connection.send({ type: "ALERT_ACK", alert_id: message.alert_id });
+        trends.refreshSoon();
         break;
       case "ERROR":
         log(`RHU error: ${message.reason}`, "error");
@@ -111,7 +114,10 @@ async function startStation(config, identity, barangay) {
     rhuReachable = true;
     log(`Batch ${shortId(batch.batch_id)} received by RHU (${batch.records.length} cases)`);
   });
-  sender.addEventListener("stored", ({ detail: message }) => recordStored(message));
+  sender.addEventListener("stored", ({ detail: message }) => {
+    recordStored(message);
+    trends.refreshSoon();
+  });
   sender.addEventListener("busy", ({ detail: seconds }) => log(`RHU is busy, retrying in ${seconds}s`));
   sender.addEventListener("offline", () => {
     if (rhuReachable) log("Cannot reach the RHU. Batches are kept and will be sent automatically.", "error");

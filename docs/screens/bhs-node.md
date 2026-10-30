@@ -74,8 +74,20 @@ Time-stamped lines, newest first, kept to the last 100:
 
 Errors use the danger color, confirmations the OK color. On a phone this could be collapsed by default.
 
-## Planned addition: municipal trends panel
-The original idea includes **barangays seeing RHU data**. Planned for this page: a small panel with **Naval-wide cases per disease this week vs last week** (`GET /api/stats/summary`) and **this barangay's trend** (`GET /api/stats/trend?barangay_id=…`). It shows aggregates only, never individual cases. Please leave room for it in the design.
+#### Trends from RHU Naval
+This is the part of the system where **barangays see RHU data**.
+
+| Part | Content |
+|---|---|
+| Header | "Trends from RHU Naval" + the weeks compared, e.g. `2026-W44 (so far) vs 2026-W43` |
+| Privacy line | "Weekly totals shared by the RHU. Only aggregated counts are shared, never individual cases." Keep it visible; it answers the obvious defense question. |
+| Table (6 rows) | Disease · **Your barangay this week** (cell colored if on ALERT/EPIDEMIC) · **Naval this week** · **Naval last week** · **Barangays on alert** (`–` when none) |
+| Chart | Your barangay, **one disease, last 12 weeks**: cases (solid) + alert threshold + epidemic threshold (dashed). The disease is chosen with a dropdown **or by clicking a table row** (the selected row is outlined). |
+| Updates | Every 30 s, and about 11 s after this station's data is stored or an alert arrives (the RHU analyzes new data every 10 s) |
+| Error state | "Trends will update when the RHU can be reached again." |
+| Phone | The table scrolls sideways inside the card; consider a compact list instead |
+
+Data: `GET /api/stats/summary`, `GET /api/stats/barangays?week=…`, `GET /api/stats/trend?disease=…&barangay_id=…&weeks=12`.
 
 ## Color meanings (same as the other screens)
 OK = online / confirmed · Warning = ALERT, connecting · Danger = EPIDEMIC, offline, errors · Accent = primary button, selected mode.
