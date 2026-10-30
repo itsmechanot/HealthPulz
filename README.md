@@ -30,6 +30,7 @@ web/             Web pages served by the RHU (plain HTML/CSS/JS, no build step)
   js/common/     API calls and ID helpers shared by all pages
   node/          BHS Node page
   monitor/       System Monitor page
+  dashboard/     RHU Dashboard page
   js/node/       BHS Node logic: generator, offline outbox, WebSocket, sender
 tests/           Automated tests (pytest)
 tools/           Developer tools (node simulator / load test)
@@ -52,6 +53,7 @@ uvicorn rhu.main:app --host 0.0.0.0 --port 8000 --reload
 - Home page: http://localhost:8000/
 - BHS Node page: http://localhost:8000/node/ (classmates use `http://<your-laptop-IP>:8000/node/`)
 - System Monitor: http://localhost:8000/monitor/ (shows the join address for classmates)
+- RHU Dashboard: http://localhost:8000/dashboard/
 - API docs: http://localhost:8000/docs
 - The database is created automatically at `var/healthpulz.db` (override with the `HEALTHPULZ_DB` environment variable).
 - `--host 0.0.0.0` lets classmates' devices on the same network connect.
@@ -97,5 +99,5 @@ Reports time, speedup and efficiency per worker count. See [parallel analytics](
 - [Message protocol](docs/protocol.md)
 - [Synthetic data rules](docs/synthetic-data.md)
 - [Parallel analytics and benchmark](docs/analytics.md)
-- [Screen spec: System Monitor](docs/screens/system-monitor.md) (for the UI designer)
+- Screen specs for the UI designer: [System Monitor](docs/screens/system-monitor.md) · [RHU Dashboard](docs/screens/rhu-dashboard.md) · [BHS Node](docs/screens/bhs-node.md)
 - [Database schema](rhu/schema.sql)

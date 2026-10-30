@@ -22,6 +22,12 @@ def test_node_page_is_served(client):
     assert "/js/node/main.js" in res.text
 
 
+def test_dashboard_page_is_served(client):
+    res = client.get("/dashboard/")
+    assert res.status_code == 200
+    assert "/js/dashboard/main.js" in res.text
+
+
 def test_monitor_page_is_served(client):
     res = client.get("/monitor/")
     assert res.status_code == 200

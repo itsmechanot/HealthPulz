@@ -92,7 +92,7 @@ h2 { font-size: 1rem; }
   align-content: start;
 }
 
-.card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .muted { color: var(--text-muted); }
 .small { font-size: 0.85rem; }
 .mono { font-family: var(--mono); }
@@ -240,6 +240,74 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   content: ""; display: inline-block; width: 10px; height: 3px; margin-right: 5px; vertical-align: middle;
   background: var(--swatch);
 }
+
+.series-dashed { stroke-dasharray: 6 4; stroke-width: 1.5 !important; }
+.series-danger { stroke: var(--danger); }
+.axis { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
+
+/* ---- RHU Dashboard ---- */
+
+.page-title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+
+.disease-cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.disease-card {
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+.disease-card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.disease-card .stat-value { font-size: 1.7rem; }
+.disease-card svg { width: 100%; height: 32px; }
+.disease-card polyline { fill: none; stroke-width: 1.5; }
+
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.badge[data-level="ALERT"] { background: var(--warn-soft); color: var(--warn); }
+.badge[data-level="EPIDEMIC"] { background: var(--danger-soft); color: var(--danger); }
+.badge[data-level="RESOLVED"] { color: var(--ok); }
+
+.alert-list { display: grid; gap: 8px; }
+.alert-row {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warn);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+.alert-row[data-level="EPIDEMIC"] { border-left-color: var(--danger); }
+.alert-row[data-status="RESOLVED"] { border-left-color: var(--border); opacity: 0.75; }
+.alert-row .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn-small { padding: 4px 10px; font-size: 0.85rem; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls select { width: auto; }
+
+.table-wrap { overflow-x: auto; }
+table.heat { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+table.heat th, table.heat td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+table.heat th:first-child, table.heat td:first-child { text-align: left; }
+table.heat thead th { color: var(--text-muted); font-weight: 600; }
+table.heat tbody tr { cursor: pointer; }
+table.heat tbody tr:hover { background: var(--surface-2); }
+table.heat tbody tr[aria-selected="true"] { outline: 2px solid var(--accent); outline-offset: -2px; }
+table.heat td[data-level="ALERT"] { background: var(--warn-soft); color: var(--warn); font-weight: 700; }
+table.heat td[data-level="EPIDEMIC"] { background: var(--danger-soft); color: var(--danger); font-weight: 700; }
+table.heat td.zero { color: var(--text-muted); }
 
 /* ---- System Monitor ---- */
 

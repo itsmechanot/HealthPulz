@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HealthPulz · RHU Dashboard</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/css/base.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" style="text-decoration: none">
+      <span class="brand-name">HealthPulz</span>
+      <span class="brand-role">RHU Dashboard</span>
+    </a>
+    <span id="connection" class="pill" data-state="connecting" role="status">Loading…</span>
+  </header>
+
+  <main class="container" style="max-width: 1200px">
+    <!-- 1. Title and week -->
+    <section class="page-title">
+      <div>
+        <h1>Illness overview · Naval, Biliran</h1>
+        <span id="week-label" class="muted small"></span>
+      </div>
+      <span id="updated" class="muted small"></span>
+    </section>
+
+    <!-- 2. Disease cards -->
+    <section id="disease-cards" class="disease-cards" aria-label="Cases per disease, this week so far"></section>
+
+    <!-- 3. Active alerts -->
+    <section class="card" aria-labelledby="alerts-title">
+      <div class="card-header">
+        <h2 id="alerts-title">Alerts</h2>
+        <div class="segmented" role="group" aria-label="Show alerts">
+          <button type="button" data-alert-filter="active" aria-pressed="true">Active</button>
+          <button type="button" data-alert-filter="RESOLVED" aria-pressed="false">Resolved</button>
+          <button type="button" data-alert-filter="all" aria-pressed="false">All</button>
+        </div>
+      </div>
+      <div id="alerts" class="alert-list"></div>
+    </section>
+
+    <!-- 4. Trend chart -->
+    <section class="card" aria-labelledby="trend-title">
+      <div class="card-header">
+        <h2 id="trend-title">Trend</h2>
+        <div class="controls">
+          <label for="trend-barangay" class="small">Area</label>
+          <select id="trend-barangay"><option value="">All of Naval</option></select>
+          <label for="trend-weeks" class="small">Period</label>
+          <select id="trend-weeks">
+            <option value="12">12 weeks</option>
+            <option value="26" selected>26 weeks</option>
+            <option value="52">52 weeks</option>
+          </select>
+        </div>
+      </div>
+      <div class="legend" id="trend-legend">
+        <span style="--swatch: var(--accent)">cases per week</span>
+        <span class="threshold-legend" style="--swatch: var(--warn)">alert threshold</span>
+        <span class="threshold-legend" style="--swatch: var(--danger)">epidemic threshold</span>
+      </div>
+      <div class="chart">
+        <svg id="trend-chart" role="img" style="height: 220px"></svg>
+        <span id="trend-scale" class="scale"></span>
+      </div>
+      <div id="trend-axis" class="axis"></div>
+      <p id="trend-note" class="muted small" style="margin: 0"></p>
+    </section>
+
+    <!-- 5. Barangay table -->
+    <section class="card" aria-labelledby="grid-title">
+      <div class="card-header">
+        <h2 id="grid-title">Barangays</h2>
+        <div class="segmented" role="group" aria-label="Week">
+          <button type="button" data-grid-week="current" aria-pressed="true">This week</button>
+          <button type="button" data-grid-week="previous" aria-pressed="false">Last week</button>
+        </div>
+      </div>
+      <p class="muted small" style="margin: 0">Cases per disease. Colored cells are over the alert or epidemic threshold. Click a row to show that barangay's trend.</p>
+      <div class="table-wrap">
+        <table class="heat">
+          <thead><tr id="grid-head"></tr></thead>
+          <tbody id="grid-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/dashboard/main.js"></script>
+</body>
+</html>
