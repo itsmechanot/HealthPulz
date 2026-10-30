@@ -176,6 +176,30 @@ Example `ALERT`:
 | `POST` | `/api/alerts/{alert_id}/status` | RHU staff: `{"status": "ACKNOWLEDGED" \| "RESOLVED" \| "OPEN"}` |
 | `WS` | `/ws/monitor` | Live stats for the System Monitor (see below) |
 
+### Statistics (RHU dashboard and BHS nodes)
+
+These read `weekly_stats`, the output of the parallel analytics, so they return in ~10 ms. They return **aggregated weekly counts only, never individual cases**. That is why barangays may see municipal data without breaking the Data Privacy Act. Drill data is never included.
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/api/stats/summary` | Per disease: cases **this week (so far)** vs **last week**, % change, barangays with an open alert; total open alerts; when the analytics last ran |
+| `GET` | `/api/stats/trend?disease=DEN&barangay_id=BRGY-08&weeks=26` | Weekly counts, oldest first, up to the current week. Without `barangay_id` it covers the whole municipality; without `disease`, all diseases. Threshold lines are included only for one barangay **and** one disease (summing thresholds isn't statistically valid). |
+| `GET` | `/api/stats/barangays?week=2026-W44` | Every barangay × disease for one week (default: current): cases, thresholds, level (`NORMAL` / `ALERT` / `EPIDEMIC`, same rule as the alerts), barangay total and **rate per 10,000 people** (fair comparison of barangays of different sizes) |
+
+Example `GET /api/stats/summary` (shortened):
+```json
+{
+  "week": { "iso_year": 2026, "iso_week": 44, "label": "2026-W44", "start": "2026-10-26" },
+  "previous_week": { "iso_year": 2026, "iso_week": 43, "label": "2026-W43", "start": "2026-10-19" },
+  "diseases": [
+    { "disease_code": "DEN", "name": "Dengue", "this_week": 4, "last_week": 26, "change_pct": -84.6, "barangays_on_alert": 0 }
+  ],
+  "totals": { "this_week": 4, "last_week": 85 },
+  "open_alerts": 2,
+  "analyzed_at": "2026-10-30T08:41:07.204+00:00"
+}
+```
+
 ### System Monitor feed (`/ws/monitor`)
 
 The RHU sends one `MONITOR` message on connect, then one every second. The monitor page only listens.

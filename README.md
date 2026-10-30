@@ -17,6 +17,7 @@ rhu/             RHU server (FastAPI)
   ingest.py      Ingestion pipeline (queues, validator threads, DB writer thread)
   analytics.py   Parallel analytics: weekly counts and thresholds (process pool, MapReduce)
   alerts.py      Outbreak alert detection and delivery (store-and-forward)
+  stats.py       Read-only statistics for the dashboards (aggregates only)
   synthetic.py   Synthetic case generator (Python twin of the node page's generator)
   history.py     Imports synthetic past data (python -m rhu.history)
   hub.py         Live WebSocket connections (nodes, monitors) and node presence

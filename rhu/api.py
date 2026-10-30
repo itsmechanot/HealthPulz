@@ -3,12 +3,13 @@
 import asyncio
 import sqlite3
 from collections.abc import Iterator
+from datetime import date
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from rhu import db, rules
+from rhu import db, rules, stats
 from rhu.config import PROTOCOL_VERSION, RETRY_AFTER_SECONDS
 from rhu.ingest import IngestPipeline, PipelineBusy
 from rhu.models import AlertStatusUpdate, RegisterRequest, RegisterResponse, SubmitBatch
@@ -143,6 +144,49 @@ def update_alert_status(alert_id: str, update: AlertStatusUpdate, conn: sqlite3.
     if not changed:
         raise HTTPException(status_code=404, detail="Unknown alert_id")
     return {"alert_id": alert_id, "status": update.status}
+
+
+@router.get("/stats/summary")
+def stats_summary(request: Request, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+    """Municipal totals per disease, this week (so far) vs last week. Shared with every BHS node."""
+    analytics = request.app.state.analytics.last_result
+    return {**stats.summary(conn, date.today()), "analyzed_at": analytics.finished_at if analytics else None}
+
+
+@router.get("/stats/trend")
+def stats_trend(
+    disease: str | None = None,
+    barangay_id: str | None = None,
+    weeks: int = Query(default=26, ge=1, le=260),
+    conn: sqlite3.Connection = Depends(get_conn),
+) -> dict:
+    """Weekly counts for charts; whole municipality and/or all diseases when not given."""
+    if disease is not None and disease not in {d["disease_code"] for d in rules.diseases()}:
+        raise HTTPException(status_code=404, detail="Unknown disease")
+    if barangay_id is not None and barangay_id not in rules.barangays_by_id():
+        raise HTTPException(status_code=404, detail="Unknown barangay_id")
+    return {
+        "disease": disease,
+        "barangay_id": barangay_id,
+        "weeks": stats.trend(conn, weeks, disease, barangay_id),
+    }
+
+
+@router.get("/stats/barangays")
+def stats_barangays(
+    week: str | None = Query(default=None, pattern=r"^\d{4}-W\d{2}$", description="e.g. 2026-W44; default: current week"),
+    conn: sqlite3.Connection = Depends(get_conn),
+) -> dict:
+    """Every barangay × disease for one week, with levels (for the RHU heatmap table)."""
+    if week is None:
+        year, number = date.today().isocalendar()[:2]
+    else:
+        year, number = int(week[:4]), int(week[6:])
+        try:
+            date.fromisocalendar(year, number, 1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="No such ISO week") from None
+    return stats.barangay_grid(conn, year, number)
 
 
 @router.get("/monitor/stats")
