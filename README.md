@@ -1,4 +1,4 @@
-# HealthPulz
+# HealthPulz: A Distributed Disease Monitoring System for Barangay Health Centers
 
 Distributed disease surveillance for **RHU Naval, Biliran** and its 26 Barangay Health Stations (BHS).
 Each BHS acts as an independent node that sends case data to the RHU server. The RHU processes the data
@@ -20,6 +20,11 @@ rhu/             RHU server (FastAPI)
   db.py          Database connection and setup
   models.py      Protocol message models
   main.py        App entry point
+web/             Web pages served by the RHU (plain HTML/CSS/JS, no build step)
+  css/base.css   Shared styles
+  js/common/     API calls and ID helpers shared by all pages
+  node/          BHS Node page
+  js/node/       BHS Node logic: generator, offline outbox, WebSocket, sender
 tests/           Automated tests (pytest)
 tools/           Developer tools (node simulator / load test)
 ```
@@ -38,6 +43,8 @@ pip install -r requirements-dev.txt
 uvicorn rhu.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+- Home page: http://localhost:8000/
+- BHS Node page: http://localhost:8000/node/ (classmates use `http://<your-laptop-IP>:8000/node/`)
 - API docs: http://localhost:8000/docs
 - The database is created automatically at `var/healthpulz.db` (override with the `HEALTHPULZ_DB` environment variable).
 - `--host 0.0.0.0` lets classmates' devices on the same network connect.

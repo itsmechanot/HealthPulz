@@ -10,10 +10,28 @@ def register(client, node_id="BRGY-08-K7QX", barangay_id="BRGY-08"):
     )
 
 
-def test_root_redirects_to_docs(client):
-    res = client.get("/", follow_redirects=False)
-    assert res.status_code == 307
-    assert res.headers["location"] == "/docs"
+def test_root_serves_landing_page(client):
+    res = client.get("/")
+    assert res.status_code == 200
+    assert "BHS Node" in res.text
+
+
+def test_node_page_is_served(client):
+    res = client.get("/node/")
+    assert res.status_code == 200
+    assert "/js/node/main.js" in res.text
+
+
+def test_scripts_are_served_as_javascript(client):
+    # Browsers refuse ES module scripts with any other content type.
+    res = client.get("/js/node/main.js")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/javascript")
+
+
+def test_unknown_api_path_is_still_json_404(client):
+    res = client.get("/api/does-not-exist")
+    assert res.status_code == 404
 
 
 def test_health(client):

@@ -8,6 +8,7 @@ ROOT_DIR = PACKAGE_DIR.parent
 
 DATA_DIR = PACKAGE_DIR / "data"
 SCHEMA_PATH = PACKAGE_DIR / "schema.sql"
+WEB_DIR = ROOT_DIR / "web"
 DB_PATH = Path(os.environ.get("HEALTHPULZ_DB", ROOT_DIR / "var" / "healthpulz.db"))
 
 PROTOCOL_VERSION = 1

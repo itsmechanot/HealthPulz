@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HealthPulz · BHS Node</title>
+  <link rel="stylesheet" href="/css/base.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" style="text-decoration: none">
+      <span class="brand-name">HealthPulz</span>
+      <span class="brand-role">BHS Node</span>
+    </a>
+    <span id="connection" class="pill" data-state="offline" role="status">Offline</span>
+  </header>
+
+  <main class="container">
+    <!-- Step 1: choose a barangay -->
+    <section id="setup" class="card" hidden>
+      <h1>Choose your Barangay Health Station</h1>
+      <p class="muted small">This device will act as that barangay's node and send its cases to RHU Naval.</p>
+      <label for="barangay-input">Barangay</label>
+      <div class="combobox">
+        <input id="barangay-input" type="text" role="combobox" autocomplete="off"
+               aria-autocomplete="list" aria-expanded="false" aria-controls="barangay-list"
+               placeholder="Type to search, e.g. Caraycaray">
+        <ul id="barangay-list" role="listbox" aria-label="Barangays" hidden></ul>
+      </div>
+      <div><button id="start-btn" class="btn btn-primary" disabled>Start as this station</button></div>
+      <p id="setup-error" class="small" role="alert" style="color: var(--danger)"></p>
+    </section>
+
+    <!-- Step 2: the station -->
+    <div id="station" class="container" style="padding: 0" hidden>
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h1 id="station-name">—</h1>
+            <span class="muted small">Node <span id="node-id" class="mono"></span></span>
+          </div>
+          <button id="change-btn" class="btn btn-ghost">Change barangay</button>
+        </div>
+      </section>
+
+      <div class="grid-2">
+        <section class="card" aria-labelledby="generate-title">
+          <h2 id="generate-title">Generate cases</h2>
+          <div class="segmented" role="group" aria-label="Mode">
+            <button type="button" data-mode="realistic" aria-pressed="true">Realistic week</button>
+            <button type="button" data-mode="stress" aria-pressed="false">Stress test</button>
+          </div>
+
+          <div id="realistic-options">
+            <label class="check"><input id="outbreak-toggle" type="checkbox"> Simulate an outbreak</label>
+            <select id="outbreak-disease" aria-label="Outbreak disease" disabled></select>
+          </div>
+          <div id="stress-options" hidden>
+            <label for="stress-count">Number of cases</label>
+            <input id="stress-count" type="number" min="1" max="5000" value="500">
+          </div>
+
+          <div><button id="generate-btn" class="btn btn-primary">Generate &amp; Send</button></div>
+          <p id="generate-result" class="muted small"></p>
+        </section>
+
+        <section class="card" aria-labelledby="status-title">
+          <h2 id="status-title">Status</h2>
+          <div class="stats">
+            <div class="stat"><div id="stat-pending" class="stat-value">0</div><div class="stat-label">Batches waiting</div></div>
+            <div class="stat"><div id="stat-stored" class="stat-value">0</div><div class="stat-label">Cases stored</div></div>
+            <div class="stat"><div id="stat-duplicates" class="stat-value">0</div><div class="stat-label">Duplicates</div></div>
+            <div class="stat"><div id="stat-rejected" class="stat-value">0</div><div class="stat-label">Rejected</div></div>
+          </div>
+          <p class="muted small">Batches stay on this device until the RHU confirms they are stored, so nothing is lost if the connection drops.</p>
+        </section>
+      </div>
+
+      <div class="grid-2">
+        <section class="card" aria-labelledby="alerts-title">
+          <h2 id="alerts-title">Alerts from RHU</h2>
+          <div id="alerts" style="display: grid; gap: 8px"><p class="empty">No alerts yet.</p></div>
+        </section>
+
+        <section class="card" aria-labelledby="log-title">
+          <h2 id="log-title">Activity</h2>
+          <ul id="log" class="log" aria-live="polite"></ul>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/js/node/main.js"></script>
+</body>
+</html>

@@ -4,17 +4,23 @@ Run with:  uvicorn rhu.main:app --host 0.0.0.0 --port 8000
 """
 
 import asyncio
+import mimetypes
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from rhu import api, config, db, ws
 from rhu.hub import Hub
 from rhu.ingest import IngestPipeline
+
+# Python reads file types from the Windows registry, which can map .js to
+# text/plain. Browsers refuse to run module scripts served that way.
+mimetypes.add_type("text/javascript", ".js")
 
 
 def create_app(db_path: Path | None = None) -> FastAPI:
@@ -45,15 +51,13 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(api.router)
     app.include_router(ws.router)
 
-    # Temporary: point the root URL to the API docs until the web pages exist.
-    @app.get("/", include_in_schema=False)
-    def root() -> RedirectResponse:
-        return RedirectResponse(url="/docs")
-
     # The protocol defines malformed messages as 400 (FastAPI's default is 422).
     @app.exception_handler(RequestValidationError)
     async def malformed_message(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(status_code=400, content=jsonable_encoder({"detail": exc.errors()}))
+
+    # Web pages (BHS Node, dashboards). Mounted last so /api and /ws routes take priority.
+    app.mount("/", StaticFiles(directory=config.WEB_DIR, html=True), name="web")
 
     return app
 

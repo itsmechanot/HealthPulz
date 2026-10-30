@@ -60,7 +60,7 @@ Response:
 ```
 
 Rules:
-- `batch_id` and `record_id` are UUIDs created **on the node** (`crypto.randomUUID()`). They make retries safe (idempotency).
+- `batch_id` and `record_id` are UUID v4s created **on the node**. They make retries safe (idempotency). The node page builds them with `crypto.getRandomValues()`, because `crypto.randomUUID()` is unavailable on plain-HTTP LAN addresses such as `http://192.168.1.5:8000`.
 - At most **100 records per batch**.
 - **No names or addresses** are sent, only the purok number (Data Privacy Act of 2012).
 

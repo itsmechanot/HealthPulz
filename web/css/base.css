@@ -1,0 +1,234 @@
+/* HealthPulz shared styles: design tokens, layout and components. */
+
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --surface-2: #eef3f1;
+  --border: #d9e2df;
+  --text: #17211e;
+  --text-muted: #5b6b66;
+  --accent: #0f8a6c;
+  --accent-strong: #0b6e56;
+  --accent-soft: #dff3ec;
+  --ok: #1f8a4c;
+  --warn: #b7791f;
+  --warn-soft: #fdf3e1;
+  --danger: #c0392b;
+  --danger-soft: #fbe7e4;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 2px 8px rgb(0 0 0 / 0.04);
+  --font: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1513;
+    --surface: #17201d;
+    --surface-2: #1e2925;
+    --border: #2c3a35;
+    --text: #e6eeeb;
+    --text-muted: #94a59f;
+    --accent: #34c49c;
+    --accent-strong: #5bd6b3;
+    --accent-soft: #163a30;
+    --ok: #4cc47f;
+    --warn: #e0a84a;
+    --warn-soft: #3a2e17;
+    --danger: #ef6b5d;
+    --danger-soft: #3d1d1a;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* `display: grid` on .card would otherwise override the hidden attribute. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 var(--font);
+}
+
+h1, h2, h3 { line-height: 1.25; margin: 0; }
+h1 { font-size: 1.3rem; }
+h2 { font-size: 1rem; }
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand { display: flex; align-items: baseline; gap: 8px; }
+.brand-name { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
+.brand-role { color: var(--text-muted); font-size: 0.9rem; }
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.muted { color: var(--text-muted); }
+.small { font-size: 0.85rem; }
+.mono { font-family: var(--mono); }
+
+.grid-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+
+/* ---- form controls ---- */
+
+label { font-weight: 600; font-size: 0.9rem; }
+
+input[type="text"], input[type="number"], select {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-strong); }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.segmented button {
+  padding: 7px 14px;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.segmented button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+.check { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+
+/* ---- status pill ---- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pill[data-state="online"] { color: var(--ok); }
+.pill[data-state="connecting"] { color: var(--warn); }
+.pill[data-state="offline"] { color: var(--danger); }
+
+/* ---- stats ---- */
+
+.stats { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.stat { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.stat-value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-label { color: var(--text-muted); font-size: 0.8rem; }
+
+/* ---- lists ---- */
+
+.log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  display: grid;
+  gap: 4px;
+}
+.log li { display: flex; gap: 8px; }
+.log time { color: var(--text-muted); font-family: var(--mono); flex-shrink: 0; }
+.log .error { color: var(--danger); }
+.log .ok { color: var(--ok); }
+
+.alert-card {
+  border-left: 4px solid var(--warn);
+  background: var(--warn-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.alert-card[data-level="EPIDEMIC"] { border-color: var(--danger); background: var(--danger-soft); }
+.alert-card strong { display: block; }
+
+.empty { color: var(--text-muted); font-size: 0.9rem; }
+
+/* ---- combobox ---- */
+
+.combobox { position: relative; }
+.combobox [role="listbox"] {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.combobox [role="option"] { padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.combobox [role="option"][aria-selected="true"],
+.combobox [role="option"]:hover { background: var(--accent-soft); }
+.combobox .no-match { padding: 8px 10px; color: var(--text-muted); }
+
+/* ---- landing ---- */
+
+.links { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.link-card { text-decoration: none; color: inherit; }
+.link-card:hover { border-color: var(--accent); }
+.link-card[aria-disabled="true"] { opacity: 0.55; pointer-events: none; }
