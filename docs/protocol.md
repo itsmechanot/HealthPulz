@@ -114,7 +114,7 @@ The bounded queue and the `503` response are **backpressure**: the server protec
 | RHU → Node | `WELCOME` | `node_id` |
 | Node → RHU | `HEARTBEAT` (every 10 s) | `node_id`, `pending_batches` |
 | RHU → Node | `STORED` | see above |
-| RHU → Node | `ALERT` | `alert_id`, `scope`, `level`, `disease_code`, `barangay_id`, `iso_year`, `iso_week`, `observed`, `threshold`, `message`, `created_at` |
+| RHU → Node | `ALERT` | `alert_id`, `scope`, `acknowledged`, `level`, `disease_code`, `barangay_id`, `iso_year`, `iso_week`, `observed`, `threshold`, `message`, `created_at` |
 | Node → RHU | `ALERT_ACK` | `alert_id` |
 | RHU → Node | `ERROR` | `reason` (e.g. `UNKNOWN_TYPE`) |
 
@@ -134,6 +134,7 @@ Example `ALERT`:
   "type": "ALERT",
   "alert_id": "a91e…",
   "scope": "LOCAL",
+  "acknowledged": false,
   "level": "ALERT",
   "disease_code": "DEN",
   "barangay_id": "BRGY-08",
@@ -158,7 +159,7 @@ Example `ALERT`:
 
 **Who receives it:** every live node of the affected barangay (`scope: "LOCAL"`) and of its neighboring barangays (`scope: "NEIGHBOR"`).
 
-**Store-and-forward:** a node that is offline when an alert is raised receives it right after its next `WELCOME`, unless it already acknowledged it or the RHU marked it `RESOLVED`. Each delivery and each `ALERT_ACK` is recorded in `alert_deliveries`, so the RHU can see which stations have seen an alert.
+**Store-and-forward:** right after its `WELCOME`, a node receives every unresolved alert of the checked weeks that concerns it. Alerts it missed while offline come with `"acknowledged": false`; alerts it already acknowledged come again with `"acknowledged": true`, so a reloaded page can list them again **without** a new pop-up or vibration. Alerts the RHU marked `RESOLVED` are not sent. Each delivery and each `ALERT_ACK` is recorded in `alert_deliveries`, so the RHU can see which stations have seen an alert.
 
 ---
 

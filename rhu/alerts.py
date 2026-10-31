@@ -11,8 +11,10 @@ escalates from ALERT to EPIDEMIC.
 
 Delivery is store-and-forward: an alert goes to the nodes of the affected
 barangay (scope LOCAL) and of its neighboring barangays (scope NEIGHBOR).
-Nodes that are offline receive it when they reconnect (HELLO). Every delivery
-and acknowledgement is recorded in alert_deliveries.
+Nodes that are offline receive it when they reconnect (HELLO); alerts they had
+already acknowledged come again marked `acknowledged`, so they are listed but
+not announced twice. Every delivery and acknowledgement is recorded in
+alert_deliveries.
 """
 
 import asyncio
@@ -139,8 +141,9 @@ def recipients(db_path: Path, barangay_id: str) -> list[tuple[str, str]]:
     return [(r["node_id"], "LOCAL" if r["barangay_id"] == barangay_id else "NEIGHBOR") for r in rows]
 
 
-def pending_for_node(db_path: Path, node_id: str, today: date) -> list[tuple[dict, str]]:
-    """Unresolved alerts of the checked weeks that this node should see but hasn't acknowledged."""
+def alerts_for_node(db_path: Path, node_id: str, today: date) -> list[tuple[dict, str, bool]]:
+    """Unresolved alerts of the checked weeks that this node should see, as
+    (alert, scope, already acknowledged by this node)."""
     with closing(db.connect(db_path)) as conn:
         node = conn.execute("SELECT barangay_id FROM nodes WHERE node_id = ?", (node_id,)).fetchone()
         if node is None:
@@ -150,16 +153,16 @@ def pending_for_node(db_path: Path, node_id: str, today: date) -> list[tuple[dic
         weeks = weeks_to_check(today)
         rows = conn.execute(
             f"""
-            SELECT a.* FROM alerts a
+            SELECT a.*, d.acked_at IS NOT NULL AS acknowledged FROM alerts a
             LEFT JOIN alert_deliveries d ON d.alert_id = a.alert_id AND d.node_id = ?
-            WHERE a.status != 'RESOLVED' AND d.acked_at IS NULL
+            WHERE a.status != 'RESOLVED'
               AND a.barangay_id IN ({','.join('?' * len(relevant))})
               AND ((a.iso_year = ? AND a.iso_week = ?) OR (a.iso_year = ? AND a.iso_week = ?))
             ORDER BY a.created_at
             """,
             (node_id, *relevant, *weeks[0], *weeks[1]),
         ).fetchall()
-    return [(dict(r), "LOCAL" if r["barangay_id"] == own else "NEIGHBOR") for r in rows]
+    return [(dict(r), "LOCAL" if r["barangay_id"] == own else "NEIGHBOR", bool(r["acknowledged"])) for r in rows]
 
 
 def mark_delivered(db_path: Path, alert_id: str, node_ids: list[str]) -> None:
@@ -190,10 +193,11 @@ def acknowledge(db_path: Path, alert_id: str, node_id: str) -> bool:
         return False
 
 
-def to_message(alert: dict, scope: str) -> dict:
+def to_message(alert: dict, scope: str, acknowledged: bool = False) -> dict:
     return {
         "type": "ALERT",
         "scope": scope,
+        "acknowledged": acknowledged,
         **{key: alert[key] for key in (
             "alert_id", "level", "disease_code", "barangay_id", "iso_year", "iso_week",
             "observed", "threshold", "message", "created_at",
@@ -219,18 +223,20 @@ class AlertService:
         return alerts
 
     async def send_pending(self, node_id: str, today: date | None = None) -> None:
-        """Called when a node connects: deliver what it missed while offline."""
-        for alert, scope in await asyncio.to_thread(pending_for_node, self.db_path, node_id, today or date.today()):
-            await self._send(alert, [(node_id, scope)])
+        """Called when a node connects: alerts it missed while offline, plus the ones it already
+        acknowledged (marked as such), so a reloaded page still lists every current alert."""
+        alerts = await asyncio.to_thread(alerts_for_node, self.db_path, node_id, today or date.today())
+        for alert, scope, acknowledged in alerts:
+            await self._send(alert, [(node_id, scope)], acknowledged)
 
     async def acknowledge(self, alert_id: str, node_id: str) -> bool:
         return await asyncio.to_thread(acknowledge, self.db_path, alert_id, node_id)
 
-    async def _send(self, alert: dict, targets: list[tuple[str, str]]) -> None:
+    async def _send(self, alert: dict, targets: list[tuple[str, str]], acknowledged: bool = False) -> None:
         delivered = []
         for node_id, scope in targets:
             if self.hub.is_connected(node_id):
-                await self.hub.send_to_node(node_id, to_message(alert, scope))
+                await self.hub.send_to_node(node_id, to_message(alert, scope, acknowledged))
                 delivered.append(node_id)
         if delivered:
             await asyncio.to_thread(mark_delivered, self.db_path, alert["alert_id"], delivered)

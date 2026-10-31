@@ -2,150 +2,187 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e8c6e">
   <title>HealthPulz · BHS Node</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/css/base.css">
 </head>
 <body>
-  <header class="app-header">
-    <a class="brand" href="/">
-      <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
-      <span class="brand-name">HealthPulz</span>
-    </a>
-    <nav class="app-nav" aria-label="Pages">
-      <a href="/node/" aria-current="page"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>BHS Node</a>
-      <a href="/dashboard/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
-      <a href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
-    </nav>
-    <span id="connection" class="pill" role="status">Not started</span>
-  </header>
-
-  <main class="container">
-    <!-- Step 1: choose a barangay -->
-    <section id="setup" class="card" style="max-width: 560px; width: 100%; justify-self: center" hidden>
-      <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg></span>
-      <h1>Choose your Barangay Health Station</h1>
-      <p class="muted" style="margin: 0">This device will act as that barangay's node and send its cases to RHU Naval.</p>
-      <label for="barangay-input">Barangay</label>
-      <div class="combobox">
-        <input id="barangay-input" type="text" role="combobox" autocomplete="off"
-               aria-autocomplete="list" aria-expanded="false" aria-controls="barangay-list"
-               placeholder="Type to search, e.g. Caraycaray">
-        <ul id="barangay-list" role="listbox" aria-label="Barangays" hidden></ul>
+  <div class="app has-tabbar setup-mode">
+    <!-- Sidebar (desktop) -->
+    <aside class="sidebar" aria-label="Navigation">
+      <a class="brand" href="/">
+        <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
+        <span><span class="brand-name">HealthPulz</span><br><span class="muted small">Barangay Health Station</span></span>
+      </a>
+      <span class="nav-label">Station</span>
+      <a class="nav-link" href="#/send" data-nav="send"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Send cases</a>
+      <a class="nav-link" href="#/alerts" data-nav="alerts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts<span class="count alert-count" hidden></span></a>
+      <a class="nav-link" href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
+      <a class="nav-link" href="#/activity" data-nav="activity"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Activity</a>
+      <span class="nav-label">Other</span>
+      <a class="nav-link" href="/dashboard/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
+      <a class="nav-link" href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
+      <div class="sidebar-footer">
+        <button id="change-btn" class="btn btn-ghost btn-small btn-block" type="button">Change barangay</button>
+        <p style="margin: 10px 0 0">All data is synthetic.</p>
       </div>
-      <button id="start-btn" class="btn btn-primary btn-large btn-block" disabled>Start as this station</button>
-      <p id="setup-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
-    </section>
+    </aside>
+    <div class="scrim"></div>
 
-    <!-- Step 2: the station -->
-    <div id="station" class="stack" hidden>
-      <section class="card">
-        <div class="station-header">
-          <span id="station-avatar" class="avatar" aria-hidden="true"></span>
-          <div class="grow">
-            <h1 id="station-name">—</h1>
-            <span class="muted small">Barangay Health Station · node <span id="node-id" class="mono"></span></span>
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" type="button" aria-label="Menu" aria-expanded="false" hidden>
+          <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>
+        </button>
+        <div class="title">
+          <span id="station-avatar" class="avatar" aria-hidden="true" hidden></span>
+          <div style="min-width: 0">
+            <h1 id="station-name">HealthPulz</h1>
+            <div id="station-sub" class="subtitle">Barangay Health Station</div>
           </div>
-          <button id="change-btn" class="btn btn-ghost btn-small">Change barangay</button>
         </div>
-      </section>
+        <div class="tools">
+          <span id="connection" class="pill" role="status">Not started</span>
+        </div>
+      </header>
 
-      <div class="grid-2">
-        <section class="card" aria-labelledby="generate-title">
-          <h2 id="generate-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Send cases to the RHU</h2>
-          <div class="segmented block" role="group" aria-label="Mode">
-            <button type="button" data-mode="realistic" aria-pressed="true">Realistic week</button>
-            <button type="button" data-mode="stress" aria-pressed="false">Stress test</button>
-          </div>
-
-          <div id="realistic-options" class="option-box">
-            <span class="muted small">Generates this week's typical cases for your barangay.</span>
-            <label class="check"><input id="outbreak-toggle" type="checkbox"> Simulate an outbreak of</label>
-            <select id="outbreak-disease" aria-label="Outbreak disease" disabled></select>
-          </div>
-          <div id="stress-options" class="option-box" hidden>
-            <label for="stress-count">Number of cases</label>
-            <input id="stress-count" type="number" min="1" max="5000" value="500">
-            <span class="muted small">Sent as a <strong>drill</strong>: stored and counted, but left out of the analytics, so it never raises alerts.</span>
-          </div>
-
-          <button id="generate-btn" class="btn btn-primary btn-large btn-block">
-            <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Generate &amp; Send
-          </button>
-          <p id="generate-result" class="muted small" style="margin: 0"></p>
+      <main class="content" style="max-width: 1100px">
+        <!-- ===== Setup: choose a barangay ===== -->
+        <section class="screen" data-screen="setup" hidden>
+          <section id="setup" class="card" style="max-width: 520px; width: 100%; justify-self: center; margin-top: 4vh">
+            <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg></span>
+            <h2 style="font-size: 1.3rem">Choose your Barangay Health Station</h2>
+            <p class="muted" style="margin: 0">This device will act as that barangay's node and send its cases to RHU Naval.</p>
+            <label for="barangay-input">Barangay</label>
+            <div class="combobox">
+              <input id="barangay-input" type="text" role="combobox" autocomplete="off"
+                     aria-autocomplete="list" aria-expanded="false" aria-controls="barangay-list"
+                     placeholder="Type to search, e.g. Caraycaray">
+              <ul id="barangay-list" role="listbox" aria-label="Barangays" hidden></ul>
+            </div>
+            <button id="start-btn" class="btn btn-primary btn-large btn-block" disabled>Start as this station</button>
+            <p id="setup-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
+          </section>
         </section>
 
-        <section class="card" aria-labelledby="alerts-title">
-          <div class="card-header">
-            <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts from RHU</h2>
-            <span id="alerts-count" class="badge" hidden></span>
+        <!-- ===== Send ===== -->
+        <section class="screen" data-screen="send" hidden>
+          <div class="grid-2">
+            <section class="card" aria-labelledby="generate-title">
+              <h2 id="generate-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Send cases to the RHU</h2>
+              <div class="segmented block" role="group" aria-label="Mode">
+                <button type="button" data-mode="realistic" aria-pressed="true">Realistic week</button>
+                <button type="button" data-mode="stress" aria-pressed="false">Stress test</button>
+              </div>
+              <div id="realistic-options" class="option-box">
+                <span class="muted small">Generates this week's typical cases for your barangay.</span>
+                <label class="check"><input id="outbreak-toggle" type="checkbox"> Simulate an outbreak of</label>
+                <select id="outbreak-disease" aria-label="Outbreak disease" disabled></select>
+              </div>
+              <div id="stress-options" class="option-box" hidden>
+                <label for="stress-count">Number of cases</label>
+                <input id="stress-count" type="number" min="1" max="5000" value="500">
+                <span class="muted small">Sent as a <strong>drill</strong>: stored and counted, but left out of the analytics, so it never raises alerts.</span>
+              </div>
+              <button id="generate-btn" class="btn btn-primary btn-large btn-block">
+                <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Generate &amp; Send
+              </button>
+              <p id="generate-result" class="muted small" style="margin: 0"></p>
+            </section>
+
+            <section class="card" aria-labelledby="status-title">
+              <h2 id="status-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Delivery status</h2>
+              <div class="stats compact">
+                <div class="stat"><div id="stat-pending" class="stat-value">0</div><div class="stat-label">Batches waiting</div></div>
+                <div class="stat"><div id="stat-stored" class="stat-value">0</div><div class="stat-label">Cases stored</div></div>
+                <div class="stat"><div id="stat-duplicates" class="stat-value">0</div><div class="stat-label">Duplicates</div></div>
+                <div class="stat"><div id="stat-rejected" class="stat-value">0</div><div class="stat-label">Rejected</div></div>
+              </div>
+              <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
+                Batches stay on this device until the RHU confirms they are stored, so nothing is lost if the connection drops.</p>
+              <a class="link-btn small" href="#/activity">See activity →</a>
+            </section>
           </div>
-          <div id="alerts" class="alert-list" aria-live="assertive"><p class="empty">No alerts yet. Outbreak alerts for your barangay and its neighbors appear here.</p></div>
-        </section>
-      </div>
-
-      <div class="grid-2">
-        <section class="card" aria-labelledby="status-title">
-          <h2 id="status-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Delivery status</h2>
-          <div class="stats compact">
-            <div class="stat"><div id="stat-pending" class="stat-value">0</div><div class="stat-label">Batches waiting</div></div>
-            <div class="stat"><div id="stat-stored" class="stat-value">0</div><div class="stat-label">Cases stored</div></div>
-            <div class="stat"><div id="stat-duplicates" class="stat-value">0</div><div class="stat-label">Duplicates</div></div>
-            <div class="stat"><div id="stat-rejected" class="stat-value">0</div><div class="stat-label">Rejected</div></div>
-          </div>
-          <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-            Batches stay on this device until the RHU confirms they are stored, so nothing is lost if the connection drops.</p>
         </section>
 
-        <section class="card" aria-labelledby="log-title">
-          <h2 id="log-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Activity</h2>
-          <ul id="log" class="log" aria-live="polite"></ul>
+        <!-- ===== Alerts ===== -->
+        <section class="screen" data-screen="alerts" hidden>
+          <section class="card" aria-labelledby="alerts-title">
+            <div class="card-header">
+              <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts from RHU</h2>
+              <span id="alerts-count" class="badge" hidden></span>
+            </div>
+            <div id="alerts" class="alert-list" aria-live="assertive"><p class="empty">No alerts yet. Outbreak alerts for your barangay and its neighbors appear here.</p></div>
+          </section>
         </section>
-      </div>
 
-      <section class="card" aria-labelledby="trends-title">
-        <div class="card-header">
-          <h2 id="trends-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends from RHU Naval</h2>
-          <span id="trends-week" class="muted small"></span>
-        </div>
-        <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-          Weekly totals shared by the RHU. Only aggregated counts are shared, never individual cases.</p>
-        <div class="table-wrap">
-          <table class="heat">
-            <thead>
-              <tr>
-                <th scope="col">Disease</th>
-                <th scope="col">Your barangay<br><span class="small">this week</span></th>
-                <th scope="col">Naval<br><span class="small">this week</span></th>
-                <th scope="col">Naval<br><span class="small">last week</span></th>
-                <th scope="col">Barangays<br><span class="small">on alert</span></th>
-              </tr>
-            </thead>
-            <tbody id="trends-body"></tbody>
-          </table>
-        </div>
+        <!-- ===== Trends ===== -->
+        <section class="screen" data-screen="trends" hidden>
+          <section class="card" aria-labelledby="node-map-title">
+            <div class="card-header">
+              <h2 id="node-map-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Naval this week</h2>
+              <span id="trends-week" class="muted small"></span>
+            </div>
+            <div id="node-map"></div>
+          </section>
 
-        <div class="card-header">
-          <h3 id="trend-chart-title">Your barangay, last 12 weeks</h3>
-          <select id="trend-disease" aria-label="Disease to chart" style="width: auto"></select>
-        </div>
-        <div class="legend">
-          <span style="--swatch: var(--accent)">cases per week</span>
-          <span style="--swatch: var(--warn)">alert threshold</span>
-          <span style="--swatch: var(--danger)">epidemic threshold</span>
-        </div>
-        <div class="chart">
-          <svg id="trend-chart" role="img" style="height: 170px"></svg>
-          <span id="trend-scale" class="scale"></span>
-        </div>
-        <div id="trend-axis" class="axis"></div>
-        <p id="trends-note" class="muted small" style="margin: 0"></p>
-      </section>
+          <section class="card" aria-labelledby="trends-title">
+            <h2 id="trends-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends from RHU Naval</h2>
+            <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
+              Weekly totals shared by the RHU. Only aggregated counts are shared, never individual cases.</p>
+            <div class="table-wrap">
+              <table class="heat">
+                <thead>
+                  <tr>
+                    <th scope="col">Disease</th>
+                    <th scope="col">Your barangay<br><span class="small">this week</span></th>
+                    <th scope="col">Naval<br><span class="small">this week</span></th>
+                    <th scope="col">Naval<br><span class="small">last week</span></th>
+                    <th scope="col">Barangays<br><span class="small">on alert</span></th>
+                  </tr>
+                </thead>
+                <tbody id="trends-body"></tbody>
+              </table>
+            </div>
+            <div class="card-header">
+              <h3 id="trend-chart-title">Your barangay, last 12 weeks</h3>
+              <select id="trend-disease" aria-label="Disease to chart" style="width: auto"></select>
+            </div>
+            <div class="legend">
+              <span style="--swatch: var(--accent)">cases per week</span>
+              <span style="--swatch: var(--warn)">alert threshold</span>
+              <span style="--swatch: var(--danger)">epidemic threshold</span>
+            </div>
+            <div class="chart">
+              <svg id="trend-chart" role="img" style="height: 180px"></svg>
+              <span id="trend-scale" class="scale"></span>
+            </div>
+            <div id="trend-axis" class="axis"></div>
+            <p id="trends-note" class="muted small" style="margin: 0"></p>
+          </section>
+        </section>
+
+        <!-- ===== Activity ===== -->
+        <section class="screen" data-screen="activity" hidden>
+          <section class="card" aria-labelledby="log-title">
+            <h2 id="log-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Activity</h2>
+            <ul id="log" class="log" aria-live="polite" style="max-height: none"></ul>
+          </section>
+        </section>
+      </main>
     </div>
-  </main>
 
-  <footer class="app-footer">HealthPulz · RHU Naval, Biliran · All data is synthetic</footer>
+    <!-- Bottom tabs (phones) -->
+    <nav class="tabbar" aria-label="Station">
+      <a href="#/send" data-nav="send"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Send</a>
+      <a href="#/alerts" data-nav="alerts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts<span class="count alert-count" hidden></span></a>
+      <a href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
+      <a href="#/activity" data-nav="activity"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Activity</a>
+    </nav>
+  </div>
+
   <script type="module" src="/js/node/main.js"></script>
 </body>
 </html>

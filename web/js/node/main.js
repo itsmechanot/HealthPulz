@@ -2,6 +2,7 @@
 
 import * as api from "../common/api.js";
 import { newNodeId, uuid4 } from "../common/ids.js";
+import { createRouter, setupMenu, toast } from "../common/shell.js";
 import { createCombobox } from "./combobox.js";
 import { NodeConnection } from "./connection.js";
 import { realisticWeek, stressRecords } from "./generator.js";
@@ -18,6 +19,8 @@ const IDENTITY_KEY = "healthpulz.node";
 const $ = (id) => document.getElementById(id);
 const totals = { stored: 0, duplicates: 0, rejected: 0 };
 let pendingBatches = 0;
+let router = null;
+let unseenAlerts = 0;
 
 main();
 
@@ -26,7 +29,7 @@ async function main() {
   try {
     config = await api.getConfig();
   } catch (error) {
-    $("setup").hidden = false;
+    showSetupScreen();
     $("setup-error").textContent = `Cannot reach the RHU server. Check the Wi-Fi and reload. (${error.message})`;
     return;
   }
@@ -39,14 +42,18 @@ async function main() {
 
 // ---- step 1: choose a barangay ---------------------------------------------
 
+function showSetupScreen() {
+  document.querySelector('[data-screen="setup"]').hidden = false;
+}
+
 function showSetup(config) {
-  $("setup").hidden = false;
+  showSetupScreen();
   let chosen = null;
 
   createCombobox({
     input: $("barangay-input"),
     listbox: $("barangay-list"),
-    options: config.barangays,
+    options: [...config.barangays].sort((a, b) => a.name.localeCompare(b.name)),
     labelOf: (b) => b.name,
     onSelect: (b) => {
       chosen = b;
@@ -57,7 +64,7 @@ function showSetup(config) {
   $("start-btn").addEventListener("click", () => {
     const identity = { node_id: newNodeId(chosen.barangay_id), barangay_id: chosen.barangay_id };
     saveIdentity(identity);
-    $("setup").hidden = true;
+    document.querySelector('[data-screen="setup"]').hidden = true;
     startStation(config, identity, chosen);
   });
 }
@@ -65,11 +72,18 @@ function showSetup(config) {
 // ---- step 2: the station ---------------------------------------------------
 
 async function startStation(config, identity, barangay) {
-  $("station").hidden = false;
+  document.querySelector(".app").classList.remove("setup-mode");
+  document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
+  $("station-sub").textContent = `Barangay Health Station · node ${identity.node_id}`;
   $("station-avatar").textContent = initials(barangay.name);
-  $("node-id").textContent = identity.node_id;
+  $("station-avatar").hidden = false;
   document.title = `HealthPulz · ${barangay.name}`;
+  setupMenu();
+  router = createRouter("send", (screen) => {
+    if (screen === "alerts") setUnseenAlerts(0);
+  });
+  router.start();
 
   let rhuReachable = true;
 
@@ -100,7 +114,10 @@ async function startStation(config, identity, barangay) {
         sender.confirmStored(message);
         break;
       case "ALERT":
-        showAlert(message, config);
+        // Already acknowledged (re-sent after a reload): list it quietly, no pop-up or vibration.
+        showAlert(message, config, { quiet: message.acknowledged });
+        if (message.acknowledged) break;
+        notifyAlert(message, config);
         connection.send({ type: "ALERT_ACK", alert_id: message.alert_id });
         trends.refreshSoon();
         break;
@@ -224,9 +241,31 @@ async function refreshPending() {
   $("stat-pending").textContent = pendingBatches;
 }
 
+/** Counts alerts that arrived while the station was on another screen (badge on the Alerts tab). */
+function setUnseenAlerts(count) {
+  unseenAlerts = count;
+  document.querySelectorAll(".alert-count").forEach((badge) => {
+    badge.hidden = count === 0;
+    badge.textContent = count;
+  });
+}
+
+function notifyAlert(alert, config) {
+  if (router?.current() === "alerts") return;
+  setUnseenAlerts(unseenAlerts + 1);
+  const disease = config.diseases.find((d) => d.disease_code === alert.disease_code)?.name ?? alert.disease_code;
+  toast({
+    title: `${alert.level}: ${disease}`,
+    body: alert.scope === "NEIGHBOR" ? "In a neighboring barangay" : "In your barangay",
+    level: alert.level,
+    actionLabel: "View",
+    onAction: () => router.go("alerts"),
+  });
+}
+
 const alertCards = new Map(); // alert_id -> card; an alert can arrive again (reconnect, escalation)
 
-function showAlert(alert, config) {
+function showAlert(alert, config, { quiet = false } = {}) {
   const disease = config.diseases.find((d) => d.disease_code === alert.disease_code)?.name ?? alert.disease_code;
   const where = alert.scope === "NEIGHBOR"
     ? `Nearby: Brgy. ${config.barangays.find((b) => b.barangay_id === alert.barangay_id)?.name ?? alert.barangay_id}`
@@ -248,6 +287,7 @@ function showAlert(alert, config) {
     $("alerts-count").hidden = false;
     $("alerts-count").textContent = `${alertCards.size} alert${alertCards.size > 1 ? "s" : ""}`;
   }
+  if (quiet) return;
   // Attention cue for new and escalated alerts: a pulse (skipped if the user turned off
   // motion) and, on phones that support it, a short vibration.
   card.classList.remove("is-new");

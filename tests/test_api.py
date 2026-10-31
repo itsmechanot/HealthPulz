@@ -55,10 +55,26 @@ def test_icon_sprite_is_served_as_svg(client):
     assert 'id="logo"' in res.text
 
 
-def test_every_page_links_to_every_other_page(client):
-    for page in ("/", "/node/", "/dashboard/", "/monitor/"):
+def test_every_page_links_to_the_other_pages(client):
+    pages = ("/node/", "/dashboard/", "/monitor/")
+    for page in ("/", *pages):
         html = client.get(page).text
-        assert all(f'href="{target}"' in html for target in ("/node/", "/dashboard/", "/monitor/")), page
+        assert all(f'href="{target}"' in html for target in pages if target != page), page
+
+
+def test_map_matches_the_barangay_list(client):
+    map_data = client.get("/data/naval-map.json").json()
+    barangays = client.get("/api/config").json()["barangays"]
+    assert {b["barangay_id"]: b["psgc"] for b in map_data["barangays"]} == {b["barangay_id"]: b["psgc"] for b in barangays}
+    assert all(b["path"].startswith("M") and len(b["center"]) == 2 for b in map_data["barangays"])
+    assert map_data["naval"]["path"] and map_data["towns"]  # Naval highlighted among the other towns of Biliran
+
+
+def test_neighbors_are_symmetric(client):
+    barangays = {b["barangay_id"]: b for b in client.get("/api/config").json()["barangays"]}
+    for b in barangays.values():
+        for neighbor in b["neighbors"]:
+            assert b["barangay_id"] in barangays[neighbor]["neighbors"]
 
 
 def test_unknown_api_path_is_still_json_404(client):

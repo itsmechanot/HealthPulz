@@ -9,38 +9,42 @@
 
 ## 1. Barangays
 
-> **TODO (docs team):** verify the list and spellings against the PSA PSGC listing for Naval, and fill in the `neighbors` column from a map of Naval. Optionally, replace the synthetic populations with PSA 2020 census figures.
+The 26 barangays of Naval and their **PSGC codes** come from the official PSA boundary data (PSGC 3Q 2026), the same data the map is drawn from. **Neighbors** are computed from which barangay boundaries touch, by [`tools/build_map.py`](../tools/build_map.py). **Populations are synthetic.**
 
-| ID | Barangay | Population (synthetic) | Neighbors |
-|---|---|---|---|
-| BRGY-01 | Agpangi | TBD | TODO |
-| BRGY-02 | Anislagan | TBD | TODO |
-| BRGY-03 | Atipolo | TBD | TODO |
-| BRGY-04 | Borac | TBD | TODO |
-| BRGY-05 | Cabungaan | TBD | TODO |
-| BRGY-06 | Calumpang | TBD | TODO |
-| BRGY-07 | Capiñahan | TBD | TODO |
-| BRGY-08 | Caraycaray | TBD | TODO |
-| BRGY-09 | Catmon | TBD | TODO |
-| BRGY-10 | Haguikhikan | TBD | TODO |
-| BRGY-11 | Higatangan | TBD | TODO |
-| BRGY-12 | Imelda | TBD | TODO |
-| BRGY-13 | Larrazabal | TBD | TODO |
-| BRGY-14 | Libertad | TBD | TODO |
-| BRGY-15 | Libtong | TBD | TODO |
-| BRGY-16 | Lucsoon | TBD | TODO |
-| BRGY-17 | Mabini | TBD | TODO |
-| BRGY-18 | Padre Inocentes Garcia (Pob.) | TBD | TODO |
-| BRGY-19 | Padre Sergio Eamiguel | TBD | TODO |
-| BRGY-20 | Sabang | TBD | TODO |
-| BRGY-21 | San Pablo | TBD | TODO |
-| BRGY-22 | Santissimo Rosario Pob. (Santo Rosa) | TBD | TODO |
-| BRGY-23 | Santo Niño | TBD | TODO |
-| BRGY-24 | Talustusan | TBD | TODO |
-| BRGY-25 | Villa Caneja | TBD | TODO |
-| BRGY-26 | Villa Consuelo | TBD | TODO |
+> **Correction:** an earlier draft listed "Higatangan" as a barangay. Higatangan is an island of Naval (home of Libertad and Mabini), not a barangay; the official list has **Lico** instead, which now uses ID `BRGY-11`.
+>
+> **Optional (docs team):** replace the synthetic populations with PSA 2020 census figures.
 
-The current synthetic populations (1,500–12,000) and neighbor lists live in [`rhu/data/barangays.json`](../rhu/data/barangays.json), which is the source of truth. Update that file when real figures or neighbors are added.
+| ID | PSGC | Barangay | Population (synthetic) | Neighbors (touching boundaries) |
+|---|---|---|---|---|
+| BRGY-01 | 807808001 | Agpangi | 2,100 | Atipolo, Larrazabal, Sabang, Talustusan |
+| BRGY-02 | 807808002 | Anislagan | 1,650 | Borac, Haguikhikan, San Pablo, Villa Caneja |
+| BRGY-03 | 807808003 | Atipolo | 2,400 | Agpangi, Calumpang, Larrazabal, Padre Inocentes Garcia (Pob.), Santissimo Rosario Pob. |
+| BRGY-04 | 807808021 | Borac | 1,800 | Anislagan, Catmon, San Pablo |
+| BRGY-05 | 807808022 | Cabungaan | 1,700 | Calumpang, Capiñahan, Caraycaray, Lucsoon, San Pablo, Villa Caneja |
+| BRGY-06 | 807808004 | Calumpang | 2,600 | Atipolo, Cabungaan, Caraycaray, Larrazabal, Lucsoon, Padre Inocentes Garcia (Pob.), Padre Sergio Eamiguel |
+| BRGY-07 | 807808005 | Capiñahan | 2,300 | Cabungaan, Imelda, Lucsoon, Villa Caneja, Villa Consuelo |
+| BRGY-08 | 807808006 | Caraycaray | 6,800 | Cabungaan, Calumpang, Padre Inocentes Garcia (Pob.), San Pablo, Santo Niño |
+| BRGY-09 | 807808007 | Catmon | 1,900 | Borac, Haguikhikan, San Pablo |
+| BRGY-10 | 807808008 | Haguikhikan | 1,600 | Anislagan, Catmon, Libtong, Villa Caneja |
+| BRGY-11 | 807808012 | Lico | 2,200 | Imelda, Lucsoon, Padre Sergio Eamiguel, Talustusan |
+| BRGY-12 | 807808023 | Imelda | 2,000 | Capiñahan, Lico, Lucsoon, Talustusan |
+| BRGY-13 | 807808024 | Larrazabal | 4,100 | Agpangi, Atipolo, Calumpang, Talustusan |
+| BRGY-14 | 807808010 | Libertad | 1,750 | Mabini |
+| BRGY-15 | 807808025 | Libtong | 1,550 | Haguikhikan, Villa Caneja, Villa Consuelo |
+| BRGY-16 | 807808013 | Lucsoon | 1,850 | Cabungaan, Calumpang, Capiñahan, Lico, Imelda, Padre Sergio Eamiguel |
+| BRGY-17 | 807808014 | Mabini | 2,050 | Libertad |
+| BRGY-18 | 807808009 | Padre Inocentes Garcia (Pob.) | 5,200 | Atipolo, Calumpang, Caraycaray, Santissimo Rosario Pob., Santo Niño |
+| BRGY-19 | 807808026 | Padre Sergio Eamiguel | 3,900 | Calumpang, Lico, Lucsoon, Talustusan |
+| BRGY-20 | 807808027 | Sabang | 3,100 | Agpangi, Talustusan |
+| BRGY-21 | 807808015 | San Pablo | 2,250 | Anislagan, Borac, Cabungaan, Caraycaray, Catmon, Villa Caneja |
+| BRGY-22 | 807808017 | Santissimo Rosario Pob. | 4,800 | Atipolo, Padre Inocentes Garcia (Pob.), Santo Niño |
+| BRGY-23 | 807808016 | Santo Niño | 2,700 | Caraycaray, Padre Inocentes Garcia (Pob.), Santissimo Rosario Pob. |
+| BRGY-24 | 807808018 | Talustusan | 1,950 | Agpangi, Lico, Imelda, Larrazabal, Padre Sergio Eamiguel, Sabang |
+| BRGY-25 | 807808019 | Villa Caneja | 1,600 | Anislagan, Cabungaan, Capiñahan, Haguikhikan, Libtong, San Pablo, Villa Consuelo |
+| BRGY-26 | 807808020 | Villa Consuelo | 3,300 | Capiñahan, Libtong, Villa Caneja |
+
+The source of truth is [`rhu/data/barangays.json`](../rhu/data/barangays.json). Libertad and Mabini only border each other because they are on Higatangan island. A barangay's alerts also go to its neighbors' stations.
 
 ### Nodes per barangay
 There are 30–40 classmates and only 26 barangays, so some barangays will have **more than one node** (main BHS + satellite stations). Each node picks its barangay from a searchable dropdown; see [protocol.md](protocol.md#1-node-registration-dropdown-login).

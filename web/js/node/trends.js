@@ -4,6 +4,7 @@
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
 import { el } from "../common/dom.js";
+import { createNavalMap } from "../common/naval-map.js";
 
 const REFRESH_MS = 30_000;
 const CHART_WEEKS = 12;
@@ -16,6 +17,8 @@ const fmt = (n) => Number(n).toLocaleString();
 export function startTrendsPanel(config, barangay) {
   let disease = config.diseases[0].disease_code;
   let pending = null;
+  // The station's own barangay is outlined; colors show where cases and alerts are.
+  const map = createNavalMap($("node-map"), { ownBarangay: barangay.barangay_id });
 
   const select = $("trend-disease");
   select.replaceChildren(...config.diseases.map((d) => el("option", { value: d.disease_code, textContent: d.name })));
@@ -29,6 +32,7 @@ export function startTrendsPanel(config, barangay) {
       const summary = await api.fetchJson("/api/stats/summary");
       const grid = await api.fetchJson(`/api/stats/barangays?week=${summary.week.label}`);
       renderTable(summary, grid);
+      (await map).update(grid.barangays);
       await renderChart();
       $("trends-week").textContent = `${summary.week.label} (so far) vs ${summary.previous_week.label}`;
       $("trends-note").textContent = "";

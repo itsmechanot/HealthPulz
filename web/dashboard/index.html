@@ -8,93 +8,169 @@
   <link rel="stylesheet" href="/css/base.css">
 </head>
 <body>
-  <header class="app-header">
-    <a class="brand" href="/">
-      <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
-      <span class="brand-name">HealthPulz</span>
-    </a>
-    <nav class="app-nav" aria-label="Pages">
-      <a href="/node/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>BHS Node</a>
-      <a href="/dashboard/" aria-current="page"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
-      <a href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
-    </nav>
-    <span id="connection" class="pill" data-state="connecting" role="status">Loading…</span>
-  </header>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Navigation">
+      <a class="brand" href="/">
+        <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
+        <span><span class="brand-name">HealthPulz</span><br><span class="muted small">RHU Naval</span></span>
+      </a>
+      <span class="nav-label">Surveillance</span>
+      <a class="nav-link" href="#/overview" data-nav="overview"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>Overview</a>
+      <a class="nav-link" href="#/map" data-nav="map"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Map</a>
+      <a class="nav-link" href="#/alerts" data-nav="alerts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Alerts<span id="nav-alert-count" class="count" hidden></span></a>
+      <a class="nav-link" href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
+      <a class="nav-link" href="#/barangays" data-nav="barangays"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#table"/></svg>Barangays</a>
+      <span class="nav-label">System</span>
+      <a class="nav-link" href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
+      <a class="nav-link" href="/node/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>BHS Node</a>
+      <a class="nav-link" href="/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#layers"/></svg>Home</a>
+      <div class="sidebar-footer">All data is synthetic.<br>Analytics refresh every 10 s.</div>
+    </aside>
+    <div class="scrim"></div>
 
-  <main class="container wide">
-    <!-- 1. Title and week -->
-    <section class="page-title">
-      <div>
-        <h1>Illness overview · Naval, Biliran</h1>
-        <span id="week-label" class="muted small"></span>
-      </div>
-      <span id="updated" class="muted small"></span>
-    </section>
-
-    <!-- 2. Disease cards -->
-    <section id="disease-cards" class="disease-cards" aria-label="Cases per disease, this week so far"></section>
-
-    <!-- 3. Active alerts -->
-    <section class="card" aria-labelledby="alerts-title">
-      <div class="card-header">
-        <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Outbreak alerts</h2>
-        <div class="segmented" role="group" aria-label="Show alerts">
-          <button type="button" data-alert-filter="active" aria-pressed="true">Active</button>
-          <button type="button" data-alert-filter="RESOLVED" aria-pressed="false">Resolved</button>
-          <button type="button" data-alert-filter="all" aria-pressed="false">All</button>
+    <div class="main">
+      <!-- Top bar -->
+      <header class="topbar">
+        <button class="icon-btn menu-btn" type="button" aria-label="Menu" aria-expanded="false">
+          <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>
+        </button>
+        <div class="title">
+          <div style="min-width: 0">
+            <h1 id="screen-title">Overview</h1>
+            <div id="screen-subtitle" class="subtitle">Naval, Biliran</div>
+          </div>
         </div>
-      </div>
-      <div id="alerts" class="alert-list"></div>
-    </section>
-
-    <!-- 4. Trend chart -->
-    <section class="card" aria-labelledby="trend-title">
-      <div class="card-header">
-        <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg><span id="trend-title">Trend</span></h2>
-        <div class="controls">
-          <label for="trend-barangay" class="small">Area</label>
-          <select id="trend-barangay"><option value="">All of Naval</option></select>
-          <label for="trend-weeks" class="small">Period</label>
-          <select id="trend-weeks">
-            <option value="12">12 weeks</option>
-            <option value="26" selected>26 weeks</option>
-            <option value="52">52 weeks</option>
-          </select>
+        <div class="tools">
+          <span id="week-chip" class="week-chip hide-narrow">–</span>
+          <span id="connection" class="pill" data-state="connecting" role="status">Loading…</span>
+          <span class="user-chip hide-narrow"><span class="avatar">RHU</span>RHU Staff</span>
         </div>
-      </div>
-      <div class="legend" id="trend-legend">
-        <span style="--swatch: var(--accent)">cases per week</span>
-        <span class="threshold-legend" style="--swatch: var(--warn)">alert threshold</span>
-        <span class="threshold-legend" style="--swatch: var(--danger)">epidemic threshold</span>
-      </div>
-      <div class="chart">
-        <svg id="trend-chart" role="img" style="height: 220px"></svg>
-        <span id="trend-scale" class="scale"></span>
-      </div>
-      <div id="trend-axis" class="axis"></div>
-      <p id="trend-note" class="muted small" style="margin: 0"></p>
-    </section>
+      </header>
 
-    <!-- 5. Barangay table -->
-    <section class="card" aria-labelledby="grid-title">
-      <div class="card-header">
-        <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#table"/></svg><span id="grid-title">Barangays</span></h2>
-        <div class="segmented" role="group" aria-label="Week">
-          <button type="button" data-grid-week="current" aria-pressed="true">This week</button>
-          <button type="button" data-grid-week="previous" aria-pressed="false">Last week</button>
-        </div>
-      </div>
-      <p class="muted small" style="margin: 0">Cases per disease. Colored cells are over the alert or epidemic threshold. Click a row to show that barangay's trend.</p>
-      <div class="table-wrap">
-        <table class="heat">
-          <thead><tr id="grid-head"></tr></thead>
-          <tbody id="grid-body"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+      <main class="content">
+        <!-- ===== Overview ===== -->
+        <section class="screen" data-screen="overview" hidden>
+          <div class="kpi-row">
+            <div class="kpi"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pulse"/></svg></span>
+              <div><div id="kpi-cases" class="kpi-value">–</div><div class="kpi-label">Cases this week (so far)</div><div id="kpi-cases-sub" class="kpi-sub"></div></div></div>
+            <div class="kpi" data-tone="danger"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg></span>
+              <div><div id="kpi-alerts" class="kpi-value">–</div><div class="kpi-label">Open outbreak alerts</div><div id="kpi-alerts-sub" class="kpi-sub"></div></div></div>
+            <div class="kpi" data-tone="warn"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg></span>
+              <div><div id="kpi-barangays" class="kpi-value">–</div><div class="kpi-label">Barangays with cases</div><div id="kpi-barangays-sub" class="kpi-sub"></div></div></div>
+            <div class="kpi" data-tone="ok"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#nodes"/></svg></span>
+              <div><div id="kpi-stations" class="kpi-value">–</div><div class="kpi-label">BHS stations online</div><div id="kpi-stations-sub" class="kpi-sub"></div></div></div>
+          </div>
 
-  <footer class="app-footer">HealthPulz · RHU Naval, Biliran · All data is synthetic</footer>
+          <div class="overview-grid">
+            <section class="card" aria-labelledby="ov-map-title">
+              <div class="card-header">
+                <h2 id="ov-map-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Cases by barangay · this week</h2>
+                <a class="link-btn small" href="#/map">Open map →</a>
+              </div>
+              <div id="ov-map"></div>
+            </section>
+            <section class="card" aria-labelledby="ov-alerts-title">
+              <div class="card-header">
+                <h2 id="ov-alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Latest alerts</h2>
+                <a class="link-btn small" href="#/alerts">View all →</a>
+              </div>
+              <div id="ov-alerts" class="alert-list"></div>
+            </section>
+          </div>
+
+          <section aria-label="Diseases">
+            <div id="disease-cards" class="disease-cards"></div>
+          </section>
+        </section>
+
+        <!-- ===== Map ===== -->
+        <section class="screen" data-screen="map" hidden>
+          <div class="card-header">
+            <div class="chips-row" id="map-diseases" role="group" aria-label="Disease"></div>
+            <div class="segmented" role="group" aria-label="Week">
+              <button type="button" data-map-week="current" aria-pressed="true">This week</button>
+              <button type="button" data-map-week="previous" aria-pressed="false">Last week</button>
+            </div>
+          </div>
+          <div class="map-grid">
+            <section class="card"><div id="big-map"></div></section>
+            <section class="card" aria-labelledby="detail-title">
+              <h2 id="detail-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>Barangay details</h2>
+              <div id="map-detail"><p class="empty">Click a barangay on the map to see its numbers.</p></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ===== Alerts ===== -->
+        <section class="screen" data-screen="alerts" hidden>
+          <section class="card" aria-labelledby="alerts-title">
+            <div class="card-header">
+              <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Outbreak alerts</h2>
+              <div class="segmented" role="group" aria-label="Show alerts">
+                <button type="button" data-alert-filter="active" aria-pressed="true">Active</button>
+                <button type="button" data-alert-filter="RESOLVED" aria-pressed="false">Resolved</button>
+                <button type="button" data-alert-filter="all" aria-pressed="false">All</button>
+              </div>
+            </div>
+            <div id="alerts" class="alert-list"></div>
+          </section>
+        </section>
+
+        <!-- ===== Trends ===== -->
+        <section class="screen" data-screen="trends" hidden>
+          <section class="card" aria-labelledby="trend-title">
+            <div class="card-header">
+              <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg><span id="trend-title">Trend</span></h2>
+              <div class="controls">
+                <label for="trend-barangay" class="small">Area</label>
+                <select id="trend-barangay"><option value="">All of Naval</option></select>
+                <label for="trend-weeks" class="small">Period</label>
+                <select id="trend-weeks">
+                  <option value="12">12 weeks</option>
+                  <option value="26" selected>26 weeks</option>
+                  <option value="52">52 weeks</option>
+                </select>
+              </div>
+            </div>
+            <div class="chips-row" id="trend-diseases" role="group" aria-label="Disease"></div>
+            <div class="legend">
+              <span style="--swatch: var(--accent)">cases per week</span>
+              <span class="threshold-legend" style="--swatch: var(--warn)">alert threshold</span>
+              <span class="threshold-legend" style="--swatch: var(--danger)">epidemic threshold</span>
+            </div>
+            <div class="chart">
+              <svg id="trend-chart" role="img" style="height: 280px"></svg>
+              <span id="trend-scale" class="scale"></span>
+            </div>
+            <div id="trend-axis" class="axis"></div>
+            <p id="trend-note" class="note"></p>
+          </section>
+        </section>
+
+        <!-- ===== Barangays ===== -->
+        <section class="screen" data-screen="barangays" hidden>
+          <section class="card" aria-labelledby="grid-title">
+            <div class="card-header">
+              <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#table"/></svg><span id="grid-title">Barangays</span></h2>
+              <div class="segmented" role="group" aria-label="Week">
+                <button type="button" data-grid-week="current" aria-pressed="true">This week</button>
+                <button type="button" data-grid-week="previous" aria-pressed="false">Last week</button>
+              </div>
+            </div>
+            <p class="muted small" style="margin: 0">Cases per disease. Colored cells are over the alert or epidemic threshold. Click a row to see the barangay on the map.</p>
+            <div class="table-wrap">
+              <table class="heat">
+                <thead><tr id="grid-head"></tr></thead>
+                <tbody id="grid-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+
   <script type="module" src="/js/dashboard/main.js"></script>
 </body>
 </html>

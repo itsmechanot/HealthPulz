@@ -176,7 +176,25 @@ def test_offline_node_gets_the_alert_when_it_reconnects(registered):
 
     with registered.websocket_connect(f"/ws/node/{NODE}") as ws:
         hello(ws)
-        assert ws.receive_json()["type"] == "ALERT"
+        missed = ws.receive_json()
+        assert (missed["type"], missed["acknowledged"]) == ("ALERT", False)
+
+
+def test_acknowledged_alert_comes_back_marked_on_reconnect(registered):
+    """A reloaded node page must still list its alerts, without announcing them again."""
+    send_cases(registered, [make_record(disease_code="MEA")])
+    with registered.websocket_connect(f"/ws/node/{NODE}") as ws:
+        hello(ws)
+        registered.post("/api/analytics/run")
+        alert = ws.receive_json()
+        assert alert["acknowledged"] is False
+        ws.send_json({"type": "ALERT_ACK", "alert_id": alert["alert_id"]})
+        sync(ws)
+
+    with registered.websocket_connect(f"/ws/node/{NODE}") as ws:
+        hello(ws)
+        again = ws.receive_json()
+        assert (again["alert_id"], again["acknowledged"]) == (alert["alert_id"], True)
 
 
 def test_resolved_alert_is_not_sent_on_reconnect(registered):

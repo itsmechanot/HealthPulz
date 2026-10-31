@@ -8,20 +8,39 @@
   <link rel="stylesheet" href="/css/base.css">
 </head>
 <body>
-  <header class="app-header">
-    <a class="brand" href="/">
-      <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
-      <span class="brand-name">HealthPulz</span>
-    </a>
-    <nav class="app-nav" aria-label="Pages">
-      <a href="/node/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>BHS Node</a>
-      <a href="/dashboard/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
-      <a href="/monitor/" aria-current="page"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
-    </nav>
-    <span id="connection" class="pill" data-state="connecting" role="status">Connecting…</span>
-  </header>
+  <div class="app">
+    <aside class="sidebar" aria-label="Navigation">
+      <a class="brand" href="/">
+        <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
+        <span><span class="brand-name">HealthPulz</span><br><span class="muted small">RHU Naval</span></span>
+      </a>
+      <span class="nav-label">System</span>
+      <a class="nav-link" href="/monitor/" aria-current="page"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
+      <span class="nav-label">Apps</span>
+      <a class="nav-link" href="/dashboard/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
+      <a class="nav-link" href="/node/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>BHS Node</a>
+      <a class="nav-link" href="/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#layers"/></svg>Home</a>
+      <div class="sidebar-footer">Updates every second over a live WebSocket feed.<br>All data is synthetic.</div>
+    </aside>
+    <div class="scrim"></div>
 
-  <main class="container wide">
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" type="button" aria-label="Menu" aria-expanded="false">
+          <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>
+        </button>
+        <div class="title">
+          <div style="min-width: 0">
+            <h1>System Monitor</h1>
+            <div class="subtitle">Live view of the parallel and distributed pipeline</div>
+          </div>
+        </div>
+        <div class="tools">
+          <span id="connection" class="pill" data-state="connecting" role="status">Connecting…</span>
+        </div>
+      </header>
+
+  <main class="content">
     <!-- 1. Join address for classmates -->
     <section class="card join" aria-label="How to join">
       <span class="section-title muted small"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#nodes"/></svg>Join as a Barangay Health Station: open this on your phone</span>
@@ -137,8 +156,8 @@
       <p id="nodes-empty" class="empty">No nodes yet. They appear here as soon as a classmate starts a station.</p>
     </section>
   </main>
-
-  <footer class="app-footer">HealthPulz · RHU Naval, Biliran · All data is synthetic</footer>
+    </div>
+  </div>
 
   <script type="module" src="/js/monitor/main.js"></script>
 </body>

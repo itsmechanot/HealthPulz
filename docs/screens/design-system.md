@@ -36,7 +36,14 @@ Each color also has a `-soft` background version (e.g. `--warn-soft`) for badges
 ## Components (class names in `base.css`)
 | Component | Class | Notes |
 |---|---|---|
-| Header with logo, navigation, status pill | `.app-header`, `.brand`, `.app-nav`, `.pill` | The nav marks the current page with `aria-current="page"`; on phones it becomes a sideways-scrolling row |
+| **App shell** | `.app` > `.sidebar` (`.nav-label`, `.nav-link`, `.count`) + `.main` > `.topbar` + `.content` > `.screen` | Used by the Dashboard, Node and Monitor. Below 960 px the sidebar slides in from the ☰ button (`.menu-btn`, `.scrim`) |
+| Bottom tab bar | `.app.has-tabbar .tabbar` | BHS Node on phones: 4 tabs with an unread count |
+| Screens | `section[data-screen]`, links `href="#/name"` with `data-nav` | One screen at a time; the URL remembers it (`web/js/common/shell.js`) |
+| KPI card | `.kpi` (`.kpi-icon`, `.kpi-value`, `.kpi-label`, `.kpi-sub`), tone `data-tone="warn/danger/ok"` | Overview key numbers |
+| Pop-up notice | `.toast[data-level]` via `toast()` in `shell.js` | New alert while on another screen; View + Dismiss; disappears after 8 s |
+| **Map of Naval** | `.map` (`.town`, `.brgy[data-level]`, `.naval-outline`, `.marker`, `.brgy-label`), `.map-legend` | `web/js/common/naval-map.js`; see below |
+| Filter chips | `.filter-chip[aria-pressed]` | Disease filters on Map and Trends |
+| Header (home page only) | `.app-header`, `.brand`, `.app-nav`, `.pill` | Simple top navigation for the landing page |
 | Card | `.card`, `.card-header`, `.section-title` | Section titles have a leading icon in the accent color |
 | Buttons | `.btn` + `.btn-primary` / `.btn-ghost`, sizes `.btn-small` / `.btn-large`, `.btn-block` | One primary button per area |
 | Toggle | `.segmented` | Mode switches: Realistic/Stress, Active/Resolved/All, This/Last week |
@@ -68,7 +75,22 @@ The landing page at `/`:
 3. **Role cards:** BHS Node, RHU Dashboard and System Monitor, each with who it's for and an "Open" link.
 4. **How it works:** 4 numbered steps with the PDC concepts as chips (useful as an architecture visual during the defense), plus the privacy note.
 
+## Map of Naval
+- **Data:** drawn as SVG from `web/data/naval-map.json`, built by [`tools/build_map.py`](../../tools/build_map.py) from official PSA PSGC boundaries (via faeldon/philippines-json-maps, MIT). No tiles or map library, so it works offline. Keep the attribution line.
+- **Layers, bottom to top:**
+  1. sea (`--sea`)
+  2. the other towns of Biliran, greyed out (`--land-muted`)
+  3. Naval's barangays (`--land`, colored by level)
+  4. Naval's boundary, thick, accent color
+  5. case markers (size = cases; EPIDEMIC markers pulse)
+  6. names
+- **Map colors:** `--sea`, `--land`, `--land-muted`, `--map-line`, each with a light and dark value.
+- **Interaction:**
+  - hover shows a tooltip
+  - click selects a barangay (Dashboard) or shows its numbers (Node, where tapping replaces hover)
+  - the station's own barangay gets a thick outline (`.own`)
+
 ## Ideas not done yet
 - A **QR code** for the join address on the System Monitor. It must be generated without an internet library.
-- A **map of Naval** with barangays colored by alert level, using a local SVG map.
-- Sound when an alert arrives on the node page.
+- **Sound** when an alert arrives on the node page.
+- An **inset** for Higatangan island on the map, so the mainland barangays can be drawn larger.

@@ -26,14 +26,16 @@ rhu/             RHU server (FastAPI)
   models.py      Protocol message models
   main.py        App entry point
 web/             Web pages served by the RHU (plain HTML/CSS/JS, no build step)
-  css/base.css   Shared styles
+  css/base.css   Design system (shared by every page)
+  data/          naval-map.json: offline map of Naval (built by tools/build_map.py)
+  img/icons.svg  Icon sprite and logo
   js/common/     API calls and ID helpers shared by all pages
   node/          BHS Node page
   monitor/       System Monitor page
   dashboard/     RHU Dashboard page
   js/node/       BHS Node logic: generator, offline outbox, WebSocket, sender
 tests/           Automated tests (pytest)
-tools/           Developer tools (node simulator / load test)
+tools/           Developer tools: node simulator (load test), analytics benchmark, map builder
 ```
 
 ## Setup (Windows, PowerShell)

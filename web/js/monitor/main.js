@@ -2,6 +2,7 @@
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
+import { setupMenu } from "../common/shell.js";
 
 const HISTORY_SECONDS = 120;
 const RECONNECT_MS = 2000;
@@ -15,6 +16,7 @@ let barangayNames = {};
 start();
 
 async function start() {
+  setupMenu();
   try {
     const config = await api.getConfig();
     barangayNames = Object.fromEntries(config.barangays.map((b) => [b.barangay_id, b.name]));

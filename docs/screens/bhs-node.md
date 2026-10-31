@@ -1,11 +1,11 @@
 # Screen spec: BHS Node
 
 **For:** UI designer · **Page:** `/node/` · **Code:** [`web/node/index.html`](../../web/node/index.html), [`web/js/node/main.js`](../../web/js/node/main.js)
-**Status:** working prototype, ready to be redesigned. The *components, data and actions* below are fixed; the *look* is yours to design.
+**Status:** working app, ready to be refined. The *screens, components, data and actions* below are fixed; the *look* is yours to improve.
 
-| Choose a barangay | Station with alerts | Phone |
-|---|---|---|
-| ![Choose](bhs-node-choose-barangay.png) | ![Station](bhs-node-station.png) | ![Phone](bhs-node-phone.png) |
+| 1 · Choose a barangay | 2 · Send (alert pop-ups) | 3 · Alerts | 4 · Trends with map |
+|---|---|---|---|
+| ![Choose](bhs-node-choose-barangay.png) | ![Send](bhs-node-phone.png) | ![Alerts](bhs-node-alerts-phone.png) | ![Trends](bhs-node-trends-phone.png) |
 
 ## Purpose and context
 
@@ -13,6 +13,16 @@
 - **Job:** send the barangay's cases to the RHU, and receive outbreak alerts.
 - **Device:** **mostly phones**, so design mobile-first.
 - **Network:** plain HTTP on the local Wi-Fi, possibly with no internet. Avoid web fonts and libraries loaded from the internet.
+
+## Layout (app shell, phone-first)
+| Part | Phone | Laptop |
+|---|---|---|
+| Navigation | **Bottom tab bar**: Send · Alerts · Trends · Activity. Alerts shows a red count of unread alerts. | Sidebar with the same 4 items + links to RHU Dashboard and System Monitor + **Change barangay** |
+| Top bar | Barangay avatar (initials) · **Brgy. name** · "Barangay Health Station · node ID" · connection pill | same |
+| Before setup | No navigation at all: just the "Choose your Barangay Health Station" card | same |
+| New alert while on another screen | **Pop-up notice** at the top right (level color, disease, "In your barangay" / "In a neighboring barangay", **View** + Dismiss); the Alerts tab count goes up; phones vibrate | same, without vibration |
+
+The URL remembers the screen (`/node/#/alerts`). Screens: **Send** (generate cases + delivery status), **Alerts**, **Trends** (map + table + chart), **Activity** (log).
 
 ## Two steps
 
@@ -27,8 +37,8 @@
 
 ### Step 2 · The station
 
-#### Station header
-Barangay name (e.g. **Brgy. Caraycaray**), node ID (`BRGY-08-24Y4`, small, for troubleshooting), and a **Change barangay** button, which asks for confirmation first.
+#### Station header (top bar)
+Barangay avatar and name (e.g. **Brgy. Caraycaray**), node ID (`BRGY-08-24Y4`, small, for troubleshooting). **Change barangay** is in the sidebar/menu and asks for confirmation first.
 
 #### Connection pill (page header)
 **Not started** (neutral) → **Connecting…** (warning) → **Online** (OK) / **Offline** (danger). It reconnects by itself.
@@ -62,7 +72,7 @@ Plus one reassuring line: *"Batches stay on this device until the RHU confirms t
 
 - **States:** empty ("No alerts yet."); new alert; an **escalated** alert updates its existing card instead of adding another.
 - **Arrival:** alerts arrive **by themselves** within about 10 s of the outbreak data. This is the highlight moment of the demo, so consider an attention cue (animation, sound, or vibration on phones).
-- **Offline:** a station that was offline receives missed alerts when it reconnects.
+- **Offline / reload:** a station that was offline receives missed alerts when it reconnects (with pop-up). After a page reload, alerts it already saw are listed again **quietly**, with no pop-up or vibration.
 
 #### Activity log
 Time-stamped lines, newest first, kept to the last 100:
@@ -73,6 +83,9 @@ Time-stamped lines, newest first, kept to the last 100:
 - alerts received
 
 Errors use the danger color, confirmations the OK color. On a phone this could be collapsed by default.
+
+#### Naval this week (map, on the Trends screen)
+The same map as the RHU Dashboard: Naval highlighted among the greyed-out towns of Biliran, barangays colored by cases and alert level, case markers. **The station's own barangay has a thick outline**, so a worker sees at a glance whether neighbors are on alert. Tap a barangay for its numbers (names are hidden on phones).
 
 #### Trends from RHU Naval
 This is the part of the system where **barangays see RHU data**.

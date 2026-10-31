@@ -62,9 +62,9 @@ python tools/benchmark_analytics.py --db var/bench.db --workers 1 2 4 8 --csv va
 
 | Rule | Injected outbreak weeks flagged | False alarms |
 |---|---|---|
-| count > alert threshold | 73% | 8.5% of normal weeks (~11 per week across Naval) |
-| count > alert threshold **and count ≥ 3** | 58% (≥75% of outbreaks flagged in at least one week) | 2.6% of normal weeks (~3 per week across Naval) |
+| count > alert threshold | 58% | 9.0% of normal weeks (~12 per week across Naval) |
+| count > alert threshold **and count ≥ 3** | 58% (≥75% of outbreaks flagged in at least one week) | 2.8% of normal weeks (~3.6 per week across Naval) |
 
-The minimum of 3 cases cuts false alarms by about 70%, at the cost of missing some small outbreaks. This trade-off between sensitivity and false alarms is normal for threshold-based surveillance.
+The minimum of 3 cases cuts false alarms by about 70% without missing any more outbreak weeks in this run (both rules flag 19 of 33). Figures are from the history with real barangay neighbors (outbreaks spill over ×1.5 into neighboring barangays). This trade-off between sensitivity and false alarms is normal for threshold-based surveillance.
 
 > **Note:** the map step counts cases record by record in Python. SQL's `GROUP BY` could count faster, but the per-record map step is kept on purpose to show data parallelism.
