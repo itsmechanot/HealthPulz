@@ -37,7 +37,7 @@ Barangay name (e.g. **Brgy. Caraycaray**), node ID (`BRGY-08-24Y4`, small, for t
 | Control | Behavior |
 |---|---|
 | Mode toggle | **Realistic week** / **Stress test** |
-| Realistic week | Generates this week's typical cases for the barangay. Optional **Simulate an outbreak** checkbox + disease dropdown (multiplies that disease ×5, which **triggers a real alert**). |
+| Realistic week | Generates this week's typical cases for the barangay. Optional **Simulate an outbreak** checkbox + disease dropdown: generates enough cases of that disease to go **above the RHU's epidemic threshold** for this barangay and week, so it **always triggers a real alert**, in any season. |
 | Stress test | **Number of cases** (1–5,000, default 500), plus a note: stress-test cases are a **drill**, stored and counted but they never raise alerts |
 | **Generate & Send** | The main action of the page |
 | Result line | e.g. "Generated 22 cases in 1 batch(es): Dengue 16, Influenza-like illness 4, …", or "No cases this week" |

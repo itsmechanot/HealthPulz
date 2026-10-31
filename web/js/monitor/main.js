@@ -93,6 +93,8 @@ function renderKpis(p, nodes) {
   $("kpi-accounted-sub").textContent = inPipeline > 0
     ? `${fmt(inPipeline)} still in the pipeline`
     : `${fmt(accounted)} of ${fmt(p.records_received)} · nothing lost`;
+  // The demo's proof: once everything is through, highlight 100% in green.
+  $("kpi-accounted-tile").classList.toggle("highlight", p.records_received > 0 && inPipeline === 0);
 }
 
 function renderCharts() {

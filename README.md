@@ -99,5 +99,5 @@ Reports time, speedup and efficiency per worker count. See [parallel analytics](
 - [Message protocol](docs/protocol.md)
 - [Synthetic data rules](docs/synthetic-data.md)
 - [Parallel analytics and benchmark](docs/analytics.md)
-- Screen specs for the UI designer: [System Monitor](docs/screens/system-monitor.md) · [RHU Dashboard](docs/screens/rhu-dashboard.md) · [BHS Node](docs/screens/bhs-node.md)
+- For the UI designer: [design system](docs/screens/design-system.md) · screen specs for [BHS Node](docs/screens/bhs-node.md), [RHU Dashboard](docs/screens/rhu-dashboard.md), [System Monitor](docs/screens/system-monitor.md)
 - [Database schema](rhu/schema.sql)

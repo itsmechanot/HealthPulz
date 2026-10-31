@@ -21,8 +21,10 @@ from rhu.hub import Hub
 from rhu.ingest import IngestPipeline
 
 # Python reads file types from the Windows registry, which can map .js to
-# text/plain. Browsers refuse to run module scripts served that way.
+# text/plain. Browsers refuse to run module scripts served that way, and won't
+# render an icon sprite that isn't image/svg+xml.
 mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("image/svg+xml", ".svg")
 
 
 def create_app(

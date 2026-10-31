@@ -48,6 +48,19 @@ def test_scripts_are_served_as_javascript(client):
     assert res.headers["content-type"].startswith("text/javascript")
 
 
+def test_icon_sprite_is_served_as_svg(client):
+    res = client.get("/img/icons.svg")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("image/svg+xml")
+    assert 'id="logo"' in res.text
+
+
+def test_every_page_links_to_every_other_page(client):
+    for page in ("/", "/node/", "/dashboard/", "/monitor/"):
+        html = client.get(page).text
+        assert all(f'href="{target}"' in html for target in ("/node/", "/dashboard/", "/monitor/")), page
+
+
 def test_unknown_api_path_is_still_json_404(client):
     res = client.get("/api/does-not-exist")
     assert res.status_code == 404

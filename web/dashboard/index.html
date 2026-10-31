@@ -9,14 +9,19 @@
 </head>
 <body>
   <header class="app-header">
-    <a class="brand" href="/" style="text-decoration: none">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
       <span class="brand-name">HealthPulz</span>
-      <span class="brand-role">RHU Dashboard</span>
     </a>
+    <nav class="app-nav" aria-label="Pages">
+      <a href="/node/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>BHS Node</a>
+      <a href="/dashboard/" aria-current="page"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
+      <a href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
+    </nav>
     <span id="connection" class="pill" data-state="connecting" role="status">Loading…</span>
   </header>
 
-  <main class="container" style="max-width: 1200px">
+  <main class="container wide">
     <!-- 1. Title and week -->
     <section class="page-title">
       <div>
@@ -32,7 +37,7 @@
     <!-- 3. Active alerts -->
     <section class="card" aria-labelledby="alerts-title">
       <div class="card-header">
-        <h2 id="alerts-title">Alerts</h2>
+        <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Outbreak alerts</h2>
         <div class="segmented" role="group" aria-label="Show alerts">
           <button type="button" data-alert-filter="active" aria-pressed="true">Active</button>
           <button type="button" data-alert-filter="RESOLVED" aria-pressed="false">Resolved</button>
@@ -45,7 +50,7 @@
     <!-- 4. Trend chart -->
     <section class="card" aria-labelledby="trend-title">
       <div class="card-header">
-        <h2 id="trend-title">Trend</h2>
+        <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg><span id="trend-title">Trend</span></h2>
         <div class="controls">
           <label for="trend-barangay" class="small">Area</label>
           <select id="trend-barangay"><option value="">All of Naval</option></select>
@@ -73,7 +78,7 @@
     <!-- 5. Barangay table -->
     <section class="card" aria-labelledby="grid-title">
       <div class="card-header">
-        <h2 id="grid-title">Barangays</h2>
+        <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#table"/></svg><span id="grid-title">Barangays</span></h2>
         <div class="segmented" role="group" aria-label="Week">
           <button type="button" data-grid-week="current" aria-pressed="true">This week</button>
           <button type="button" data-grid-week="previous" aria-pressed="false">Last week</button>
@@ -89,6 +94,7 @@
     </section>
   </main>
 
+  <footer class="app-footer">HealthPulz · RHU Naval, Biliran · All data is synthetic</footer>
   <script type="module" src="/js/dashboard/main.js"></script>
 </body>
 </html>

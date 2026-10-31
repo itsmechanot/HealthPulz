@@ -6,15 +6,27 @@ import { uuid4 } from "../common/ids.js";
 const OUTBREAK_MULTIPLIER = 5;
 const PUROKS = 7;
 
-/** A realistic week of cases for this barangay, optionally with an outbreak of one disease. */
-export function realisticWeek(diseases, barangay, outbreakCode = null) {
+/**
+ * A realistic week of cases for this barangay, optionally with an outbreak of one disease.
+ *
+ * outbreak: { code, minimumCases }. The outbreak disease gets ×5 its normal rate but
+ * at least `minimumCases`, so it goes over the RHU's threshold in any season (×5 of a
+ * low off-season rate can still be below it). Its onsets all fall in the current week,
+ * so the spike isn't split across two weeks.
+ */
+export function realisticWeek(diseases, barangay, outbreak = null) {
   const month = new Date().getMonth();
   const records = [];
   for (const disease of diseases) {
-    let lambda = disease.base_rate * (barangay.population / 10_000) * disease.season[month] * uniform(0.8, 1.2);
-    if (disease.disease_code === outbreakCode) lambda *= OUTBREAK_MULTIPLIER;
-    const count = poisson(lambda);
-    for (let i = 0; i < count; i++) records.push(makeRecord(disease));
+    const lambda = disease.base_rate * (barangay.population / 10_000) * disease.season[month] * uniform(0.8, 1.2);
+    if (disease.disease_code === outbreak?.code) {
+      const count = Math.max(poisson(lambda * OUTBREAK_MULTIPLIER), outbreak.minimumCases);
+      const daysThisWeek = (new Date().getDay() + 6) % 7; // Monday = 0
+      for (let i = 0; i < count; i++) records.push(makeRecord(disease, daysThisWeek));
+    } else {
+      const count = poisson(lambda);
+      for (let i = 0; i < count; i++) records.push(makeRecord(disease));
+    }
   }
   return records;
 }
@@ -24,9 +36,10 @@ export function stressRecords(diseases, count) {
   return Array.from({ length: count }, () => makeRecord(pickWeighted(diseases, (d) => d.base_rate)));
 }
 
-function makeRecord(disease) {
+/** maxDaysAgo: how far back the onset may be (6 = anywhere in the last week). */
+function makeRecord(disease, maxDaysAgo = 6) {
   const today = new Date();
-  const onset = addDays(today, -randInt(0, 6));
+  const onset = addDays(today, -randInt(0, maxDaysAgo));
   const consult = addDays(onset, randInt(0, 3));
   const ageBand = pickWeighted(disease.age_profile, (band) => band.weight);
   return {

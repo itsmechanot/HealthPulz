@@ -67,6 +67,7 @@ function showSetup(config) {
 async function startStation(config, identity, barangay) {
   $("station").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
+  $("station-avatar").textContent = initials(barangay.name);
   $("node-id").textContent = identity.node_id;
   document.title = `HealthPulz · ${barangay.name}`;
 
@@ -169,7 +170,9 @@ function setupGenerator(config, identity, barangay, sender) {
       $("stress-count").value = count;
       records = stressRecords(config.diseases, count);
     } else {
-      const outbreak = $("outbreak-toggle").checked ? diseaseSelect.value : null;
+      const outbreak = $("outbreak-toggle").checked
+        ? { code: diseaseSelect.value, minimumCases: await outbreakSize(diseaseSelect.value, barangay) }
+        : null;
       records = realisticWeek(config.diseases, barangay, outbreak);
     }
 
@@ -242,8 +245,38 @@ function showAlert(alert, config) {
     alertCards.set(alert.alert_id, card);
     $("alerts").querySelector(".empty")?.remove();
     $("alerts").prepend(card);
+    $("alerts-count").hidden = false;
+    $("alerts-count").textContent = `${alertCards.size} alert${alertCards.size > 1 ? "s" : ""}`;
   }
+  // Attention cue for new and escalated alerts: a pulse (skipped if the user turned off
+  // motion) and, on phones that support it, a short vibration.
+  card.classList.remove("is-new");
+  void card.offsetWidth; // restart the animation
+  card.classList.add("is-new");
+  navigator.vibrate?.([200, 100, 200]);
   log(`${isNew ? "Alert received" : "Alert updated"}: ${disease} (${alert.level})`, "error");
+}
+
+const OUTBREAK_FALLBACK_CASES = 12; // when the RHU can't be asked (offline) or has no threshold yet
+
+/**
+ * How many cases a simulated outbreak needs so the RHU flags it: comfortably above this
+ * barangay's epidemic threshold for the current week, which the RHU shares.
+ */
+async function outbreakSize(diseaseCode, barangay) {
+  try {
+    const { weeks } = await api.fetchJson(api.trendUrl(diseaseCode, barangay.barangay_id, 1));
+    const threshold = weeks.at(-1)?.epidemic_threshold;
+    return threshold == null ? OUTBREAK_FALLBACK_CASES : Math.ceil(threshold * 1.3) + 3;
+  } catch {
+    return OUTBREAK_FALLBACK_CASES;
+  }
+}
+
+/** "Padre Inocentes Garcia (Pob.)" -> "PI"; "Caraycaray" -> "CA". */
+function initials(name) {
+  const words = name.replace(/\(.*?\)/g, "").trim().split(/\s+/);
+  return (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase();
 }
 
 function setConnectionState(state) {

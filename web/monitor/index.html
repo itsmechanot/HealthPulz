@@ -9,18 +9,24 @@
 </head>
 <body>
   <header class="app-header">
-    <a class="brand" href="/" style="text-decoration: none">
+    <a class="brand" href="/">
+      <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
       <span class="brand-name">HealthPulz</span>
-      <span class="brand-role">System Monitor</span>
     </a>
+    <nav class="app-nav" aria-label="Pages">
+      <a href="/node/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>BHS Node</a>
+      <a href="/dashboard/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
+      <a href="/monitor/" aria-current="page"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
+    </nav>
     <span id="connection" class="pill" data-state="connecting" role="status">Connecting…</span>
   </header>
 
-  <main class="container" style="max-width: 1200px">
+  <main class="container wide">
     <!-- 1. Join address for classmates -->
     <section class="card join" aria-label="How to join">
-      <div>BHS nodes join at <span id="join-urls" class="mono">…</span></div>
-      <div class="muted small">Same Wi-Fi as this RHU server. Choose a barangay, then Generate &amp; Send.</div>
+      <span class="section-title muted small"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#nodes"/></svg>Join as a Barangay Health Station: open this on your phone</span>
+      <div id="join-urls" class="join-url">…</div>
+      <div class="muted small">Same Wi-Fi as this RHU server. Choose a barangay, then press Generate &amp; Send.</div>
     </section>
 
     <!-- 2. Key numbers -->
@@ -29,14 +35,14 @@
       <div class="stat"><div id="kpi-accepted" class="stat-value">0</div><div class="stat-label">Records stored</div><div id="kpi-batches" class="stat-sub">0 batches</div></div>
       <div class="stat"><div id="kpi-nodes" class="stat-value">0</div><div class="stat-label">Nodes online</div><div id="kpi-nodes-total" class="stat-sub">of 0 registered</div></div>
       <div class="stat"><div id="kpi-queue" class="stat-value">0</div><div class="stat-label">Batches in queue</div><div id="kpi-busy" class="stat-sub">0 refused (busy)</div></div>
-      <div class="stat"><div id="kpi-accounted" class="stat-value">–</div><div class="stat-label">Records accounted for</div><div id="kpi-accounted-sub" class="stat-sub">stored + duplicates + rejected</div></div>
+      <div id="kpi-accounted-tile" class="stat"><div id="kpi-accounted" class="stat-value">–</div><div class="stat-label">Records accounted for</div><div id="kpi-accounted-sub" class="stat-sub">stored + duplicates + rejected</div></div>
     </section>
 
     <!-- 3. Live charts -->
     <div class="grid-2">
       <section class="card" aria-labelledby="throughput-title">
         <div class="card-header">
-          <h2 id="throughput-title">Throughput</h2>
+          <h2 id="throughput-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pulse"/></svg>Throughput</h2>
           <div class="legend"><span style="--swatch: var(--accent)">records stored / s</span></div>
         </div>
         <div class="chart">
@@ -48,7 +54,7 @@
 
       <section class="card" aria-labelledby="queues-title">
         <div class="card-header">
-          <h2 id="queues-title">Queue depth</h2>
+          <h2 id="queues-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#layers"/></svg>Queue depth</h2>
           <div class="legend">
             <span style="--swatch: var(--warn)">ingest queue</span>
             <span style="--swatch: var(--text-muted)">write queue</span>
@@ -64,33 +70,33 @@
 
     <!-- 4. Ingestion pipeline -->
     <section class="card" aria-labelledby="pipeline-title">
-      <h2 id="pipeline-title">Ingestion pipeline</h2>
+      <h2 id="pipeline-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Ingestion pipeline</h2>
       <div class="flow">
         <div class="flow-stage">
           <span class="stage-name">1 · Receiver (HTTP)</span>
           <span id="st-received" class="stage-value">0</span>
           <span class="muted small">batches received</span>
         </div>
-        <span class="flow-arrow" aria-hidden="true">→</span>
+        <svg class="icon flow-arrow" aria-hidden="true"><use href="/img/icons.svg#arrow"/></svg>
         <div class="flow-stage">
           <span class="stage-name">2 · Ingest queue</span>
           <span id="st-ingest" class="stage-value">0</span>
           <div id="meter-ingest" class="meter"><div></div></div>
           <span id="st-capacity" class="muted small">of 0 (full → 503)</span>
         </div>
-        <span class="flow-arrow" aria-hidden="true">→</span>
+        <svg class="icon flow-arrow" aria-hidden="true"><use href="/img/icons.svg#arrow"/></svg>
         <div class="flow-stage">
           <span class="stage-name">3 · Validator threads</span>
           <span id="st-validators" class="stage-value">0</span>
           <span id="st-rejected" class="muted small">0 records rejected</span>
         </div>
-        <span class="flow-arrow" aria-hidden="true">→</span>
+        <svg class="icon flow-arrow" aria-hidden="true"><use href="/img/icons.svg#arrow"/></svg>
         <div class="flow-stage">
           <span class="stage-name">4 · Write queue</span>
           <span id="st-write" class="stage-value">0</span>
           <div id="meter-write" class="meter"><div></div></div>
         </div>
-        <span class="flow-arrow" aria-hidden="true">→</span>
+        <svg class="icon flow-arrow" aria-hidden="true"><use href="/img/icons.svg#arrow"/></svg>
         <div class="flow-stage">
           <span class="stage-name">5 · DB writer thread</span>
           <span id="st-stored" class="stage-value">0</span>
@@ -102,7 +108,7 @@
     <div class="grid-2">
       <!-- 5. Parallel analytics -->
       <section class="card" aria-labelledby="analytics-title">
-        <h2 id="analytics-title">Parallel analytics (last run)</h2>
+        <h2 id="analytics-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#cpu"/></svg>Parallel analytics (last run)</h2>
         <dl id="analytics" class="kv">
           <dt>Status</dt><dd>Waiting for the first run…</dd>
         </dl>
@@ -110,7 +116,7 @@
 
       <!-- 6. Drill vs live -->
       <section class="card" aria-labelledby="note-title">
-        <h2 id="note-title">How to read this screen</h2>
+        <h2 id="note-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>How to read this screen</h2>
         <p class="small muted" style="margin: 0">
           Nodes send batches over HTTP. The receiver only queues them (fast reply), validator threads check
           every record in parallel, and a single DB writer thread saves them in groups. Every record is
@@ -124,13 +130,15 @@
     <!-- 7. Nodes -->
     <section class="card" aria-labelledby="nodes-title">
       <div class="card-header">
-        <h2 id="nodes-title">BHS nodes</h2>
+        <h2 id="nodes-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#nodes"/></svg>BHS nodes</h2>
         <span id="nodes-count" class="muted small"></span>
       </div>
       <div id="nodes" class="node-grid"></div>
       <p id="nodes-empty" class="empty">No nodes yet. They appear here as soon as a classmate starts a station.</p>
     </section>
   </main>
+
+  <footer class="app-footer">HealthPulz · RHU Naval, Biliran · All data is synthetic</footer>
 
   <script type="module" src="/js/monitor/main.js"></script>
 </body>
