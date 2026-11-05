@@ -10,6 +10,9 @@ from rhu.history import import_history
 from tests.factories import NODE, make_batch
 
 
+STATION = "BRGY-08-MAIN"
+
+
 def hello(ws, node_id=NODE):
     ws.send_json({"type": "HELLO", "node_id": node_id, "pending_batches": 0})
     return ws.receive_json()
@@ -75,23 +78,41 @@ def test_monitor_shows_connected_node_online(registered):
     assert {"records_per_second", "ingest_queue", "validator_threads"} <= snapshot["pipeline"].keys()
 
 
+def register_station(client):
+    client.post("/api/nodes/register", json={"type": "REGISTER", "node_id": STATION, "barangay_id": "BRGY-08"})
+
+
 def test_monitor_lists_only_live_nodes(registered):
+    register_station(registered)
     import_history(registered.app.state.db_path, years=1)
     with registered.websocket_connect("/ws/monitor") as monitor:
-        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [NODE]
+        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [STATION]
 
 
-def test_monitor_shows_registered_but_unconnected_node_offline(registered):
+def test_monitor_hides_old_ids_of_a_barangay_once_disconnected(registered):
+    """NODE is an ID from before the fixed stations, or a load-test node."""
+    register_station(registered)
+    with registered.websocket_connect(f"/ws/node/{NODE}") as node:
+        hello(node)
+        with registered.websocket_connect("/ws/monitor") as monitor:
+            assert {n["node_id"] for n in monitor.receive_json()["nodes"]} == {STATION, NODE}
     with registered.websocket_connect("/ws/monitor") as monitor:
-        assert node_entry(monitor.receive_json())["status"] == "OFFLINE"
+        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [STATION]
+
+
+def test_monitor_shows_a_registered_but_unconnected_station_offline(registered):
+    register_station(registered)
+    with registered.websocket_connect("/ws/monitor") as monitor:
+        assert node_entry(monitor.receive_json(), STATION)["status"] == "OFFLINE"
 
 
 def test_monitor_hides_stations_not_seen_recently(registered):
+    register_station(registered)
     with closing(db.connect(registered.app.state.db_path)) as conn, conn:
-        conn.execute("INSERT INTO nodes (node_id, barangay_id, registered_at) VALUES ('BRGY-01-OLD1', 'BRGY-01', '2020-01-01T00:00:00.000+00:00')")
+        conn.execute("INSERT INTO nodes (node_id, barangay_id, registered_at) VALUES ('BRGY-01-MAIN', 'BRGY-01', '2020-01-01T00:00:00.000+00:00')")
 
     with registered.websocket_connect("/ws/monitor") as monitor:
-        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [NODE]
+        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [STATION]
 
 
 def test_monitor_always_shows_a_connected_station(registered):

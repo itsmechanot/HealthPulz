@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
 
 from rhu import db
+from rhu.bhu_store import station_id
 from rhu.config import MONITOR_INTERVAL_SECONDS, NODE_RECENT_HOURS
 from rhu.hub import Hub
 
@@ -96,8 +97,11 @@ async def build_snapshot(app: FastAPI, records_per_second: float) -> dict:
     registered = await asyncio.to_thread(_registered_nodes, app.state.db_path)
     nodes = []
     for node_id, barangay_id, last_seen in registered:
-        # Old stations stay in the database (their cases point to them), but not on the monitor.
-        if not hub.is_connected(node_id) and last_seen < _recent_cutoff():
+        # One tile per barangay: its fixed station, if recently active. Any other ID (a load-test
+        # node, or one from before the fixed stations) only shows while connected. Those stay in
+        # the database, because their cases point to them.
+        recent_station = node_id == station_id(barangay_id) and last_seen >= _recent_cutoff()
+        if not hub.is_connected(node_id) and not recent_station:
             continue
         status, pending = hub.node_status(node_id)
         nodes.append({
