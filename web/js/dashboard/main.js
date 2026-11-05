@@ -33,6 +33,7 @@ const state = {
 };
 const data = { summary: null, grids: {}, alerts: [], nodes: [] };
 let config;
+let tracked; // diseases under outbreak surveillance (config.diseases also has "Other consultations")
 let router;
 let overviewMap;
 let bigMap;
@@ -46,7 +47,8 @@ async function start() {
     setConnection("offline", "RHU unreachable");
     return;
   }
-  state.disease = config.diseases[0].disease_code;
+  tracked = config.diseases.filter((d) => d.tracked);
+  state.disease = tracked[0].disease_code;
   setupMenu();
   buildControls();
   [overviewMap, bigMap] = await Promise.all([
@@ -126,7 +128,7 @@ function renderOverview() {
   const active = activeAlerts();
 
   $("kpi-cases").textContent = fmt(totals.this_week);
-  $("kpi-cases-sub").textContent = `Last week: ${fmt(totals.last_week)} cases`;
+  $("kpi-cases-sub").textContent = `Last week: ${fmt(totals.last_week)} · Other consultations: ${fmt(data.summary.other_consultations.this_week)}`;
   $("kpi-alerts").textContent = fmt(active.length);
   const epidemic = active.filter((a) => a.level === "EPIDEMIC").length;
   $("kpi-alerts-sub").textContent = active.length ? `${epidemic} at epidemic level · ${active.filter((a) => a.status === "OPEN").length} not yet acknowledged` : "All barangays within normal levels";
@@ -182,7 +184,7 @@ async function renderDiseaseCards(diseases) {
 // ---- Map -------------------------------------------------------------------------------
 
 function renderMapScreen() {
-  const chips = [{ code: null, name: "All diseases" }, ...config.diseases.map((d) => ({ code: d.disease_code, name: d.name }))];
+  const chips = [{ code: null, name: "All diseases" }, ...tracked.map((d) => ({ code: d.disease_code, name: d.name }))];
   $("map-diseases").replaceChildren(
     ...chips.map(({ code, name }) => {
       const chip = el("button", { type: "button", className: "filter-chip", textContent: name });
@@ -215,7 +217,7 @@ function renderDetail() {
   const week = state.mapWeek === "current" ? `${data.summary.week.label} (so far)` : data.summary.previous_week.label;
   const worst = Object.values(b.diseases).reduce((w, c) => (c.level === "EPIDEMIC" || (c.level === "ALERT" && w !== "EPIDEMIC") ? c.level : w), "NORMAL");
 
-  const rows = config.diseases.map((d) => {
+  const rows = tracked.map((d) => {
     const cell = b.diseases[d.disease_code] ?? { cases: 0, level: "NORMAL" };
     return el(
       "div",
@@ -224,6 +226,7 @@ function renderDetail() {
       el("span", {}, cell.level !== "NORMAL" ? el("span", { className: "badge", dataset: { level: cell.level }, textContent: cell.level }) : "", ` ${fmt(cell.cases)}`),
     );
   });
+  rows.push(el("div", { className: "muted" }, el("span", { textContent: "Other consultations" }), el("span", { textContent: fmt(b.other_consultations) })));
   const trendBtn = el("button", { type: "button", className: "btn btn-ghost btn-small", textContent: "Open trend" });
   trendBtn.addEventListener("click", () => {
     state.barangay = b.barangay_id;
@@ -323,7 +326,7 @@ async function renderTrends() {
   $("trend-barangay").value = state.barangay;
 
   const { weeks } = await api.fetchJson(api.trendUrl(state.disease, state.barangay, state.weeks));
-  const withThresholds = Boolean(state.barangay);
+  const withThresholds = Boolean(state.barangay) && tracked.some((d) => d.disease_code === state.disease);
   const series = [{ values: weeks.map((w) => w.cases), className: "series-accent" }];
   if (withThresholds) {
     series.push(
@@ -339,6 +342,8 @@ async function renderTrends() {
   document.querySelectorAll(".threshold-legend").forEach((item) => (item.hidden = !withThresholds));
   $("trend-note").textContent = withThresholds
     ? "Thresholds come from the same weeks in past years (mean + 2 SD for alert, + 3 SD for epidemic). The last week is still in progress."
+    : state.disease === "OTH"
+    ? "Other consultations are counted but not under outbreak surveillance, so they have no thresholds. The last week is still in progress."
     : "Choose a barangay to compare with its alert and epidemic thresholds. The last week is still in progress.";
   const labels = weeks.length ? [weeks[0], weeks[Math.floor(weeks.length / 2)], weeks.at(-1)] : [];
   $("trend-axis").replaceChildren(...labels.map((w, i) => el("span", { textContent: i === 2 ? `${w.label} (so far)` : w.label })));
@@ -351,8 +356,9 @@ function renderGrid() {
   $("grid-title").textContent = `Barangays · ${week.label}${state.gridWeek === "current" ? " (so far)" : ""}`;
   $("grid-head").replaceChildren(
     el("th", { scope: "col", textContent: "Barangay" }),
-    ...config.diseases.map((d) => el("th", { scope: "col", textContent: d.name })),
+    ...tracked.map((d) => el("th", { scope: "col", textContent: d.name })),
     el("th", { scope: "col", textContent: "Total" }),
+    el("th", { scope: "col", textContent: "Other" }),
     el("th", { scope: "col", textContent: "Per 10,000" }),
   );
   const rows = [...data.grids[state.gridWeek].barangays].sort((a, b) => b.rate_per_10k - a.rate_per_10k || a.name.localeCompare(b.name));
@@ -362,7 +368,7 @@ function renderGrid() {
         "tr",
         { title: `Show Brgy. ${b.name} on the map`, tabIndex: 0 },
         el("th", { scope: "row", textContent: b.name }),
-        ...config.diseases.map((d) => {
+        ...tracked.map((d) => {
           const cell = b.diseases[d.disease_code] ?? { cases: 0, level: "NORMAL" };
           return el("td", {
             textContent: fmt(cell.cases),
@@ -372,6 +378,7 @@ function renderGrid() {
           });
         }),
         el("td", { textContent: fmt(b.total) }),
+        el("td", { textContent: fmt(b.other_consultations), className: b.other_consultations ? "" : "zero" }),
         el("td", { textContent: b.rate_per_10k.toFixed(1) }),
       );
       const open = () => {

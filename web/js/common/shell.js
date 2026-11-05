@@ -18,32 +18,39 @@ export function setupMenu() {
 
 /**
  * Screens are <section data-screen="name">; links use href="#/name" and data-nav="name".
- * The URL hash keeps the current screen, so reload and the Back button work. The "/"
- * keeps the hash from matching an element id (the browser would scroll to it).
- * onChange(name) runs whenever the screen changes.
+ * A screen with data-parent="other" highlights that screen's link instead of its own.
+ * The URL hash keeps the current screen and an optional parameter (#/client/abc123), so
+ * reload and the Back button work. The "/" keeps the hash from matching an element id
+ * (the browser would scroll to it).
+ * onChange(name, param) runs whenever the screen changes.
  */
 export function createRouter(defaultScreen, onChange) {
-  const screens = [...document.querySelectorAll("[data-screen]")].map((s) => s.dataset.screen);
-  const current = () => {
-    const name = location.hash.replace(/^#\/?/, "");
-    return screens.includes(name) ? name : defaultScreen;
+  const sections = [...document.querySelectorAll("[data-screen]")];
+  const parse = () => {
+    const [name, param = null] = location.hash.replace(/^#\/?/, "").split("/");
+    return sections.some((s) => s.dataset.screen === name) ? { name, param } : { name: defaultScreen, param: null };
   };
   const show = () => {
-    const name = current();
-    document.querySelectorAll("[data-screen]").forEach((s) => (s.hidden = s.dataset.screen !== name));
+    const { name, param } = parse();
+    let navName = name;
+    for (const section of sections) {
+      section.hidden = section.dataset.screen !== name;
+      if (!section.hidden) navName = section.dataset.parent ?? name;
+    }
     document.querySelectorAll("[data-nav]").forEach((link) => {
-      if (link.dataset.nav === name) link.setAttribute("aria-current", "page");
+      if (link.dataset.nav === navName) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     });
     window.scrollTo(0, 0);
-    onChange(name);
+    onChange(name, param);
   };
   window.addEventListener("hashchange", show);
   return {
-    current,
-    go(name) {
-      if (current() === name) show();
-      else location.hash = `/${name}`;
+    current: () => parse().name,
+    go(name, param = null) {
+      const target = param ? `#/${name}/${param}` : `#/${name}`;
+      if (location.hash === target) show();
+      else location.hash = target;
     },
     start: show,
   };

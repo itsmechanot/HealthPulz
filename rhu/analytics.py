@@ -80,13 +80,14 @@ class Analytics:
 
     def _run(self, today: date) -> AnalyticsResult:
         diseases = [d["disease_code"] for d in rules.diseases()]
+        tracked = {d["disease_code"] for d in rules.tracked_diseases()}
         barangay_ids = [b["barangay_id"] for b in rules.barangays()]
         first_case = self._first_onset()
         # Every week from the first case up to and including the current week.
         weeks = iso_week_mondays(first_case, today + timedelta(weeks=1)) if first_case else []
 
         start = time.perf_counter()
-        args = [(str(self.db_path), barangay_id, diseases, weeks) for barangay_id in barangay_ids]
+        args = [(str(self.db_path), barangay_id, diseases, tracked, weeks) for barangay_id in barangay_ids]
         if self._executor is None:
             parts = [_map_barangay(*a) for a in args]
         else:
@@ -127,7 +128,9 @@ class Analytics:
 # ---- map step (runs inside the worker processes) ------------------------------
 # Top-level functions, so they can be sent to other processes.
 
-def _map_barangay(db_path: str, barangay_id: str, diseases: list[str], weeks: list[date]) -> tuple[int, list[tuple]]:
+def _map_barangay(
+    db_path: str, barangay_id: str, diseases: list[str], tracked: set[str], weeks: list[date]
+) -> tuple[int, list[tuple]]:
     """Returns (cases read, weekly_stats rows) for one barangay."""
     counts: Counter = Counter()
     cases = 0
@@ -148,7 +151,8 @@ def _map_barangay(db_path: str, barangay_id: str, diseases: list[str], weeks: li
     for disease in diseases:
         for monday in weeks:
             alert = epidemic = None
-            baseline = baseline_values(counts, disease, monday, first_week=weeks[0])
+            # Only surveillance diseases get thresholds; "Other" is just counted.
+            baseline = baseline_values(counts, disease, monday, first_week=weeks[0]) if disease in tracked else None
             if baseline is not None:
                 mean, sd = statistics.fmean(baseline), statistics.stdev(baseline)
                 alert, epidemic = round(mean + 2 * sd, 2), round(mean + 3 * sd, 2)

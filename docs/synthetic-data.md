@@ -66,6 +66,12 @@ Months outside the peak use a multiplier of **×1**.
 
 ---
 
+### Other consultations (`OTH`)
+
+`rhu/data/diseases.json` also has an entry with `"tracked": false` and a rate of 0. It exists for real checkups whose diagnosis isn't one of the 6 diseases above. The generators never produce it, so the history is unaffected.
+
+---
+
 ## 3. Generation formula
 
 For each barangay × disease × week:

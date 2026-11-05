@@ -12,7 +12,8 @@
       { "min": 60, "max": 90, "weight": 1 }
     ],
     "male_ratio": 0.5,
-    "single_case_alert": false
+    "single_case_alert": false,
+    "tracked": true
   },
   {
     "disease_code": "ILI",
@@ -27,7 +28,8 @@
       { "min": 60, "max": 90, "weight": 2 }
     ],
     "male_ratio": 0.5,
-    "single_case_alert": false
+    "single_case_alert": false,
+    "tracked": true
   },
   {
     "disease_code": "AWD",
@@ -42,7 +44,8 @@
       { "min": 60, "max": 90, "weight": 3 }
     ],
     "male_ratio": 0.5,
-    "single_case_alert": false
+    "single_case_alert": false,
+    "tracked": true
   },
   {
     "disease_code": "LEP",
@@ -56,7 +59,8 @@
       { "min": 60, "max": 90, "weight": 1 }
     ],
     "male_ratio": 0.8,
-    "single_case_alert": false
+    "single_case_alert": false,
+    "tracked": true
   },
   {
     "disease_code": "TYP",
@@ -70,7 +74,8 @@
       { "min": 40, "max": 90, "weight": 2 }
     ],
     "male_ratio": 0.5,
-    "single_case_alert": false
+    "single_case_alert": false,
+    "tracked": true
   },
   {
     "disease_code": "MEA",
@@ -83,6 +88,20 @@
       { "min": 10, "max": 19, "weight": 2 }
     ],
     "male_ratio": 0.5,
-    "single_case_alert": true
+    "single_case_alert": true,
+    "tracked": true
+  },
+  {
+    "disease_code": "OTH",
+    "name": "Other consultations",
+    "category": "OTHER",
+    "base_rate": 0,
+    "season": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "age_profile": [
+      { "min": 0, "max": 90, "weight": 1 }
+    ],
+    "male_ratio": 0.5,
+    "single_case_alert": false,
+    "tracked": false
   }
 ]

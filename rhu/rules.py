@@ -20,6 +20,12 @@ def diseases() -> list[dict]:
     return _load("diseases.json")
 
 
+def tracked_diseases() -> list[dict]:
+    """Diseases under outbreak surveillance. "Other consultations" (tracked: false) are
+    stored and counted, but have no thresholds or alerts and stay out of the case totals."""
+    return [d for d in diseases() if d["tracked"]]
+
+
 @lru_cache
 def barangays() -> list[dict]:
     return _load("barangays.json")

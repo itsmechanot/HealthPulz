@@ -13,7 +13,7 @@ def register(client, node_id="BRGY-08-K7QX", barangay_id="BRGY-08"):
 def test_root_serves_landing_page(client):
     res = client.get("/")
     assert res.status_code == 200
-    assert "BHS Node" in res.text
+    assert "BHU" in res.text
 
 
 def test_node_page_is_served(client):
@@ -90,14 +90,14 @@ def test_config_has_all_barangays_and_diseases(client):
     body = client.get("/api/config").json()
     assert body["protocol_version"] == 1
     assert len(body["barangays"]) == 26
-    assert {d["disease_code"] for d in body["diseases"]} == {"DEN", "ILI", "AWD", "LEP", "TYP", "MEA"}
+    assert {d["disease_code"] for d in body["diseases"]} == {"DEN", "ILI", "AWD", "LEP", "TYP", "MEA", "OTH"}
 
 
 def test_reference_data_is_seeded(client):
     conn = db.connect(client.app.state.db_path)
     try:
         assert conn.execute("SELECT COUNT(*) FROM barangays").fetchone()[0] == 26
-        assert conn.execute("SELECT COUNT(*) FROM diseases").fetchone()[0] == 6
+        assert conn.execute("SELECT COUNT(*) FROM diseases").fetchone()[0] == 7
     finally:
         conn.close()
 

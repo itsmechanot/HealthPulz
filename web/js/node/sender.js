@@ -39,6 +39,12 @@ export class Sender extends EventTarget {
     this.pump();
   }
 
+  /** Batches were added to the outbox directly (saved with a record): send them now. */
+  notifyQueued() {
+    this.emit("changed");
+    this.pump();
+  }
+
   /** Called with every STORED message the WebSocket receives. */
   async confirmStored(message) {
     // A resent batch can be confirmed twice; only the first confirmation counts.

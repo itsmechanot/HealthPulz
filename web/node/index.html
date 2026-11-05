@@ -4,29 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0e8c6e">
-  <title>HealthPulz · BHS Node</title>
+  <title>HealthPulz · BHU</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/css/base.css">
 </head>
 <body>
   <div class="app has-tabbar setup-mode">
-    <!-- Sidebar (desktop) -->
+    <!-- Sidebar (desktop; the slide-out menu on phones) -->
     <aside class="sidebar" aria-label="Navigation">
       <a class="brand" href="/">
         <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
-        <span><span class="brand-name">HealthPulz</span><br><span class="muted small">Barangay Health Station</span></span>
+        <span><span class="brand-name">HealthPulz</span><br><span class="muted small">Barangay Health Unit</span></span>
       </a>
-      <span class="nav-label">Station</span>
-      <a class="nav-link" href="#/send" data-nav="send"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Send cases</a>
+      <span class="nav-label">Records</span>
+      <a class="nav-link" href="#/clients" data-nav="clients"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Clients</a>
+      <a class="nav-link" href="#/visits" data-nav="visits"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Visits</a>
+      <span class="nav-label">From the RHU</span>
       <a class="nav-link" href="#/alerts" data-nav="alerts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts<span class="count alert-count" hidden></span></a>
       <a class="nav-link" href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
-      <a class="nav-link" href="#/activity" data-nav="activity"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Activity</a>
-      <span class="nav-label">Other</span>
+      <span class="nav-label">System</span>
+      <a class="nav-link" href="#/activity" data-nav="activity"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Sync &amp; Backup<span class="count pending-count" hidden></span></a>
+      <a class="nav-link" href="#/tools" data-nav="tools"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Demo Tools</a>
       <a class="nav-link" href="/dashboard/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
       <a class="nav-link" href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
       <div class="sidebar-footer">
         <button id="change-btn" class="btn btn-ghost btn-small btn-block" type="button">Change barangay</button>
-        <p style="margin: 10px 0 0">All data is synthetic.</p>
       </div>
     </aside>
     <div class="scrim"></div>
@@ -40,7 +42,7 @@
           <span id="station-avatar" class="avatar" aria-hidden="true" hidden></span>
           <div style="min-width: 0">
             <h1 id="station-name">HealthPulz</h1>
-            <div id="station-sub" class="subtitle">Barangay Health Station</div>
+            <div id="station-sub" class="subtitle">Barangay Health Unit</div>
           </div>
         </div>
         <div class="tools">
@@ -53,8 +55,8 @@
         <section class="screen" data-screen="setup" hidden>
           <section id="setup" class="card" style="max-width: 520px; width: 100%; justify-self: center; margin-top: 4vh">
             <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg></span>
-            <h2 style="font-size: 1.3rem">Choose your Barangay Health Station</h2>
-            <p class="muted" style="margin: 0">This device will act as that barangay's node and send its cases to RHU Naval.</p>
+            <h2 style="font-size: 1.3rem">Choose your Barangay Health Unit</h2>
+            <p class="muted" style="margin: 0">Client records are saved on this device. Only de-identified case reports go to RHU Naval.</p>
             <label for="barangay-input">Barangay</label>
             <div class="combobox">
               <input id="barangay-input" type="text" role="combobox" autocomplete="off"
@@ -62,49 +64,167 @@
                      placeholder="Type to search, e.g. Caraycaray">
               <ul id="barangay-list" role="listbox" aria-label="Barangays" hidden></ul>
             </div>
-            <button id="start-btn" class="btn btn-primary btn-large btn-block" disabled>Start as this station</button>
+            <button id="start-btn" class="btn btn-primary btn-large btn-block" disabled>Start as this BHU</button>
             <p id="setup-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
           </section>
         </section>
 
-        <!-- ===== Send ===== -->
-        <section class="screen" data-screen="send" hidden>
-          <div class="grid-2">
-            <section class="card" aria-labelledby="generate-title">
-              <h2 id="generate-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Send cases to the RHU</h2>
-              <div class="segmented block" role="group" aria-label="Mode">
-                <button type="button" data-mode="realistic" aria-pressed="true">Realistic week</button>
-                <button type="button" data-mode="stress" aria-pressed="false">Stress test</button>
+        <!-- ===== Clients ===== -->
+        <section class="screen" data-screen="clients" hidden>
+          <p id="storage-warning" class="note note-danger" role="alert" hidden>
+            <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>
+            This browser can't save records on this device (it may be a private window). Open HealthPulz in a normal window before entering clients.
+          </p>
+          <section class="card" aria-labelledby="clients-title">
+            <div class="card-header">
+              <h2 id="clients-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Clients</h2>
+              <a id="new-client-btn" class="btn btn-primary btn-small" href="#/client-form">+ New client</a>
+            </div>
+            <input id="client-search" type="search" placeholder="Search by name or contact number" aria-label="Search clients">
+            <div id="client-list" class="record-list"></div>
+          </section>
+        </section>
+
+        <!-- ===== Client profile ===== -->
+        <section class="screen" data-screen="client" data-parent="clients" hidden>
+          <a class="link-btn small" href="#/clients">← All clients</a>
+          <section class="card">
+            <div class="station-header">
+              <span id="profile-avatar" class="avatar" aria-hidden="true"></span>
+              <div class="grow">
+                <h2 id="profile-name" style="font-size: 1.2rem"></h2>
+                <span id="profile-summary" class="muted small"></span>
               </div>
-              <div id="realistic-options" class="option-box">
-                <span class="muted small">Generates this week's typical cases for your barangay.</span>
-                <label class="check"><input id="outbreak-toggle" type="checkbox"> Simulate an outbreak of</label>
-                <select id="outbreak-disease" aria-label="Outbreak disease" disabled></select>
+              <a id="profile-edit" class="btn btn-ghost btn-small">Edit</a>
+              <a id="profile-new-visit" class="btn btn-primary btn-small">+ New checkup</a>
+            </div>
+            <dl id="profile-details" class="kv-grid"></dl>
+          </section>
+          <section class="card" aria-labelledby="history-title">
+            <h2 id="history-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Checkup history</h2>
+            <div id="profile-visits" class="record-list"></div>
+          </section>
+        </section>
+
+        <!-- ===== Client form ===== -->
+        <section class="screen" data-screen="client-form" data-parent="clients" hidden>
+          <form id="client-form" class="card" novalidate>
+            <h2 id="client-form-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>New client</h2>
+            <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
+              These details stay on this device. Only the client's age, sex and purok are included in case reports.</p>
+            <div class="form-grid">
+              <div class="field"><label for="c-last">Last name *</label><input id="c-last" name="last_name" type="text" required autocomplete="off"></div>
+              <div class="field"><label for="c-first">First name *</label><input id="c-first" name="first_name" type="text" required autocomplete="off"></div>
+              <div class="field"><label for="c-middle">Middle name</label><input id="c-middle" name="middle_name" type="text" autocomplete="off"></div>
+              <div class="field"><label for="c-birthdate">Birthdate *</label><input id="c-birthdate" name="birthdate" type="date" required></div>
+              <div class="field"><label for="c-sex">Sex *</label>
+                <select id="c-sex" name="sex" required><option value="">Select…</option><option value="F">Female</option><option value="M">Male</option></select></div>
+              <div class="field"><label for="c-civil">Civil status</label>
+                <select id="c-civil" name="civil_status"><option value="">Select…</option><option>Single</option><option>Married</option><option>Widowed</option><option>Separated</option><option>Live-in</option></select></div>
+              <div class="field"><label for="c-purok">Purok *</label><input id="c-purok" name="purok" type="number" min="1" max="20" step="1" required></div>
+              <div class="field"><label for="c-address">Street / sitio</label><input id="c-address" name="address" type="text" autocomplete="off"></div>
+              <div class="field"><label for="c-contact">Contact number</label><input id="c-contact" name="contact" type="tel" autocomplete="off"></div>
+              <div class="field"><label for="c-philhealth">PhilHealth number</label><input id="c-philhealth" name="philhealth" type="text" autocomplete="off"></div>
+            </div>
+            <div class="form-actions">
+              <a id="client-form-cancel" class="btn btn-ghost" href="#/clients">Cancel</a>
+              <button class="btn btn-primary" type="submit">Save client</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- ===== Checkup form ===== -->
+        <section class="screen" data-screen="visit-form" data-parent="clients" hidden>
+          <form id="visit-form" class="stack" novalidate>
+            <section class="card">
+              <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>New checkup</h2>
+              <span id="visit-client" class="small"></span>
+              <div class="form-grid">
+                <div class="field"><label for="v-date">Visit date *</label><input id="v-date" name="visit_date" type="date" required></div>
+                <div class="field"><label for="v-onset">Symptom onset <span id="v-onset-required"></span></label><input id="v-onset" name="onset_date" type="date"></div>
+                <div class="field wide"><label for="v-complaint">Chief complaint *</label><input id="v-complaint" name="chief_complaint" type="text" required autocomplete="off" placeholder="e.g. Fever for 3 days"></div>
               </div>
-              <div id="stress-options" class="option-box" hidden>
-                <label for="stress-count">Number of cases</label>
-                <input id="stress-count" type="number" min="1" max="5000" value="500">
-                <span class="muted small">Sent as a <strong>drill</strong>: stored and counted, but left out of the analytics, so it never raises alerts.</span>
-              </div>
-              <button id="generate-btn" class="btn btn-primary btn-large btn-block">
-                <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Generate &amp; Send
-              </button>
-              <p id="generate-result" class="muted small" style="margin: 0"></p>
             </section>
 
-            <section class="card" aria-labelledby="status-title">
-              <h2 id="status-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Delivery status</h2>
-              <div class="stats compact">
-                <div class="stat"><div id="stat-pending" class="stat-value">0</div><div class="stat-label">Batches waiting</div></div>
-                <div class="stat"><div id="stat-stored" class="stat-value">0</div><div class="stat-label">Cases stored</div></div>
-                <div class="stat"><div id="stat-duplicates" class="stat-value">0</div><div class="stat-label">Duplicates</div></div>
-                <div class="stat"><div id="stat-rejected" class="stat-value">0</div><div class="stat-label">Rejected</div></div>
+            <section class="card">
+              <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pulse"/></svg>Vital signs</h3>
+              <div class="form-grid compact">
+                <div class="field"><label for="v-temp">Temp (°C)</label><input id="v-temp" name="temperature" type="number" min="30" max="45" step="0.1"></div>
+                <div class="field"><label for="v-sys">BP systolic</label><input id="v-sys" name="bp_systolic" type="number" min="50" max="260" step="1"></div>
+                <div class="field"><label for="v-dia">BP diastolic</label><input id="v-dia" name="bp_diastolic" type="number" min="30" max="160" step="1"></div>
+                <div class="field"><label for="v-pulse">Pulse (/min)</label><input id="v-pulse" name="pulse" type="number" min="20" max="250" step="1"></div>
+                <div class="field"><label for="v-resp">Resp. rate (/min)</label><input id="v-resp" name="respiratory_rate" type="number" min="5" max="80" step="1"></div>
+                <div class="field"><label for="v-weight">Weight (kg)</label><input id="v-weight" name="weight" type="number" min="0.5" max="300" step="0.1"></div>
+                <div class="field"><label for="v-height">Height (cm)</label><input id="v-height" name="height" type="number" min="30" max="250" step="0.1"></div>
               </div>
-              <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-                Batches stay on this device until the RHU confirms they are stored, so nothing is lost if the connection drops.</p>
-              <a class="link-btn small" href="#/activity">See activity →</a>
             </section>
+
+            <section class="card">
+              <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Findings and diagnosis</h3>
+              <div class="form-grid">
+                <div class="field wide"><label for="v-findings">Findings / result of checkup</label><textarea id="v-findings" name="findings" rows="3"></textarea></div>
+                <div class="field"><label for="v-diagnosis">Diagnosis *</label><select id="v-diagnosis" name="diagnosis_code" required></select></div>
+                <div class="field" id="v-status-field" hidden><label for="v-status">Case status *</label>
+                  <select id="v-status" name="case_status"><option value="SUSPECTED">Suspected</option><option value="CONFIRMED">Confirmed</option></select></div>
+                <div class="field" id="v-text-field" hidden><label for="v-text">Specify diagnosis *</label><input id="v-text" name="diagnosis_text" type="text" autocomplete="off" placeholder="e.g. Hypertension"></div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>Plan</h3>
+              <div class="form-grid">
+                <div class="field wide"><label for="v-treatment">Treatment / medicine given</label><textarea id="v-treatment" name="treatment" rows="2"></textarea></div>
+                <div class="field"><label for="v-disposition">Disposition</label>
+                  <select id="v-disposition" name="disposition"><option>Home care</option><option>For follow-up</option><option>Referred to RHU</option><option>Referred to hospital</option></select></div>
+                <div class="field"><label for="v-followup">Follow-up date</label><input id="v-followup" name="follow_up_date" type="date"></div>
+                <div class="field"><label for="v-attended">Attended by</label><input id="v-attended" name="attended_by" type="text" autocomplete="off"></div>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="preview-title">
+              <h3 id="preview-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>What the RHU receives</h3>
+              <div id="visit-preview" class="preview"></div>
+              <p class="muted small" style="margin: 0"><strong>Stays on this device:</strong> name, birthdate, contact details, complaint, vital signs, findings, specific diagnosis text and treatment.</p>
+              <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Check the details before saving. A saved checkup can't be edited yet.</p>
+            </section>
+
+            <div class="form-actions">
+              <a id="visit-form-cancel" class="btn btn-ghost">Cancel</a>
+              <button class="btn btn-primary" type="submit">Save checkup and send</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- ===== Visits ===== -->
+        <section class="screen" data-screen="visits" hidden>
+          <div class="kpi-row">
+            <div class="kpi"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg></span>
+              <div><div id="visits-today" class="kpi-value">0</div><div class="kpi-label">Checkups today</div></div></div>
+            <div class="kpi"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg></span>
+              <div><div id="clients-total" class="kpi-value">0</div><div class="kpi-label">Clients registered</div></div></div>
+            <div class="kpi" data-tone="warn"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg></span>
+              <div><div id="visits-waiting" class="kpi-value">0</div><div class="kpi-label">Waiting to reach the RHU</div></div></div>
           </div>
+          <section class="card" aria-labelledby="visits-title">
+            <h2 id="visits-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>All checkups</h2>
+            <input id="visit-search" type="search" placeholder="Search by name or diagnosis" aria-label="Search checkups">
+            <div id="visit-list" class="record-list"></div>
+          </section>
+        </section>
+
+        <!-- ===== Visit record ===== -->
+        <section class="screen" data-screen="visit" data-parent="visits" hidden>
+          <a id="visit-back" class="link-btn small" href="#/visits">← Back</a>
+          <section class="card">
+            <div class="card-header">
+              <div>
+                <h2 id="visit-title" style="font-size: 1.15rem"></h2>
+                <a id="visit-client-link" class="link-btn small"></a>
+              </div>
+              <span id="visit-sync" class="badge"></span>
+            </div>
+            <div id="visit-details" class="detail-sections"></div>
+          </section>
         </section>
 
         <!-- ===== Alerts ===== -->
@@ -164,22 +284,74 @@
           </section>
         </section>
 
-        <!-- ===== Activity ===== -->
+        <!-- ===== Sync & Backup ===== -->
         <section class="screen" data-screen="activity" hidden>
+          <div class="grid-2">
+            <section class="card" aria-labelledby="status-title">
+              <h2 id="status-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Delivery to the RHU</h2>
+              <div class="stats compact">
+                <div class="stat"><div id="stat-pending" class="stat-value">0</div><div class="stat-label">Batches waiting</div></div>
+                <div class="stat"><div id="stat-stored" class="stat-value">0</div><div class="stat-label">Cases stored</div></div>
+                <div class="stat"><div id="stat-duplicates" class="stat-value">0</div><div class="stat-label">Duplicates</div></div>
+                <div class="stat"><div id="stat-rejected" class="stat-value">0</div><div class="stat-label">Rejected</div></div>
+              </div>
+              <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
+                Case reports stay on this device until the RHU confirms they are stored, so nothing is lost if the connection drops.</p>
+            </section>
+
+            <section class="card" aria-labelledby="backup-title">
+              <h2 id="backup-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Backup of records</h2>
+              <p class="note note-danger"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>
+                Client records exist only in this browser. Clearing browser data deletes them, so back up regularly. The backup file contains names and health details: keep it private.</p>
+              <div class="form-actions" style="justify-content: flex-start">
+                <button id="backup-export" class="btn btn-primary btn-small" type="button">Download backup</button>
+                <label class="btn btn-ghost btn-small" for="backup-import">Restore from file</label>
+                <input id="backup-import" type="file" accept="application/json,.json" hidden>
+              </div>
+              <p id="backup-result" class="small" role="status" style="margin: 0"></p>
+            </section>
+          </div>
           <section class="card" aria-labelledby="log-title">
             <h2 id="log-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Activity</h2>
             <ul id="log" class="log" aria-live="polite" style="max-height: none"></ul>
+          </section>
+        </section>
+
+        <!-- ===== Demo Tools: synthetic data and the stress test ===== -->
+        <section class="screen" data-screen="tools" hidden>
+          <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>
+            For demonstrations only. These send generated cases to the RHU and don't create client records.</p>
+          <section class="card" aria-labelledby="generate-title" style="max-width: 560px">
+            <h2 id="generate-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Generate test data</h2>
+            <div class="segmented block" role="group" aria-label="Mode">
+              <button type="button" data-mode="realistic" aria-pressed="true">Realistic week</button>
+              <button type="button" data-mode="stress" aria-pressed="false">Stress test</button>
+            </div>
+            <div id="realistic-options" class="option-box">
+              <span class="muted small">Generates a typical week of cases for your barangay.</span>
+              <label class="check"><input id="outbreak-toggle" type="checkbox"> Simulate an outbreak of</label>
+              <select id="outbreak-disease" aria-label="Outbreak disease" disabled></select>
+            </div>
+            <div id="stress-options" class="option-box" hidden>
+              <label for="stress-count">Number of cases</label>
+              <input id="stress-count" type="number" min="1" max="5000" value="500">
+              <span class="muted small">Sent as a <strong>drill</strong>: stored and counted, but left out of the analytics, so it never raises alerts.</span>
+            </div>
+            <button id="generate-btn" class="btn btn-primary btn-large btn-block" type="button">
+              <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Generate &amp; Send
+            </button>
+            <p id="generate-result" class="muted small" style="margin: 0"></p>
           </section>
         </section>
       </main>
     </div>
 
     <!-- Bottom tabs (phones) -->
-    <nav class="tabbar" aria-label="Station">
-      <a href="#/send" data-nav="send"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Send</a>
+    <nav class="tabbar" aria-label="BHU">
+      <a href="#/clients" data-nav="clients"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Clients</a>
+      <a href="#/visits" data-nav="visits"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Visits</a>
       <a href="#/alerts" data-nav="alerts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts<span class="count alert-count" hidden></span></a>
       <a href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
-      <a href="#/activity" data-nav="activity"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Activity</a>
     </nav>
   </div>
 

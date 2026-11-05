@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS nodes (
 CREATE TABLE IF NOT EXISTS diseases (
   disease_code       TEXT PRIMARY KEY,            -- 'DEN'
   name               TEXT NOT NULL,
-  category           TEXT NOT NULL,               -- VECTOR | RESPIRATORY | WATERBORNE | VACCINE_PREVENTABLE
+  category           TEXT NOT NULL,               -- VECTOR | RESPIRATORY | WATERBORNE | VACCINE_PREVENTABLE | OTHER
   single_case_alert  INTEGER NOT NULL DEFAULT 0   -- 1 = any case triggers an alert (e.g., measles)
 );
 

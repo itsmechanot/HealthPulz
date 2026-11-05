@@ -67,6 +67,8 @@ def detect_alerts(db_path: Path, today: date) -> list[dict]:
             ).fetchall()
             for row in rows:
                 disease = diseases[row["disease_code"]]
+                if not disease["tracked"]:
+                    continue
                 outcome = classify(
                     row["case_count"], row["alert_threshold"], row["epidemic_threshold"], disease["single_case_alert"]
                 )

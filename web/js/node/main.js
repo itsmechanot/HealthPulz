@@ -1,12 +1,15 @@
-// BHS Node page: choose a barangay, generate cases, send them to the RHU, show status and alerts.
+// BHU page: choose a barangay, keep client records (clinic.js), send case reports to the RHU,
+// show delivery status, alerts and trends. Demo Tools generate test data and the stress test.
 
 import * as api from "../common/api.js";
 import { newNodeId, uuid4 } from "../common/ids.js";
 import { createRouter, setupMenu, toast } from "../common/shell.js";
+import { createClinic } from "./clinic.js";
 import { createCombobox } from "./combobox.js";
 import { NodeConnection } from "./connection.js";
 import { realisticWeek, stressRecords } from "./generator.js";
 import * as outbox from "./outbox.js";
+import * as records from "./records.js";
 import { Sender } from "./sender.js";
 import { startTrendsPanel } from "./trends.js";
 
@@ -14,6 +17,7 @@ const PROTOCOL_VERSION = 1;
 const MAX_RECORDS_PER_BATCH = 100;
 const MAX_STRESS_RECORDS = 5000;
 const MAX_LOG_ENTRIES = 100;
+const ALERT_GROUPING_MS = 500;
 const IDENTITY_KEY = "healthpulz.node";
 
 const $ = (id) => document.getElementById(id);
@@ -21,6 +25,8 @@ const totals = { stored: 0, duplicates: 0, rejected: 0 };
 let pendingBatches = 0;
 let router = null;
 let unseenAlerts = 0;
+let alertsToAnnounce = [];
+let announceTimer = null;
 
 main();
 
@@ -75,15 +81,16 @@ async function startStation(config, identity, barangay) {
   document.querySelector(".app").classList.remove("setup-mode");
   document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
-  $("station-sub").textContent = `Barangay Health Station · node ${identity.node_id}`;
+  $("station-sub").textContent = `Barangay Health Unit · node ${identity.node_id}`;
   $("station-avatar").textContent = initials(barangay.name);
   $("station-avatar").hidden = false;
   document.title = `HealthPulz · ${barangay.name}`;
   setupMenu();
-  router = createRouter("send", (screen) => {
+  let clinic = null;
+  router = createRouter("clients", (screen, param) => {
     if (screen === "alerts") setUnseenAlerts(0);
+    clinic?.show(screen, param);
   });
-  router.start();
 
   let rhuReachable = true;
 
@@ -99,6 +106,9 @@ async function startStation(config, identity, barangay) {
   const sender = new Sender(register);
   const connection = new NodeConnection(identity.node_id, () => pendingBatches);
   const trends = startTrendsPanel(config, barangay);
+  clinic = createClinic({ config, identity, router, onSaved: () => sender.notifyQueued() });
+  router.start();
+  setupBackup(identity, sender, clinic);
 
   connection.addEventListener("status", ({ detail: state }) => {
     setConnectionState(state);
@@ -135,15 +145,17 @@ async function startStation(config, identity, barangay) {
   sender.addEventListener("stored", ({ detail: message }) => {
     recordStored(message);
     trends.refreshSoon();
+    updateRecordDelivery(message, clinic);
   });
   sender.addEventListener("busy", ({ detail: seconds }) => log(`RHU is busy, retrying in ${seconds}s`));
   sender.addEventListener("offline", () => {
     if (rhuReachable) log("Cannot reach the RHU. Batches are kept and will be sent automatically.", "error");
     rhuReachable = false;
   });
-  sender.addEventListener("dropped", ({ detail }) =>
-    log(`Batch ${shortId(detail.batch.batch_id)} was refused as malformed and removed`, "error"),
-  );
+  sender.addEventListener("dropped", ({ detail }) => {
+    log(`Batch ${shortId(detail.batch.batch_id)} was refused as malformed and removed`, "error");
+    records.markDelivery(detail.batch.batch_id, records.SYNC.REJECTED, "the report was malformed").then(() => clinic.refresh());
+  });
   sender.addEventListener("changed", refreshPending);
 
   setupGenerator(config, identity, barangay, sender);
@@ -151,6 +163,7 @@ async function startStation(config, identity, barangay) {
     const warning = pendingBatches
       ? `\n\n${pendingBatches} batch(es) are still waiting; they will still be delivered.`
       : "";
+    // Records are kept per barangay on this device, so switching back shows them again.
     if (!confirm(`Switch to a different barangay?${warning}`)) return;
     clearIdentity();
     location.reload();
@@ -162,7 +175,55 @@ async function startStation(config, identity, barangay) {
   sender.start();
 }
 
+/** Copies the RHU's answer onto the consultation it belongs to (demo batches match none). */
+async function updateRecordDelivery(message, clinic) {
+  const list = Array.isArray(message.rejected) ? message.rejected : [];
+  const rejected = list.length > 0 || (!Array.isArray(message.rejected) && message.rejected > 0);
+  try {
+    const sync = rejected ? records.SYNC.REJECTED : records.SYNC.STORED;
+    const detail = rejected ? list[0]?.reason ?? "the record was invalid" : null;
+    if (await records.markDelivery(message.batch_id, sync, detail)) clinic.refresh();
+  } catch {
+    // This browser can't store records, so there is nothing to update.
+  }
+}
+
+function setupBackup(identity, sender, clinic) {
+  const result = $("backup-result");
+
+  $("backup-export").addEventListener("click", async () => {
+    try {
+      const backup = await records.exportBackup(identity.barangay_id);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+      const link = Object.assign(document.createElement("a"), {
+        href: url,
+        download: `healthpulz-${identity.barangay_id}-${backup.exported_at.slice(0, 10)}.json`,
+      });
+      link.click();
+      URL.revokeObjectURL(url);
+      result.textContent = `Backup downloaded: ${backup.clients.length} clients, ${backup.consultations.length} checkups.`;
+    } catch (error) {
+      result.textContent = `Backup failed: ${error.message}`;
+    }
+  });
+
+  $("backup-import").addEventListener("change", async (event) => {
+    const [file] = event.target.files;
+    event.target.value = ""; // so choosing the same file again still fires
+    if (!file) return;
+    try {
+      const counts = await records.importBackup(identity.node_id, identity.barangay_id, JSON.parse(await file.text()));
+      result.textContent = `Restored ${counts.clients} clients and ${counts.consultations} checkups.`;
+      sender.notifyQueued();
+      clinic.refresh();
+    } catch (error) {
+      result.textContent = `Restore failed: ${error.message}`;
+    }
+  });
+}
+
 function setupGenerator(config, identity, barangay, sender) {
+  const tracked = config.diseases.filter((d) => d.tracked);
   let mode = "realistic";
   const modeButtons = document.querySelectorAll("[data-mode]");
   modeButtons.forEach((button) =>
@@ -176,29 +237,29 @@ function setupGenerator(config, identity, barangay, sender) {
 
   const diseaseSelect = $("outbreak-disease");
   diseaseSelect.replaceChildren(
-    ...config.diseases.map((d) => Object.assign(document.createElement("option"), { value: d.disease_code, textContent: d.name })),
+    ...tracked.map((d) => Object.assign(document.createElement("option"), { value: d.disease_code, textContent: d.name })),
   );
   $("outbreak-toggle").addEventListener("change", (e) => (diseaseSelect.disabled = !e.target.checked));
 
   $("generate-btn").addEventListener("click", async () => {
-    let records;
+    let generated;
     if (mode === "stress") {
       const count = Math.min(MAX_STRESS_RECORDS, Math.max(1, Number($("stress-count").value) || 1));
       $("stress-count").value = count;
-      records = stressRecords(config.diseases, count);
+      generated = stressRecords(tracked, count);
     } else {
       const outbreak = $("outbreak-toggle").checked
         ? { code: diseaseSelect.value, minimumCases: await outbreakSize(diseaseSelect.value, barangay) }
         : null;
-      records = realisticWeek(config.diseases, barangay, outbreak);
+      generated = realisticWeek(tracked, barangay, outbreak);
     }
 
-    if (!records.length) {
+    if (!generated.length) {
       $("generate-result").textContent = "No cases this week. Try again or use Stress test.";
       return;
     }
 
-    const batches = chunk(records, MAX_RECORDS_PER_BATCH).map((part) => ({
+    const batches = chunk(generated, MAX_RECORDS_PER_BATCH).map((part) => ({
       type: "SUBMIT_BATCH",
       protocol_version: PROTOCOL_VERSION,
       node_id: identity.node_id,
@@ -210,8 +271,8 @@ function setupGenerator(config, identity, barangay, sender) {
     await sender.enqueue(batches);
 
     $("generate-result").textContent =
-      `Generated ${records.length} cases in ${batches.length} batch(es): ${summarize(records, config.diseases)}`;
-    log(`Generated ${records.length} cases, ${batches.length} batch(es) queued`);
+      `Generated ${generated.length} cases in ${batches.length} batch(es): ${summarize(generated, tracked)}`;
+    log(`Generated ${generated.length} cases, ${batches.length} batch(es) queued`);
   });
 }
 
@@ -239,6 +300,10 @@ function recordStored(message) {
 async function refreshPending() {
   pendingBatches = await outbox.countBatches();
   $("stat-pending").textContent = pendingBatches;
+  document.querySelectorAll(".pending-count").forEach((badge) => {
+    badge.hidden = pendingBatches === 0;
+    badge.textContent = pendingBatches;
+  });
 }
 
 /** Counts alerts that arrived while the station was on another screen (badge on the Alerts tab). */
@@ -253,11 +318,23 @@ function setUnseenAlerts(count) {
 function notifyAlert(alert, config) {
   if (router?.current() === "alerts") return;
   setUnseenAlerts(unseenAlerts + 1);
-  const disease = config.diseases.find((d) => d.disease_code === alert.disease_code)?.name ?? alert.disease_code;
+  // Alerts arriving together (a BHU catching up after connecting) share one notice,
+  // so a stack of pop-ups doesn't cover the form someone is typing in.
+  alertsToAnnounce.push(alert);
+  clearTimeout(announceTimer);
+  announceTimer = setTimeout(() => announceAlerts(config), ALERT_GROUPING_MS);
+}
+
+function announceAlerts(config) {
+  const alerts = alertsToAnnounce;
+  alertsToAnnounce = [];
+  const [first] = alerts;
+  const disease = config.diseases.find((d) => d.disease_code === first.disease_code)?.name ?? first.disease_code;
+  const single = alerts.length === 1;
   toast({
-    title: `${alert.level}: ${disease}`,
-    body: alert.scope === "NEIGHBOR" ? "In a neighboring barangay" : "In your barangay",
-    level: alert.level,
+    title: single ? `${first.level}: ${disease}` : `${alerts.length} new alerts`,
+    body: !single ? "In your barangay and nearby" : first.scope === "NEIGHBOR" ? "In a neighboring barangay" : "In your barangay",
+    level: alerts.some((a) => a.level === "EPIDEMIC") ? "EPIDEMIC" : "ALERT",
     actionLabel: "View",
     onAction: () => router.go("alerts"),
   });

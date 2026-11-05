@@ -4,37 +4,11 @@
 // connection. If IndexedDB is unavailable (e.g. some private windows), it
 // falls back to memory so the page still works.
 
-const DB_NAME = "healthpulz-node";
-const STORE = "outbox";
+import { openDb, transaction } from "./db.js";
 
-let dbPromise = null;
 const memory = new Map();
 
-function openDb() {
-  dbPromise ??= new Promise((resolve) => {
-    try {
-      const request = indexedDB.open(DB_NAME, 1);
-      request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: "batch_id" });
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => resolve(null);
-    } catch {
-      resolve(null);
-    }
-  });
-  return dbPromise;
-}
-
-function run(mode, action) {
-  return openDb().then(
-    (db) =>
-      new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, mode);
-        const request = action(tx.objectStore(STORE));
-        tx.oncomplete = () => resolve(request?.result);
-        tx.onerror = () => reject(tx.error);
-      }),
-  );
-}
+const run = (mode, work) => transaction(["outbox"], mode, ({ outbox }) => work(outbox));
 
 export async function addBatches(batches) {
   if (!(await openDb())) {

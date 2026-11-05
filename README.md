@@ -33,7 +33,7 @@ web/             Web pages served by the RHU (plain HTML/CSS/JS, no build step)
   node/          BHS Node page
   monitor/       System Monitor page
   dashboard/     RHU Dashboard page
-  js/node/       BHS Node logic: generator, offline outbox, WebSocket, sender
+  js/node/       BHU logic: clinic screens, records (on the device), offline outbox, WebSocket, sender, demo generator
 tests/           Automated tests (pytest)
 tools/           Developer tools: node simulator (load test), analytics benchmark, map builder
 ```
@@ -53,7 +53,7 @@ uvicorn rhu.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 - Home page: http://localhost:8000/
-- BHS Node page: http://localhost:8000/node/ (classmates use `http://<your-laptop-IP>:8000/node/`)
+- BHU page: http://localhost:8000/node/ (other devices use `http://<your-laptop-IP>:8000/node/`)
 - System Monitor: http://localhost:8000/monitor/ (shows the join address for classmates)
 - RHU Dashboard: http://localhost:8000/dashboard/
 - API docs: http://localhost:8000/docs

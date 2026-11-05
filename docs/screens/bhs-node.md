@@ -1,106 +1,80 @@
-# Screen spec: BHS Node
+# Screen spec: BHU (Barangay Health Unit)
 
-**For:** UI designer · **Page:** `/node/` · **Code:** [`web/node/index.html`](../../web/node/index.html), [`web/js/node/main.js`](../../web/js/node/main.js)
-**Status:** working app, ready to be refined. The *screens, components, data and actions* below are fixed; the *look* is yours to improve.
+**For:** UI designer · **Page:** `/node/` · **Code:** [`web/node/index.html`](../../web/node/index.html), [`web/js/node/clinic.js`](../../web/js/node/clinic.js), [`web/js/node/records.js`](../../web/js/node/records.js)
+**Status:** working app, ready to be refined. The *screens, data and actions* below are fixed; the *look* is yours to improve. Login is not designed yet.
 
-| 1 · Choose a barangay | 2 · Send (alert pop-ups) | 3 · Alerts | 4 · Trends with map |
-|---|---|---|---|
-| ![Choose](bhs-node-choose-barangay.png) | ![Send](bhs-node-phone.png) | ![Alerts](bhs-node-alerts-phone.png) | ![Trends](bhs-node-trends-phone.png) |
-
-## Purpose and context
-
-- **Who:** a Barangay Health Station worker (midwife, BHW, nurse). In the demo, **each classmate is one station** and opens this page on their **own phone or laptop**.
-- **Job:** send the barangay's cases to the RHU, and receive outbreak alerts.
-- **Device:** **mostly phones**, so design mobile-first.
-- **Network:** plain HTTP on the local Wi-Fi, possibly with no internet. Avoid web fonts and libraries loaded from the internet.
-
-## Layout (app shell, phone-first)
-| Part | Phone | Laptop |
+| Clients (phone) | Client profile (phone) | Checkup form (phone) |
 |---|---|---|
-| Navigation | **Bottom tab bar**: Send · Alerts · Trends · Activity. Alerts shows a red count of unread alerts. | Sidebar with the same 4 items + links to RHU Dashboard and System Monitor + **Change barangay** |
-| Top bar | Barangay avatar (initials) · **Brgy. name** · "Barangay Health Station · node ID" · connection pill | same |
-| Before setup | No navigation at all: just the "Choose your Barangay Health Station" card | same |
-| New alert while on another screen | **Pop-up notice** at the top right (level color, disease, "In your barangay" / "In a neighboring barangay", **View** + Dismiss); the Alerts tab count goes up; phones vibrate | same, without vibration |
+| ![Clients](bhu-clients-phone.png) | ![Profile](bhu-profile-phone.png) | ![Form](bhu-form-phone.png) |
 
-The URL remembers the screen (`/node/#/alerts`). Screens: **Send** (generate cases + delivery status), **Alerts**, **Trends** (map + table + chart), **Activity** (log).
+| Checkup form (desktop) | Visit record | Visits |
+|---|---|---|
+| ![Form](bhu-visit-form.png) | ![Record](bhu-visit-record.png) | ![Visits](bhu-visits.png) |
 
-## Two steps
+## Users and context
+- **Who:** BHU workers (midwife, nurse, barangay health worker).
+- **Job:** register clients, record checkups, keep their history, and see illness trends and alerts from the RHU.
+- **Device:** phone or laptop, on plain HTTP on the local Wi-Fi, possibly with no internet. No web fonts or libraries from the internet.
+- **Privacy:** full records stay **on this device**. The RHU receives only disease, dates, age, sex, purok and status.
 
-### Step 1 · Choose your Barangay Health Station
-| | |
+## Navigation
+| | Phone | Laptop |
+|---|---|---|
+| Main | Bottom tabs: **Clients · Visits · Alerts · Trends** | Sidebar with the same items |
+| More | ☰ menu: **Sync & Backup**, **Demo Tools**, RHU Dashboard, System Monitor, Change barangay | In the sidebar |
+| Top bar | Barangay avatar and name, node ID, connection pill (Online / Connecting / Offline) | same |
+
+Screens have their own URLs (`/node/#/client/<id>`), so reload and the Back button work.
+
+## Screens
+
+### 1. Choose your Barangay Health Unit
+First use only: searchable barangay field and a Start button. Accents are ignored ("capinahan" finds *Capiñahan*). The choice is remembered on the device.
+
+### 2. Clients
+Search by name or contact number, **+ New client**, and a list showing name, age, sex, purok and last checkup. States: empty, no search match, and a warning if the browser can't store data (e.g. a private window).
+
+### 3. Client form (new / edit)
+Last name*, first name*, middle name, birthdate*, sex*, civil status, purok*, street/sitio, contact number, PhilHealth number. A note says these details stay on the device. Registering a client with the same name and birthdate asks for confirmation first.
+
+### 4. Client profile
+Name, age, sex and purok, the other details, **Edit**, **+ New checkup**, and the checkup history. Each history row has a delivery badge.
+
+### 5. Checkup form
+| Section | Fields |
 |---|---|
-| Shows | Title, one line of explanation, a **searchable barangay field**, a **Start** button |
-| Search | Type part of a name to filter the 26 Naval barangays. Accents are ignored ("capinahan" finds *Capiñahan*). Arrow keys and Enter work. "No barangay found" when nothing matches. |
-| Start button | Disabled until a barangay is chosen |
-| Error state | "Cannot reach the RHU server. Check the Wi-Fi and reload." |
-| Remembered | After Start, the choice is saved on the device. Reloading goes straight to Step 2. |
+| Visit | Visit date* (today by default, can't be in the future), symptom onset (*required for surveillance diseases*), chief complaint* |
+| Vital signs | Temperature, BP systolic/diastolic, pulse, respiratory rate, weight, height (optional; realistic ranges are enforced) |
+| Findings and diagnosis | Findings, diagnosis*: the 6 surveillance diseases or **Other (specify)**. A surveillance disease adds **Case status** (Suspected/Confirmed); Other adds **Specify diagnosis*** |
+| Plan | Treatment, disposition (Home care / For follow-up / Referred to RHU / Referred to hospital), follow-up date, attended by |
+| What the RHU receives | Live preview of the exact report, and what stays on the device |
 
-### Step 2 · The station
+Main action: **Save checkup and send**. A saved checkup can't be edited yet, and the form says so.
 
-#### Station header (top bar)
-Barangay avatar and name (e.g. **Brgy. Caraycaray**), node ID (`BRGY-08-24Y4`, small, for troubleshooting). **Change barangay** is in the sidebar/menu and asks for confirmation first.
+### 6. Visits
+Key numbers: checkups today, clients registered, waiting to reach the RHU. Then all checkups, newest first, searchable by name or diagnosis.
 
-#### Connection pill (page header)
-**Not started** (neutral) → **Connecting…** (warning) → **Online** (OK) / **Offline** (danger). It reconnects by itself.
+### 7. Visit record
+The full read-only record in sections, with a link to the client and a delivery badge:
+- **Waiting to reach the RHU** (warning): saved, not yet confirmed; it sends by itself when the connection returns
+- **Sent to the RHU** (OK): confirmed stored by the RHU
+- **Rejected by the RHU** (danger): shown with the reason
 
-#### Generate cases
-| Control | Behavior |
-|---|---|
-| Mode toggle | **Realistic week** / **Stress test** |
-| Realistic week | Generates this week's typical cases for the barangay. Optional **Simulate an outbreak** checkbox + disease dropdown: generates enough cases of that disease to go **above the RHU's epidemic threshold** for this barangay and week, so it **always triggers a real alert**, in any season. |
-| Stress test | **Number of cases** (1–5,000, default 500), plus a note: stress-test cases are a **drill**, stored and counted but they never raise alerts |
-| **Generate & Send** | The main action of the page |
-| Result line | e.g. "Generated 22 cases in 1 batch(es): Dengue 16, Influenza-like illness 4, …", or "No cases this week" |
+### 8. Alerts
+Cards colored by level, with "In your barangay" or "Nearby: Brgy. X". A new alert on another screen shows one pop-up notice (grouped if several arrive together), raises the count on the tab, and vibrates phones. After a reload, alerts already seen are listed quietly.
 
-#### Status (4 numbers)
-| Number | Meaning |
-|---|---|
-| Batches waiting | Saved on this device, not yet confirmed by the RHU. Usually 0; rises if the Wi-Fi drops. |
-| Cases stored | Confirmed by the RHU |
-| Duplicates | Cases the RHU already had (safe resends) |
-| Rejected | Cases the RHU refused as invalid (rare) |
+### 9. Trends
+Map of Naval with this barangay outlined, a table per disease (your barangay this week, Naval this week and last week, barangays on alert) plus an **Other consultations** row, and a 12-week chart with thresholds. It updates about 11 s after new data. A note says only aggregated counts are shared.
 
-Plus one reassuring line: *"Batches stay on this device until the RHU confirms they are stored, so nothing is lost if the connection drops."* This is the **offline-first** feature, worth keeping visible.
+### 10. Sync & Backup
+- **Delivery numbers:** batches waiting, cases stored, duplicates, rejected.
+- **Backup:** **Download backup** and **Restore from file**, with a warning that records live only in this browser and that the file contains private data. A backup from another barangay is refused.
+- **Activity log.**
 
-#### Alerts from RHU
-| Part | Example |
-|---|---|
-| Card color | warning (**ALERT**) or danger (**EPIDEMIC**) |
-| Title | `EPIDEMIC: Dengue` |
-| Scope line | **In your barangay**, or **Nearby: Brgy. Catmon** for a neighboring barangay's alert |
-| Message | "Dengue cases in Brgy. Caraycaray in week 2026-W44: 13, above the epidemic threshold of 11.1." |
-
-- **States:** empty ("No alerts yet."); new alert; an **escalated** alert updates its existing card instead of adding another.
-- **Arrival:** alerts arrive **by themselves** within about 10 s of the outbreak data. This is the highlight moment of the demo, so consider an attention cue (animation, sound, or vibration on phones).
-- **Offline / reload:** a station that was offline receives missed alerts when it reconnects (with pop-up). After a page reload, alerts it already saw are listed again **quietly**, with no pop-up or vibration.
-
-#### Activity log
-Time-stamped lines, newest first, kept to the last 100:
-- connected / registered
-- batch received by the RHU → batch confirmed (stored, duplicates, rejected)
-- RHU busy, retrying
-- cannot reach the RHU / reachable again
-- alerts received
-
-Errors use the danger color, confirmations the OK color. On a phone this could be collapsed by default.
-
-#### Naval this week (map, on the Trends screen)
-The same map as the RHU Dashboard: Naval highlighted among the greyed-out towns of Biliran, barangays colored by cases and alert level, case markers. **The station's own barangay has a thick outline**, so a worker sees at a glance whether neighbors are on alert. Tap a barangay for its numbers (names are hidden on phones).
-
-#### Trends from RHU Naval
-This is the part of the system where **barangays see RHU data**.
-
-| Part | Content |
-|---|---|
-| Header | "Trends from RHU Naval" + the weeks compared, e.g. `2026-W44 (so far) vs 2026-W43` |
-| Privacy line | "Weekly totals shared by the RHU. Only aggregated counts are shared, never individual cases." Keep it visible; it answers the obvious defense question. |
-| Table (6 rows) | Disease · **Your barangay this week** (cell colored if on ALERT/EPIDEMIC) · **Naval this week** · **Naval last week** · **Barangays on alert** (`–` when none) |
-| Chart | Your barangay, **one disease, last 12 weeks**: cases (solid) + alert threshold + epidemic threshold (dashed). The disease is chosen with a dropdown **or by clicking a table row** (the selected row is outlined). |
-| Updates | Every 30 s, and about 11 s after this station's data is stored or an alert arrives (the RHU analyzes new data every 10 s) |
-| Error state | "Trends will update when the RHU can be reached again." |
-| Phone | The table scrolls sideways inside the card; consider a compact list instead |
-
-Data: `GET /api/stats/summary`, `GET /api/stats/barangays?week=…`, `GET /api/stats/trend?disease=…&barangay_id=…&weeks=12`.
+### 11. Demo Tools
+Clearly marked as demonstration only; it creates no client records.
+- **Realistic week**, with optional **Simulate an outbreak**.
+- **Stress test** (1–5,000 cases, sent as a drill, so it never raises alerts).
 
 ## Color meanings (same as the other screens)
-OK = online / confirmed · Warning = ALERT, connecting · Danger = EPIDEMIC, offline, errors · Accent = primary button, selected mode.
+OK = online, sent to the RHU · Warning = ALERT, waiting, connecting · Danger = EPIDEMIC, rejected, offline, errors · Accent = primary buttons, selected items.

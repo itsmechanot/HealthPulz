@@ -21,7 +21,7 @@ export function startTrendsPanel(config, barangay) {
   const map = createNavalMap($("node-map"), { ownBarangay: barangay.barangay_id });
 
   const select = $("trend-disease");
-  select.replaceChildren(...config.diseases.map((d) => el("option", { value: d.disease_code, textContent: d.name })));
+  select.replaceChildren(...config.diseases.filter((d) => d.tracked).map((d) => el("option", { value: d.disease_code, textContent: d.name })));
   select.addEventListener("change", () => {
     disease = select.value;
     renderChart();
@@ -42,7 +42,8 @@ export function startTrendsPanel(config, barangay) {
   }
 
   function renderTable(summary, grid) {
-    const ours = grid.barangays.find((b) => b.barangay_id === barangay.barangay_id)?.diseases ?? {};
+    const own = grid.barangays.find((b) => b.barangay_id === barangay.barangay_id);
+    const ours = own?.diseases ?? {};
     $("trends-body").replaceChildren(
       ...summary.diseases.map((d) => {
         const cell = ours[d.disease_code] ?? { cases: 0, level: "NORMAL" };
@@ -64,6 +65,16 @@ export function startTrendsPanel(config, barangay) {
         });
         return row;
       }),
+      // Counted, but not under outbreak surveillance, so no alerts and no chart.
+      el(
+        "tr",
+        { style: "cursor: default" },
+        el("th", { scope: "row", textContent: "Other consultations" }),
+        el("td", { textContent: fmt(own?.other_consultations ?? 0) }),
+        el("td", { textContent: fmt(summary.other_consultations.this_week) }),
+        el("td", { textContent: fmt(summary.other_consultations.last_week) }),
+        el("td", { textContent: "–" }),
+      ),
     );
   }
 

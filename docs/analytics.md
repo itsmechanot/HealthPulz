@@ -17,6 +17,8 @@ For every **barangay × disease × ISO week**, from the first case up to the cur
 
 > **TODO (docs team):** cite the DOH/PIDSR threshold method and the CDC historical limits method, and note where ours differs.
 
+**Other consultations (`OTH`)** are counted per week like the rest, but get no thresholds and can't raise alerts.
+
 ## How it runs in parallel (MapReduce)
 
 ```
@@ -48,7 +50,7 @@ Reference run: 12-core laptop, 928,576 cases (`python -m rhu.history --scale 50`
 | 8 | 0.63 | 0.53 | 0.10 | 3.55× | 44% |
 
 **Why efficiency drops as workers increase** (talking points for the defense):
-1. **Amdahl's law:** the reduce step (writing ~31,000 rows) is sequential and takes ~0.1 s no matter how many workers there are. As the map step gets faster, this fixed part becomes a larger share of the total.
+1. **Amdahl's law:** the reduce step (writing ~36,000 rows, ~31,000 at the time of this benchmark) is sequential and takes ~0.1 s no matter how many workers there are. As the map step gets faster, this fixed part becomes a larger share of the total.
 2. **Load imbalance:** with 26 uneven barangays and 8 workers, the run can't finish before the largest barangay is done, so some workers sit idle at the end.
 3. **Overhead:** sending tasks and results between processes, and all workers reading the same database file at once.
 

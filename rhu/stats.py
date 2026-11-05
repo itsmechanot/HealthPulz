@@ -47,8 +47,14 @@ def summary(conn: sqlite3.Connection, today: date) -> dict:
         )
     }
 
-    diseases = []
+    other_now = other_before = 0
     for d in rules.diseases():
+        if not d["tracked"]:
+            other_now += counts.get((d["disease_code"], this_year, this_week), 0)
+            other_before += counts.get((d["disease_code"], last_year, last_week), 0)
+
+    diseases = []
+    for d in rules.tracked_diseases():
         now = counts.get((d["disease_code"], this_year, this_week), 0)
         before = counts.get((d["disease_code"], last_year, last_week), 0)
         diseases.append({
@@ -73,28 +79,31 @@ def summary(conn: sqlite3.Connection, today: date) -> dict:
         "previous_week": week_info(last_year, last_week),
         "diseases": diseases,
         "totals": {"this_week": sum(d["this_week"] for d in diseases), "last_week": sum(d["last_week"] for d in diseases)},
+        "other_consultations": {"this_week": other_now, "last_week": other_before},
         "open_alerts": open_alerts,
     }
 
 
 def trend(conn: sqlite3.Connection, weeks: int, disease_code: str | None = None, barangay_id: str | None = None) -> list[dict]:
-    """Weekly case counts, oldest first, up to the current week.
+    """Weekly case counts, oldest first, up to the current week. Without a disease it
+    sums the surveillance diseases ("Other consultations" must be asked for by code).
 
     Thresholds are included only for a single barangay and disease; summing
     thresholds across barangays or diseases would not be statistically valid.
     """
     single_cell = disease_code is not None and barangay_id is not None
+    codes = [disease_code] if disease_code else [d["disease_code"] for d in rules.tracked_diseases()]
     rows = conn.execute(
-        """
+        f"""
         SELECT iso_year, iso_week, SUM(case_count) AS cases,
                MAX(alert_threshold) AS alert_threshold, MAX(epidemic_threshold) AS epidemic_threshold
         FROM weekly_stats
-        WHERE (:disease IS NULL OR disease_code = :disease) AND (:barangay IS NULL OR barangay_id = :barangay)
+        WHERE disease_code IN ({",".join("?" * len(codes))}) AND (? IS NULL OR barangay_id = ?)
         GROUP BY iso_year, iso_week
         ORDER BY iso_year DESC, iso_week DESC
-        LIMIT :weeks
+        LIMIT ?
         """,
-        {"disease": disease_code, "barangay": barangay_id, "weeks": weeks},
+        (*codes, barangay_id, barangay_id, weeks),
     ).fetchall()
     return [
         {
@@ -111,9 +120,13 @@ def barangay_grid(conn: sqlite3.Connection, year: int, week: int) -> dict:
     """Every barangay × disease for one week, with the same levels the alerts use."""
     diseases = {d["disease_code"]: d for d in rules.diseases()}
     cells: dict[str, dict] = {}
+    other: dict[str, int] = {}
     for r in conn.execute(
         "SELECT * FROM weekly_stats WHERE iso_year = ? AND iso_week = ?", (year, week)
     ):
+        if not diseases[r["disease_code"]]["tracked"]:
+            other[r["barangay_id"]] = other.get(r["barangay_id"], 0) + r["case_count"]
+            continue
         outcome = classify(
             r["case_count"], r["alert_threshold"], r["epidemic_threshold"], diseases[r["disease_code"]]["single_case_alert"]
         )
@@ -134,6 +147,7 @@ def barangay_grid(conn: sqlite3.Connection, year: int, week: int) -> dict:
             "population": b["population"],
             "total": total,
             "rate_per_10k": round(total / b["population"] * 10_000, 1),
+            "other_consultations": other.get(b["barangay_id"], 0),
             "diseases": by_disease,
         })
     return {"week": week_info(year, week), "barangays": barangays}

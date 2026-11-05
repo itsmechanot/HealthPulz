@@ -53,13 +53,13 @@ def test_sequential_run(history):
 
     weeks = (date.fromisocalendar(2026, 44, 1) - FIRST_WEEK).days // 7 + 1  # up to the current week
     assert result.partitions == 26
-    assert result.rows == 26 * 6 * weeks
+    assert result.rows == 26 * 7 * weeks  # 6 tracked diseases + Other consultations
     assert result.cases == imported.cases
 
     rows = weekly_stats(db_path)
     assert sum(r[4] for r in rows) == imported.cases
     assert all(r[5] is None for r in rows if r[2] == 2024)      # only 1 past year
-    assert all(r[5] is not None for r in rows if r[2] == 2026)  # 3 past years
+    assert all((r[5] is not None) == (r[1] != "OTH") for r in rows if r[2] == 2026)  # 3 past years; Other has none
 
 
 def test_parallel_gives_the_same_result_as_sequential(history):

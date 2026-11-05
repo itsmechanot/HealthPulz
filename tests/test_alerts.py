@@ -219,3 +219,24 @@ def test_alert_list_filters_by_status(registered):
 
 def test_unknown_alert_status_update_is_404(client):
     assert client.post("/api/alerts/nope/status", json={"status": "RESOLVED"}).status_code == 404
+
+
+# ---- "Other consultations": counted, but no thresholds, alerts or case totals -----
+
+def test_other_consultations_are_counted_but_never_alert(registered):
+    today = date.today().isoformat()
+    send_cases(registered, [make_record(disease_code="OTH", onset_date=today, consult_date=today) for _ in range(9)])
+    assert registered.post("/api/analytics/run").json()["alerts_sent"] == 0
+
+    summary = registered.get("/api/stats/summary").json()
+    assert summary["other_consultations"]["this_week"] == 9
+    assert summary["totals"]["this_week"] == 0
+
+    grid = registered.get("/api/stats/barangays").json()["barangays"]
+    caraycaray = next(b for b in grid if b["barangay_id"] == "BRGY-08")
+    assert (caraycaray["other_consultations"], caraycaray["total"]) == (9, 0)
+    assert "OTH" not in caraycaray["diseases"]
+
+    assert registered.get("/api/stats/trend?weeks=1").json()["weeks"][-1]["cases"] == 0
+    other = registered.get("/api/stats/trend?disease=OTH&barangay_id=BRGY-08&weeks=1").json()["weeks"][-1]
+    assert (other["cases"], other["alert_threshold"]) == (9, None)
