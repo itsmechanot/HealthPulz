@@ -29,4 +29,5 @@ MIN_ALERT_CASES = 3  # fewer cases never raise a threshold alert (cuts false ala
 
 # WebSockets
 HEARTBEAT_TIMEOUT_SECONDS = 30  # a node with no heartbeat for this long is OFFLINE
+NODE_RECENT_HOURS = 12  # the System Monitor hides nodes that haven't been seen for this long
 MONITOR_INTERVAL_SECONDS = 1.0  # how often the System Monitor receives a snapshot

@@ -1,8 +1,11 @@
 """Tests for the WebSocket endpoints (node channel and System Monitor)."""
 
+from contextlib import closing
+
 import pytest
 from fastapi import WebSocketDisconnect
 
+from rhu import db
 from rhu.history import import_history
 from tests.factories import NODE, make_batch
 
@@ -81,3 +84,22 @@ def test_monitor_lists_only_live_nodes(registered):
 def test_monitor_shows_registered_but_unconnected_node_offline(registered):
     with registered.websocket_connect("/ws/monitor") as monitor:
         assert node_entry(monitor.receive_json())["status"] == "OFFLINE"
+
+
+def test_monitor_hides_stations_not_seen_recently(registered):
+    with closing(db.connect(registered.app.state.db_path)) as conn, conn:
+        conn.execute("INSERT INTO nodes (node_id, barangay_id, registered_at) VALUES ('BRGY-01-OLD1', 'BRGY-01', '2020-01-01T00:00:00.000+00:00')")
+
+    with registered.websocket_connect("/ws/monitor") as monitor:
+        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [NODE]
+
+
+def test_monitor_always_shows_a_connected_station(registered):
+    with closing(db.connect(registered.app.state.db_path)) as conn, conn:
+        conn.execute("INSERT INTO nodes (node_id, barangay_id, registered_at) VALUES ('BRGY-01-OLD1', 'BRGY-01', '2020-01-01T00:00:00.000+00:00')")
+
+    with registered.websocket_connect("/ws/node/BRGY-01-OLD1") as node:
+        hello(node, "BRGY-01-OLD1")
+        with registered.websocket_connect("/ws/monitor") as monitor:
+            entry = node_entry(monitor.receive_json(), "BRGY-01-OLD1")
+    assert entry["status"] == "ONLINE"

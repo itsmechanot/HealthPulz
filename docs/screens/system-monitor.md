@@ -34,7 +34,7 @@
 |---|---|---|---|
 | Records / second | current throughput | `Peak 12,202` (highest since the page opened) | `pipeline.records_per_second` |
 | Records stored | total stored | `400 batches` | `records_accepted`, `batches_stored` |
-| Nodes online | online count | `of 40 registered` | `nodes[].status` |
+| Nodes online | online count | `of 40 active in the last 12 hours` | `nodes[].status` |
 | Batches in queue | ingest + write queue | `0 refused (busy)`, count of HTTP 503 replies | `ingest_queue`, `write_queue`, `batches_busy` |
 | Records accounted for | percentage, e.g. `100.0%` | `2,600 still in the pipeline` **or** `40,000 of 40,000 · nothing lost` | `records_received`, `records_accepted`, `records_duplicate`, `records_rejected` |
 
@@ -89,7 +89,7 @@ A short paragraph explaining the flow for the panel. Optional in the final desig
 ### 8. BHS nodes grid
 | | |
 |---|---|
-| Shows | One tile per classmate's node: **barangay name**, node ID (e.g. `BRGY-08-QM26`), **Online/Offline**, and "N waiting" if the node has unsent batches |
+| Shows | One tile per station connected now or active in the last 12 hours (older ones stay in the database but are hidden): **barangay name**, node ID (e.g. `BRGY-08-QM26`), **Online/Offline**, and "N waiting" if the node has unsent batches |
 | Order | Online first, then alphabetical by barangay |
 | Count | Header line: `40 nodes · 26 of 26 barangays`. Expect **30–40 tiles**; one barangay can have 2 nodes. |
 | States | Empty ("No nodes yet…"); online (green); offline (red); long barangay names (e.g. *Santissimo Rosario Pob. (Santo Rosa)*) must truncate or wrap cleanly |

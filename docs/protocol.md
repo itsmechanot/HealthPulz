@@ -18,7 +18,7 @@ Every message is JSON and carries a `type` field.
 
 Classmates choose their barangay from a **searchable dropdown** (type to filter, e.g. "cara" → *Caraycaray*). Because there are more classmates (30–40) than Naval barangays (26), **several nodes can serve one barangay**, just as a large barangay can have a main BHS plus satellite stations.
 
-- On first use, the browser creates a `node_id` in the form `{barangay_id}-{4 random chars}` (e.g. `BRGY-08-K7QX`) and keeps it in `localStorage`.
+- The first time a device starts as a barangay, the browser creates a `node_id` in the form `{barangay_id}-{4 random chars}` (e.g. `BRGY-08-K7QX`) and keeps it in `localStorage`, one per barangay. Returning to that barangay on the same browser reuses it; another device, browser or private window is a separate station.
 - The node registers itself with:
 
 `POST /api/nodes/register`

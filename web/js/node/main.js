@@ -19,6 +19,7 @@ const MAX_STRESS_RECORDS = 5000;
 const MAX_LOG_ENTRIES = 100;
 const ALERT_GROUPING_MS = 500;
 const IDENTITY_KEY = "healthpulz.node";
+const NODE_IDS_KEY = "healthpulz.nodes"; // barangay_id -> this device's node_id for that barangay
 
 const $ = (id) => document.getElementById(id);
 const totals = { stored: 0, duplicates: 0, rejected: 0 };
@@ -41,6 +42,7 @@ async function main() {
   }
 
   const identity = loadIdentity();
+  if (identity) rememberNodeId(identity); // a station started before the IDs were remembered
   const barangay = identity && config.barangays.find((b) => b.barangay_id === identity.barangay_id);
   if (barangay) startStation(config, identity, barangay);
   else showSetup(config);
@@ -68,7 +70,8 @@ function showSetup(config) {
   });
 
   $("start-btn").addEventListener("click", () => {
-    const identity = { node_id: newNodeId(chosen.barangay_id), barangay_id: chosen.barangay_id };
+    const identity = { node_id: nodeIdFor(chosen.barangay_id), barangay_id: chosen.barangay_id };
+    rememberNodeId(identity);
     saveIdentity(identity);
     document.querySelector('[data-screen="setup"]').hidden = true;
     startStation(config, identity, chosen);
@@ -429,6 +432,27 @@ function summarize(records, diseases) {
 }
 
 const shortId = (id) => id.slice(0, 8);
+
+/** Returning to a barangay on this device reuses its station instead of registering a new one. */
+function nodeIdFor(barangayId) {
+  return loadNodeIds()[barangayId] ?? newNodeId(barangayId);
+}
+
+function loadNodeIds() {
+  try {
+    return JSON.parse(localStorage.getItem(NODE_IDS_KEY)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function rememberNodeId({ barangay_id: barangayId, node_id: nodeId }) {
+  try {
+    localStorage.setItem(NODE_IDS_KEY, JSON.stringify({ ...loadNodeIds(), [barangayId]: nodeId }));
+  } catch {
+    // Without storage the node gets a new ID each time; it still works.
+  }
+}
 
 function loadIdentity() {
   try {

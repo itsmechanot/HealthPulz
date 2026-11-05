@@ -151,7 +151,7 @@ function renderStations() {
   const online = data.nodes.filter((n) => n.status === "ONLINE").length;
   $("kpi-stations").textContent = fmt(online);
   const barangays = new Set(data.nodes.map((n) => n.barangay_id)).size;
-  $("kpi-stations-sub").textContent = `${fmt(data.nodes.length)} registered · ${barangays} of 26 barangays`;
+  $("kpi-stations-sub").textContent = `${fmt(data.nodes.length)} active in the last 12 hours · ${barangays} of 26 barangays`;
 }
 
 async function renderDiseaseCards(diseases) {

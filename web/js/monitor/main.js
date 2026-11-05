@@ -88,7 +88,7 @@ function renderKpis(p, nodes) {
   $("kpi-accepted").textContent = fmt(p.records_accepted);
   $("kpi-batches").textContent = `${fmt(p.batches_stored)} batches`;
   $("kpi-nodes").textContent = fmt(online);
-  $("kpi-nodes-total").textContent = `of ${fmt(nodes.length)} registered`;
+  $("kpi-nodes-total").textContent = `of ${fmt(nodes.length)} active in the last 12 hours`;
   $("kpi-queue").textContent = fmt(p.ingest_queue + p.write_queue);
   $("kpi-busy").textContent = `${fmt(p.batches_busy)} refused (busy)`;
   $("kpi-accounted").textContent = p.records_received ? `${((accounted / p.records_received) * 100).toFixed(1)}%` : "–";

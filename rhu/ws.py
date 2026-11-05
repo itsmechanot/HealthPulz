@@ -3,12 +3,13 @@
 import asyncio
 import time
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
 
 from rhu import db
-from rhu.config import MONITOR_INTERVAL_SECONDS
+from rhu.config import MONITOR_INTERVAL_SECONDS, NODE_RECENT_HOURS
 from rhu.hub import Hub
 
 router = APIRouter()
@@ -92,7 +93,10 @@ async def build_snapshot(app: FastAPI, records_per_second: float) -> dict:
     hub: Hub = app.state.hub
     registered = await asyncio.to_thread(_registered_nodes, app.state.db_path)
     nodes = []
-    for node_id, barangay_id in registered:
+    for node_id, barangay_id, last_seen in registered:
+        # Old stations stay in the database (their cases point to them), but not on the monitor.
+        if not hub.is_connected(node_id) and last_seen < _recent_cutoff():
+            continue
         status, pending = hub.node_status(node_id)
         nodes.append({"node_id": node_id, "barangay_id": barangay_id, "status": status, "pending_batches": pending})
     analytics = app.state.analytics.last_result
@@ -128,7 +132,14 @@ def _set_node_status(db_path: Path, node_id: str, status: str) -> None:
         )
 
 
-def _registered_nodes(db_path: Path) -> list[tuple[str, str]]:
+def _recent_cutoff() -> str:
+    """Same format as db.utc_now(), so the timestamps compare as text."""
+    return (datetime.now(timezone.utc) - timedelta(hours=NODE_RECENT_HOURS)).isoformat(timespec="milliseconds")
+
+
+def _registered_nodes(db_path: Path) -> list[tuple[str, str, str]]:
     with closing(db.connect(db_path)) as conn:
-        rows = conn.execute("SELECT node_id, barangay_id FROM nodes WHERE kind = 'LIVE' ORDER BY node_id")
+        rows = conn.execute(
+            "SELECT node_id, barangay_id, COALESCE(last_seen_at, registered_at) FROM nodes WHERE kind = 'LIVE' ORDER BY node_id"
+        )
         return [tuple(row) for row in rows]
