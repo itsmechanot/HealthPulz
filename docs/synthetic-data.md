@@ -46,8 +46,8 @@ The 26 barangays of Naval and their **PSGC codes** come from the official PSA bo
 
 The source of truth is [`rhu/data/barangays.json`](../rhu/data/barangays.json). Libertad and Mabini only border each other because they are on Higatangan island. A barangay's alerts also go to its neighbors' stations.
 
-### Nodes per barangay
-There are 30–40 classmates and only 26 barangays, so some barangays will have **more than one node** (main BHS + satellite stations). Each node picks its barangay from a searchable dropdown; see [protocol.md](protocol.md#1-node-registration-dropdown-login).
+### Stations per barangay
+Each barangay has **one station** (`BRGY-08-MAIN`). There are 30–40 classmates and only 26 barangays, so several devices can share a station, and the System Monitor shows how many are connected. See [protocol.md](protocol.md#1-bhu-accounts-and-stations).
 
 ---
 

@@ -1,12 +1,14 @@
-// BHU page: choose a barangay, keep client records (clinic.js), send case reports to the RHU,
-// show delivery status, alerts and trends. Demo Tools generate test data and the stress test.
+// BHU page: log in as a barangay (one account and station per barangay, on any device), keep client
+// records (clinic.js), show delivery status, alerts and trends. Demo Tools generate test data and
+// the stress test; only those batches are sent from the browser, with their own offline outbox.
 
 import * as api from "../common/api.js";
-import { newNodeId, uuid4 } from "../common/ids.js";
+import { uuid4 } from "../common/ids.js";
 import { diseaseOptions } from "../common/diseases.js";
 import { createRouter, setupMenu, toast } from "../common/shell.js";
 import { createClinic } from "./clinic.js";
 import { createCombobox } from "./combobox.js";
+import { browserRecords, clearBrowserRecords } from "./db.js";
 import { NodeConnection } from "./connection.js";
 import { realisticWeek, stressRecords } from "./generator.js";
 import * as outbox from "./outbox.js";
@@ -20,7 +22,6 @@ const MAX_STRESS_RECORDS = 5000;
 const MAX_LOG_ENTRIES = 100;
 const ALERT_GROUPING_MS = 500;
 const IDENTITY_KEY = "healthpulz.node";
-const NODE_IDS_KEY = "healthpulz.nodes"; // barangay_id -> this device's node_id for that barangay
 
 const $ = (id) => document.getElementById(id);
 const totals = { stored: 0, duplicates: 0, rejected: 0 };
@@ -42,10 +43,9 @@ async function main() {
     return;
   }
 
-  const identity = loadIdentity();
-  if (identity) rememberNodeId(identity); // a station started before the IDs were remembered
-  const barangay = identity && config.barangays.find((b) => b.barangay_id === identity.barangay_id);
-  if (barangay) startStation(config, identity, barangay);
+  const saved = loadIdentity();
+  const barangay = saved && config.barangays.find((b) => b.barangay_id === saved.barangay_id);
+  if (barangay) startStation(config, identityOf(barangay.barangay_id), barangay);
   else showSetup(config);
 }
 
@@ -71,8 +71,7 @@ function showSetup(config) {
   });
 
   $("start-btn").addEventListener("click", () => {
-    const identity = { node_id: nodeIdFor(chosen.barangay_id), barangay_id: chosen.barangay_id };
-    rememberNodeId(identity);
+    const identity = identityOf(chosen.barangay_id);
     saveIdentity(identity);
     document.querySelector('[data-screen="setup"]').hidden = true;
     startStation(config, identity, chosen);
@@ -85,7 +84,8 @@ async function startStation(config, identity, barangay) {
   document.querySelector(".app").classList.remove("setup-mode");
   document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
-  $("station-sub").textContent = `Barangay Health Unit · node ${identity.node_id}`;
+  $("station-sub").textContent = "Barangay Health Unit · synced with RHU Naval";
+  records.useBarangay(identity.barangay_id);
   $("station-avatar").textContent = initials(barangay.name);
   $("station-avatar").hidden = false;
   document.title = `HealthPulz · ${barangay.name}`;
@@ -110,9 +110,10 @@ async function startStation(config, identity, barangay) {
   const sender = new Sender(register);
   const connection = new NodeConnection(identity.node_id, () => pendingBatches);
   const trends = startTrendsPanel(config, barangay);
-  clinic = createClinic({ config, identity, router, onSaved: () => sender.notifyQueued() });
+  clinic = createClinic({ config, router });
   router.start();
-  setupBackup(identity, sender, clinic);
+  setupBackup(identity, clinic);
+  offerToMoveBrowserRecords(identity, clinic);
 
   connection.addEventListener("status", ({ detail: state }) => {
     setConnectionState(state);
@@ -125,7 +126,14 @@ async function startStation(config, identity, barangay) {
   connection.addEventListener("message", ({ detail: message }) => {
     switch (message.type) {
       case "STORED":
-        sender.confirmStored(message);
+        // Either this device's demo batch (handled by the sender) or a report from this barangay's records.
+        sender.confirmStored(message).then((own) => {
+          if (!own) {
+            recordStored(message);
+            trends.refreshSoon();
+          }
+          clinic.refresh();
+        });
         break;
       case "ALERT":
         // Already acknowledged (re-sent after a reload): list it quietly, no pop-up or vibration.
@@ -149,17 +157,15 @@ async function startStation(config, identity, barangay) {
   sender.addEventListener("stored", ({ detail: message }) => {
     recordStored(message);
     trends.refreshSoon();
-    updateRecordDelivery(message, clinic);
   });
   sender.addEventListener("busy", ({ detail: seconds }) => log(`RHU is busy, retrying in ${seconds}s`));
   sender.addEventListener("offline", () => {
     if (rhuReachable) log("Cannot reach the RHU. Batches are kept and will be sent automatically.", "error");
     rhuReachable = false;
   });
-  sender.addEventListener("dropped", ({ detail }) => {
-    log(`Batch ${shortId(detail.batch.batch_id)} was refused as malformed and removed`, "error");
-    records.markDelivery(detail.batch.batch_id, records.SYNC.REJECTED, "the report was malformed").then(() => clinic.refresh());
-  });
+  sender.addEventListener("dropped", ({ detail }) =>
+    log(`Batch ${shortId(detail.batch.batch_id)} was refused as malformed and removed`, "error"),
+  );
   sender.addEventListener("changed", refreshPending);
 
   setupGenerator(config, identity, barangay, sender);
@@ -167,37 +173,47 @@ async function startStation(config, identity, barangay) {
     const warning = pendingBatches
       ? `\n\n${pendingBatches} batch(es) are still waiting; they will still be delivered.`
       : "";
-    // Records are kept per barangay on this device, so switching back shows them again.
+    // Records belong to the barangay, so switching back shows them again.
     if (!confirm(`Switch to a different barangay?${warning}`)) return;
     clearIdentity();
     location.reload();
   });
 
-  if (await register()) log(`Registered as node ${identity.node_id}`);
+  if (await register()) log(`Connected as ${identity.node_id}`);
   await refreshPending();
   connection.connect();
   sender.start();
 }
 
-/** Copies the RHU's answer onto the consultation it belongs to (demo batches match none). */
-async function updateRecordDelivery(message, clinic) {
-  const list = Array.isArray(message.rejected) ? message.rejected : [];
-  const rejected = list.length > 0 || (!Array.isArray(message.rejected) && message.rejected > 0);
-  try {
-    const sync = rejected ? records.SYNC.REJECTED : records.SYNC.STORED;
-    const detail = rejected ? list[0]?.reason ?? "the record was invalid" : null;
-    if (await records.markDelivery(message.batch_id, sync, detail)) clinic.refresh();
-  } catch {
-    // This browser can't store records, so there is nothing to update.
-  }
+/**
+ * Records used to be kept in the browser. If this browser still has some for this barangay,
+ * offer to move them into the barangay's account. Nothing moves until the worker says so.
+ */
+async function offerToMoveBrowserRecords(identity, clinic) {
+  const found = await browserRecords(identity.barangay_id);
+  if (!found.clients.length) return;
+  $("move-banner").hidden = false;
+  $("move-count").textContent = `${found.clients.length} client(s) and ${found.consultations.length} checkup(s)`;
+  $("move-btn").addEventListener("click", async () => {
+    $("move-btn").disabled = true;
+    try {
+      await records.importBackup({ format: "healthpulz-bhu-backup", barangay_id: identity.barangay_id, ...found });
+      await clearBrowserRecords(identity.barangay_id);
+      $("move-banner").hidden = true;
+      clinic.refresh();
+    } catch (error) {
+      $("move-error").textContent = error.message;
+      $("move-btn").disabled = false;
+    }
+  });
 }
 
-function setupBackup(identity, sender, clinic) {
+function setupBackup(identity, clinic) {
   const result = $("backup-result");
 
   $("backup-export").addEventListener("click", async () => {
     try {
-      const backup = await records.exportBackup(identity.barangay_id);
+      const backup = await records.exportBackup();
       const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
       const link = Object.assign(document.createElement("a"), {
         href: url,
@@ -216,9 +232,8 @@ function setupBackup(identity, sender, clinic) {
     event.target.value = ""; // so choosing the same file again still fires
     if (!file) return;
     try {
-      const counts = await records.importBackup(identity.node_id, identity.barangay_id, JSON.parse(await file.text()));
+      const counts = await records.importBackup(JSON.parse(await file.text()));
       result.textContent = `Restored ${counts.clients} clients and ${counts.consultations} checkups.`;
-      sender.notifyQueued();
       clinic.refresh();
     } catch (error) {
       result.textContent = `Restore failed: ${error.message}`;
@@ -437,25 +452,9 @@ function summarize(records, diseases) {
 
 const shortId = (id) => id.slice(0, 8);
 
-/** Returning to a barangay on this device reuses its station instead of registering a new one. */
-function nodeIdFor(barangayId) {
-  return loadNodeIds()[barangayId] ?? newNodeId(barangayId);
-}
-
-function loadNodeIds() {
-  try {
-    return JSON.parse(localStorage.getItem(NODE_IDS_KEY)) ?? {};
-  } catch {
-    return {};
-  }
-}
-
-function rememberNodeId({ barangay_id: barangayId, node_id: nodeId }) {
-  try {
-    localStorage.setItem(NODE_IDS_KEY, JSON.stringify({ ...loadNodeIds(), [barangayId]: nodeId }));
-  } catch {
-    // Without storage the node gets a new ID each time; it still works.
-  }
+/** Every device logged in as a barangay shares one station. */
+function identityOf(barangayId) {
+  return { node_id: `${barangayId}-MAIN`, barangay_id: barangayId };
 }
 
 function loadIdentity() {
@@ -470,7 +469,7 @@ function saveIdentity(identity) {
   try {
     localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
   } catch {
-    // Without storage the node gets a new ID on every reload; it still works.
+    // Without storage the barangay must be chosen again after a reload; it still works.
   }
 }
 

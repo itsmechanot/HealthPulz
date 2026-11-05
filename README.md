@@ -15,6 +15,8 @@ rhu/             RHU server (FastAPI)
   schema.sql     Database schema (SQLite, WAL mode)
   api.py         HTTP endpoints
   ingest.py      Ingestion pipeline (queues, validator threads, DB writer thread)
+  bhu_store.py   Each BHU's records (var/bhu/BRGY-xx.db) and the transactional outbox relay
+  bhu_api.py     HTTP endpoints for a BHU's records
   analytics.py   Parallel analytics: weekly counts and thresholds (process pool, MapReduce)
   alerts.py      Outbreak alert detection and delivery (store-and-forward)
   stats.py       Read-only statistics for the dashboards (aggregates only)
@@ -33,7 +35,7 @@ web/             Web pages served by the RHU (plain HTML/CSS/JS, no build step)
   node/          BHS Node page
   monitor/       System Monitor page
   dashboard/     RHU Dashboard page
-  js/node/       BHU logic: clinic screens, records (on the device), offline outbox, WebSocket, sender, demo generator
+  js/node/       BHU logic: clinic screens, records API, WebSocket, Demo Tools generator with its offline sender
 tests/           Automated tests (pytest)
 tools/           Developer tools: node simulator (load test), analytics benchmark, map builder
 ```
@@ -57,7 +59,7 @@ uvicorn rhu.main:app --host 0.0.0.0 --port 8000 --reload
 - System Monitor: http://localhost:8000/monitor/ (shows the join address for classmates)
 - RHU Dashboard: http://localhost:8000/dashboard/
 - API docs: http://localhost:8000/docs
-- The database is created automatically at `var/healthpulz.db` (override with the `HEALTHPULZ_DB` environment variable).
+- The RHU's database is created automatically at `var/healthpulz.db` (override with the `HEALTHPULZ_DB` environment variable). Each BHU's records go in `var/bhu/` beside it.
 - `--host 0.0.0.0` lets classmates' devices on the same network connect.
 
 ## Load past (synthetic) data

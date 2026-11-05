@@ -39,20 +39,15 @@ export class Sender extends EventTarget {
     this.pump();
   }
 
-  /** Batches were added to the outbox directly (saved with a record): send them now. */
-  notifyQueued() {
-    this.emit("changed");
-    this.pump();
-  }
-
-  /** Called with every STORED message the WebSocket receives. */
+  /** Called with every STORED message the WebSocket receives. Returns whether the batch was this device's. */
   async confirmStored(message) {
     // A resent batch can be confirmed twice; only the first confirmation counts.
     const waiting = this.inFlight.delete(message.batch_id) || (await outbox.hasBatch(message.batch_id));
-    if (!waiting) return;
+    if (!waiting) return false;
     await outbox.removeBatch(message.batch_id);
     this.emit("stored", message);
     this.emit("changed");
+    return true;
   }
 
   /** Go through the outbox once. Calls made while a pump is running trigger one more pass. */

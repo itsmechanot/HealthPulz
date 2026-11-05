@@ -88,7 +88,8 @@ function renderKpis(p, nodes) {
   $("kpi-accepted").textContent = fmt(p.records_accepted);
   $("kpi-batches").textContent = `${fmt(p.batches_stored)} batches`;
   $("kpi-nodes").textContent = fmt(online);
-  $("kpi-nodes-total").textContent = `of ${fmt(nodes.length)} active in the last 12 hours`;
+  const devices = nodes.reduce((sum, n) => sum + n.connections, 0);
+  $("kpi-nodes-total").textContent = `${fmt(devices)} device${devices === 1 ? "" : "s"} connected · ${fmt(nodes.length)} active in 12 hours`;
   $("kpi-queue").textContent = fmt(p.ingest_queue + p.write_queue);
   $("kpi-busy").textContent = `${fmt(p.batches_busy)} refused (busy)`;
   $("kpi-accounted").textContent = p.records_received ? `${((accounted / p.records_received) * 100).toFixed(1)}%` : "–";
@@ -163,7 +164,7 @@ function renderNodes(nodes) {
       tile.append(
         Object.assign(document.createElement("strong"), { textContent: name(node), title: name(node) }),
         Object.assign(document.createElement("span"), { className: "mono small muted", textContent: node.node_id }),
-        Object.assign(document.createElement("div"), { className: "small", textContent: `${node.status === "ONLINE" ? "Online" : "Offline"}${pending}` }),
+        Object.assign(document.createElement("div"), { className: "small", textContent: `${node.status === "ONLINE" ? `Online · ${node.connections} device${node.connections === 1 ? "" : "s"}` : "Offline"}${pending}` }),
       );
       return tile;
     }),

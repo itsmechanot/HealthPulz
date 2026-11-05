@@ -1,8 +1,8 @@
-// The BHU's local database (IndexedDB, in this browser on this device).
+// The browser's local database (IndexedDB).
 //
-//   outbox         batches waiting for a STORED confirmation from the RHU
-//   clients        client demographics (never leave this device)
-//   consultations  checkup records (only a de-identified case report leaves this device)
+//   outbox         Demo Tools batches waiting for a STORED confirmation from the RHU
+//   clients, consultations
+//                  records saved before they moved to the barangay's account; only read to move them
 
 import { toast } from "../common/shell.js";
 
@@ -56,5 +56,24 @@ export async function transaction(storeNames, mode, work) {
     tx.oncomplete = () => resolve(outcome instanceof IDBRequest ? outcome.result : outcome);
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
+  });
+}
+
+/** Records this browser still holds for a barangay. Empty if it can't store data. */
+export async function browserRecords(barangayId) {
+  if (!(await openDb())) return { clients: [], consultations: [] };
+  const [clients, consultations] = await Promise.all(
+    ["clients", "consultations"].map((name) =>
+      transaction([name], "readonly", (stores) => stores[name].index("barangay_id").getAll(barangayId)),
+    ),
+  );
+  return { clients, consultations };
+}
+
+export async function clearBrowserRecords(barangayId) {
+  const { clients, consultations } = await browserRecords(barangayId);
+  await transaction(["clients", "consultations"], "readwrite", (stores) => {
+    clients.forEach((c) => stores.clients.delete(c.client_id));
+    consultations.forEach((c) => stores.consultations.delete(c.consultation_id));
   });
 }

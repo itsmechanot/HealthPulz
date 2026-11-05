@@ -70,7 +70,7 @@ def test_monitor_shows_connected_node_online(registered):
 
     assert snapshot["type"] == "MONITOR"
     assert node_entry(snapshot) == {
-        "node_id": NODE, "barangay_id": "BRGY-08", "status": "ONLINE", "pending_batches": 3,
+        "node_id": NODE, "barangay_id": "BRGY-08", "status": "ONLINE", "pending_batches": 3, "connections": 1,
     }
     assert {"records_per_second", "ingest_queue", "validator_threads"} <= snapshot["pipeline"].keys()
 

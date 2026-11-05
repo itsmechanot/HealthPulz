@@ -26,7 +26,7 @@ class Presence:
 class Hub:
     def __init__(self) -> None:
         self._loop: asyncio.AbstractEventLoop | None = None
-        # A node can have more than one open connection (e.g. two browser tabs).
+        # A station can have many open connections: every device logged in as that barangay.
         self._nodes: dict[str, set[WebSocket]] = {}
         self._presence: dict[str, Presence] = {}
         self._monitors: set[WebSocket] = set()
@@ -49,6 +49,9 @@ class Hub:
 
     def is_connected(self, node_id: str) -> bool:
         return node_id in self._nodes
+
+    def connection_count(self, node_id: str) -> int:
+        return len(self._nodes.get(node_id, ()))
 
     def heartbeat(self, node_id: str, pending_batches: int) -> None:
         self._presence[node_id] = Presence(time.monotonic(), pending_batches)

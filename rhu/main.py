@@ -14,9 +14,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from rhu import api, config, db, ws
+from rhu import api, bhu_api, config, db, ws
 from rhu.alerts import AlertService
 from rhu.analytics import Analytics, run_when_cases_change
+from rhu.bhu_store import BhuStores, OutboxRelay
 from rhu.hub import Hub
 from rhu.ingest import IngestPipeline
 
@@ -40,8 +41,18 @@ def create_app(
         db.init_db(db_path)
         hub = Hub()
         hub.bind_loop(asyncio.get_running_loop())
-        pipeline = IngestPipeline(db_path, on_stored=hub.send_to_node_threadsafe)
+        stores = BhuStores(db_path.parent / "bhu")
+
+        def on_stored(node_id: str, message: dict) -> None:
+            relay.on_stored(message)  # first, so a device told STORED reads the updated record
+            hub.send_to_node_threadsafe(node_id, message)
+
+        pipeline = IngestPipeline(db_path, on_stored=on_stored)
+        relay = OutboxRelay(stores, pipeline)
         pipeline.start()
+        relay.start()
+        app.state.bhu_stores = stores
+        app.state.outbox_relay = relay
         analytics = Analytics(db_path, workers=analytics_workers)
         alerts = AlertService(db_path, hub)
         app.state.hub = hub
@@ -65,12 +76,14 @@ def create_app(
                 await task
         # Finish queued batches before shutting down (in a thread, so the event
         # loop stays free to deliver the last STORED messages).
+        await asyncio.to_thread(relay.stop)
         await asyncio.to_thread(pipeline.stop)
         analytics.close()
 
     app = FastAPI(title="HealthPulz RHU Server", version="0.1.0", lifespan=lifespan)
     app.state.db_path = db_path
     app.include_router(api.router)
+    app.include_router(bhu_api.router)
     app.include_router(ws.router)
 
     # The protocol defines malformed messages as 400 (FastAPI's default is 422).

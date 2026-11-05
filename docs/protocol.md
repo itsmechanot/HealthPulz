@@ -14,23 +14,41 @@ Every message is JSON and carries a `type` field.
 
 ---
 
-## 1. Node registration (dropdown login)
+## 1. BHU accounts and stations
 
-Classmates choose their barangay from a **searchable dropdown** (type to filter, e.g. "cara" → *Caraycaray*). Because there are more classmates (30–40) than Naval barangays (26), **several nodes can serve one barangay**, just as a large barangay can have a main BHS plus satellite stations.
+Each barangay is **one account with one fixed station**: `{barangay_id}-MAIN` (e.g. `BRGY-08-MAIN`). Choosing a barangay from the searchable dropdown logs the device in to that account, so its records are the same on any device or address. Every connected device shares the station, and the System Monitor counts the devices.
 
-- The first time a device starts as a barangay, the browser creates a `node_id` in the form `{barangay_id}-{4 random chars}` (e.g. `BRGY-08-K7QX`) and keeps it in `localStorage`, one per barangay. Returning to that barangay on the same browser reuses it; another device, browser or private window is a separate station.
-- The node registers itself with:
-
-`POST /api/nodes/register`
+`POST /api/nodes/register` makes sure the station exists:
 ```json
-{ "type": "REGISTER", "node_id": "BRGY-08-K7QX", "barangay_id": "BRGY-08" }
+{ "type": "REGISTER", "node_id": "BRGY-08-MAIN", "barangay_id": "BRGY-08" }
 ```
 Response:
 ```json
-{ "type": "REGISTERED", "node_id": "BRGY-08-K7QX", "barangay_id": "BRGY-08", "barangay": "Caraycaray" }
+{ "type": "REGISTERED", "node_id": "BRGY-08-MAIN", "barangay_id": "BRGY-08", "barangay": "Caraycaray" }
 ```
 
-> **Scope note:** dropdown login has no password. That is acceptable for the class demo. A production version would use per-station credentials.
+> **Scope note:** there is no login yet, and the dropdown has no password. Anyone on the network can open any barangay's records, so **use only made-up clients until login exists**.
+
+### BHU records and the transactional outbox
+
+Each barangay's records are in their own file, `var/bhu/{barangay_id}.db`, separate from the RHU's database. Endpoints are under `/api/bhu/{barangay_id}`:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/clients`, `/clients/{id}` | List clients; one client |
+| `PUT` | `/clients/{id}` | Create or update a client. Changing a birthdate or sex re-sends the client's reports |
+| `GET` | `/consultations`, `?client_id=`, `/consultations/{id}` | Checkups, newest first |
+| `PUT` | `/clients/{client_id}/consultations/{id}` | Save a checkup. The browser chooses the ID, so a retry can't record it twice |
+| `POST` | `/consultations/{id}/correct` | `{ fields, reason, changes }` |
+| `POST` | `/consultations/{id}/void` | `{ reason }` |
+| `GET`, `POST` | `/backup` | Download or restore a barangay's records; a backup from another barangay is refused |
+
+Saving a checkup writes the record and its report in **one transaction** in the barangay's file (the *transactional outbox* pattern). A relay thread (`OutboxRelay` in `rhu/bhu_store.py`) then sends each report through the ingestion pipeline below, in the same `SUBMIT_BATCH` format. The report stays in the outbox until `STORED` confirms it, so:
+- a crash at any point can only cause a resend after the restart, and the RHU ignores what it already has
+- if the queue is full, the relay waits and tries again
+- a report not confirmed within 60 s is sent again
+
+The BHU's checkup screens need a connection to the server. Without one, the form says nothing was saved and keeps what was typed. Only **Demo Tools** batches are sent from the browser, with their own offline queue.
 
 ---
 
@@ -41,7 +59,7 @@ Response:
 {
   "type": "SUBMIT_BATCH",
   "protocol_version": 1,
-  "node_id": "BRGY-08-K7QX",
+  "node_id": "BRGY-08-MAIN",
   "batch_id": "6f1c2e0a-8b7d-4c1e-9a55-1f2d3c4b5a60",
   "sent_at": "2026-11-18T09:15:02+08:00",
   "records": [
@@ -62,7 +80,7 @@ Response:
 Rules:
 - `batch_id` and `record_id` are UUID v4s created **on the node**. They make retries safe (idempotency). The node page builds them with `crypto.getRandomValues()`, because `crypto.randomUUID()` is unavailable on plain-HTTP LAN addresses such as `http://192.168.1.5:8000`.
 - At most **100 records per batch**.
-- **No names or addresses** are sent, only the purok number (Data Privacy Act of 2012). Client records stay on the BHU's device; the node sends only this case report (see [BHU screen spec](screens/bhs-node.md)).
+- **No names or addresses** are sent, only the purok number (Data Privacy Act of 2012). Names and clinical details stay in the barangay's own store; only this case report reaches the RHU's database.
 - `disease_code` is one of the 19 tracked diseases in `rhu/data/diseases.json` (served at `GET /api/config`), or `OTH` for any other diagnosis. `OTH` is stored and counted as "Other consultations", but has no thresholds or alerts and stays out of the case totals. The specific diagnosis text stays at the BHU.
 - Optional `"drill": true` marks **stress-test data**. It is validated, stored and counted like any batch, but **left out of the analytics**, so it can never raise an alert. The node page sets it in Stress test mode, and the load-test simulator always sets it.
 
@@ -102,7 +120,7 @@ Voided cases stay in the database for audit but are left out of the analytics. C
 }
 ```
 
-**Node rule:** a batch stays in the node's local queue (IndexedDB) until `STORED` arrives. If `STORED` doesn't arrive within **30 s**, the node can check `GET /api/batches/{batch_id}`, or simply resend. Resending is always safe: a batch that was already stored is not written again, and the server replies `STORED` with the original counts.
+**Sender rule:** a batch stays in the sender's outbox until `STORED` arrives. If `STORED` doesn't arrive within **30 s**, the node can check `GET /api/batches/{batch_id}`, or simply resend. Resending is always safe: a batch that was already stored is not written again, and the server replies `STORED` with the original counts.
 
 ### Validation
 
@@ -141,7 +159,7 @@ The bounded queue and the `503` response are **backpressure**: the server protec
 - `4400` if the first message isn't a `HELLO` for the `node_id` in the URL
 - `4404` if the node isn't registered (register first, then reconnect)
 
-A node with no heartbeat for **30 s**, or with no open connection, is shown as **OFFLINE** on the System Monitor. A node may have several connections open (e.g. two tabs); each receives the messages.
+A node with no heartbeat for **30 s**, or with no open connection, is shown as **OFFLINE** on the System Monitor. A station can have many connections open, one per device logged in as that barangay; each receives the messages.
 
 **If the node is offline when its batch is stored**, the `STORED` message is not queued for later. The node recovers by checking `GET /api/batches/{batch_id}` or by resending (safe, see above).
 
@@ -237,7 +255,7 @@ The RHU sends one `MONITOR` message on connect, then one every second. The monit
   },
   "analytics": { "workers": 4, "partitions": 26, "cases": 18472, "rows": 31200, "map_seconds": 0.39, "reduce_seconds": 0.21, "total_seconds": 0.6, "finished_at": "2026-10-30T09:18:36.410+00:00" },
   "nodes": [
-    { "node_id": "BRGY-08-K7QX", "barangay_id": "BRGY-08", "status": "ONLINE", "pending_batches": 0 }
+    { "node_id": "BRGY-08-MAIN", "barangay_id": "BRGY-08", "status": "ONLINE", "pending_batches": 0, "connections": 2 }
   ]
 }
 ```

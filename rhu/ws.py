@@ -49,7 +49,9 @@ async def node_socket(ws: WebSocket, node_id: str) -> None:
                     await ws.app.state.alerts.acknowledge(message["alert_id"], node_id)
                 case _:
                     await ws.send_json({"type": "ERROR", "reason": "UNKNOWN_TYPE"})
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
+        # RuntimeError: the device left while the server was pushing to it (see Hub._send),
+        # so Starlette reports the next read differently. Either way, the device is gone.
         pass
     finally:
         if joined:
@@ -68,8 +70,8 @@ async def monitor_socket(ws: WebSocket) -> None:
         await ws.send_json(await build_snapshot(ws.app, records_per_second=0.0))
         while True:
             await ws.receive_text()  # monitors only listen; this just waits for the disconnect
-    except WebSocketDisconnect:
-        pass
+    except (WebSocketDisconnect, RuntimeError):
+        pass  # the page left (RuntimeError: while the server was pushing to it)
     finally:
         hub.remove_monitor(ws)
 
@@ -98,7 +100,10 @@ async def build_snapshot(app: FastAPI, records_per_second: float) -> dict:
         if not hub.is_connected(node_id) and last_seen < _recent_cutoff():
             continue
         status, pending = hub.node_status(node_id)
-        nodes.append({"node_id": node_id, "barangay_id": barangay_id, "status": status, "pending_batches": pending})
+        nodes.append({
+            "node_id": node_id, "barangay_id": barangay_id, "status": status, "pending_batches": pending,
+            "connections": hub.connection_count(node_id),
+        })
     analytics = app.state.analytics.last_result
     return {
         "type": "MONITOR",

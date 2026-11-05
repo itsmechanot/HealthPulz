@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from rhu.config import MAX_RECORDS_PER_BATCH, PROTOCOL_VERSION
 
@@ -64,3 +64,66 @@ class SubmitBatch(BaseModel):
 
 class AlertStatusUpdate(BaseModel):
     status: Literal["OPEN", "ACKNOWLEDGED", "RESOLVED"]
+
+
+class _FormFields(BaseModel):
+    """Fields from a web form: an empty input arrives as "" and means "not given"."""
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def blank_is_none(cls, value):
+        return None if value == "" else value
+
+
+class ClientFields(_FormFields):
+    last_name: str = Field(min_length=1, max_length=100)
+    first_name: str = Field(min_length=1, max_length=100)
+    middle_name: str | None = Field(default=None, max_length=100)
+    birthdate: date
+    sex: Literal["M", "F"]
+    civil_status: str | None = Field(default=None, max_length=30)
+    purok: int = Field(ge=1, le=20)
+    address: str | None = Field(default=None, max_length=200)
+    contact: str | None = Field(default=None, max_length=30)
+    philhealth: str | None = Field(default=None, max_length=30)
+
+
+class ConsultationFields(_FormFields):
+    visit_date: date
+    onset_date: date | None = None
+    chief_complaint: str = Field(min_length=1, max_length=500)
+    temperature: float | None = Field(default=None, ge=30, le=45)
+    bp_systolic: int | None = Field(default=None, ge=50, le=260)
+    bp_diastolic: int | None = Field(default=None, ge=30, le=160)
+    pulse: int | None = Field(default=None, ge=20, le=250)
+    respiratory_rate: int | None = Field(default=None, ge=5, le=80)
+    weight: float | None = Field(default=None, ge=0.5, le=300)
+    height: float | None = Field(default=None, ge=30, le=250)
+    findings: str | None = Field(default=None, max_length=2000)
+    diagnosis_code: str = Field(min_length=1, max_length=8)
+    diagnosis_text: str | None = Field(default=None, max_length=200)
+    case_status: Literal["SUSPECTED", "CONFIRMED"] | None = None
+    treatment: str | None = Field(default=None, max_length=2000)
+    disposition: str | None = Field(default=None, max_length=50)
+    follow_up_date: date | None = None
+    attended_by: str | None = Field(default=None, max_length=100)
+
+
+class FieldChange(BaseModel):
+    field: str
+    to: str
+    # "from" is a Python keyword
+    previous: str = Field(alias="from", serialization_alias="from")
+
+    def model_dump(self, **kwargs) -> dict:
+        return super().model_dump(by_alias=True, **kwargs)
+
+
+class ConsultationCorrection(BaseModel):
+    fields: ConsultationFields
+    reason: str = Field(min_length=1, max_length=300)
+    changes: list[FieldChange] = Field(min_length=1)
+
+
+class VoidRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=300)

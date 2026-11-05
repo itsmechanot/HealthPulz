@@ -12,11 +12,3 @@ export function uuid4() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-const SUFFIX_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-/** 'BRGY-08' -> 'BRGY-08-K7QX' (format required by the protocol). */
-export function newNodeId(barangayId) {
-  const bytes = crypto.getRandomValues(new Uint8Array(4));
-  const suffix = [...bytes].map((b) => SUFFIX_CHARS[b % SUFFIX_CHARS.length]).join("");
-  return `${barangayId}-${suffix}`;
-}

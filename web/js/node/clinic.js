@@ -1,9 +1,9 @@
 // The BHU's clinic screens: clients, client profile, client form, checkup form, visit
-// list and visit record. Everything is read from and saved to this device (records.js).
+// list and visit record. Records live in this barangay's store on the server (records.js).
 
 import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
-import { icon } from "../common/shell.js";
+import { icon, toast } from "../common/shell.js";
 import * as records from "./records.js";
 
 const OTHER_CODE = "OTH";
@@ -44,13 +44,15 @@ function today() {
 const formatDate = (iso) => new Date(`${iso}T00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 const sexLabel = (code) => ({ F: "Female", M: "Male" })[code] ?? code;
 
-export function createClinic({ config, identity, router, onSaved }) {
-  const barangayId = identity.barangay_id;
+export function createClinic({ config, router }) {
   const diseases = new Map(config.diseases.map((d) => [d.disease_code, d]));
   let visitClient = null;
   let editingClient = null;
   let correctingVisit = null;
   let shownVisit = null;
+  // Chosen when a form opens and kept across retries, so a retry can't save a record twice.
+  let newClientId = null;
+  let newVisitId = null;
 
   const diagnosisLabel = (c) => (c.diagnosis_code === OTHER_CODE ? c.diagnosis_text : diseases.get(c.diagnosis_code)?.name ?? c.diagnosis_code);
 
@@ -92,12 +94,7 @@ export function createClinic({ config, identity, router, onSaved }) {
   // ---- client list -------------------------------------------------------------------
 
   async function showClients() {
-    const available = await records.isAvailable();
-    $("storage-warning").hidden = available;
-    $("new-client-btn").hidden = !available;
-    if (!available) return;
-
-    const [clients, consultations] = await Promise.all([records.listClients(barangayId), records.listConsultations(barangayId)]);
+    const [clients, consultations] = await Promise.all([records.listClients(), records.listConsultations()]);
     const lastVisit = new Map();
     for (const c of consultations) if (!c.voided && !lastVisit.has(c.client_id)) lastVisit.set(c.client_id, c.visit_date);
 
@@ -165,8 +162,10 @@ export function createClinic({ config, identity, router, onSaved }) {
   async function showClientForm(clientId) {
     const form = $("client-form");
     form.reset();
+    $("client-form-error").textContent = "";
     editingClient = clientId ? await records.getClient(clientId) : null;
     if (clientId && !editingClient) return router.go("clients");
+    newClientId = records.newId();
 
     $("client-form-title").lastChild.textContent = editingClient ? "Edit client" : "New client";
     $("client-form-cancel").href = editingClient ? `#/client/${editingClient.client_id}` : "#/clients";
@@ -182,43 +181,42 @@ export function createClinic({ config, identity, router, onSaved }) {
     event.preventDefault();
     const form = event.target;
     const birthdate = form.elements.birthdate;
-    // A checkup dated before the birthdate would give a negative age in its report.
-    const visits = editingClient ? await records.listClientConsultations(editingClient.client_id) : [];
-    const firstVisit = visits.map((v) => v.visit_date).sort()[0];
-    birthdate.setCustomValidity(
-      birthdate.value && records.ageOn(birthdate.value, today()) > 110
-        ? "Check the year: age must be 110 or below."
-        : birthdate.value && firstVisit && birthdate.value > firstVisit
-          ? `This client has a checkup on ${formatDate(firstVisit)}, before this birthdate.`
-          : "",
-    );
+    birthdate.setCustomValidity(birthdate.value && records.ageOn(birthdate.value, today()) > 110 ? "Check the year: age must be 110 or below." : "");
     if (!form.reportValidity()) return;
 
     const values = Object.fromEntries(new FormData(form));
-    const client = {
-      ...editingClient,
+    const fields = {
       ...values,
       last_name: values.last_name.trim(),
       first_name: values.first_name.trim(),
       middle_name: values.middle_name.trim(),
       purok: Number(values.purok),
-      barangay_id: barangayId,
     };
-
-    if (!editingClient && (await findDuplicate(client)) && !confirm("A client with the same name and birthdate already exists. Register anyway?")) return;
-
-    // Age and sex are in the reports the RHU already has, so those must be corrected too.
-    const reportsAffected = editingClient && (client.birthdate !== editingClient.birthdate || client.sex !== editingClient.sex);
-    const saved = reportsAffected && visits.length
-      ? await records.correctClient(identity.node_id, client, "Client birthdate or sex corrected")
-      : await records.saveClient(client);
-    if (reportsAffected && visits.length) onSaved();
-    router.go("client", saved.client_id);
+    await submitting(form, $("client-form-error"), async () => {
+      if (!editingClient && (await findDuplicate(fields)) && !confirm("A client with the same name and birthdate already exists. Register anyway?")) return;
+      // The server re-sends the client's reports if the birthdate or sex changed.
+      const saved = await records.saveClient(editingClient?.client_id ?? newClientId, fields);
+      router.go("client", saved.client_id);
+    });
   });
+
+  /** Runs a save with the form's buttons disabled; a failure is shown and the form keeps its contents. */
+  async function submitting(form, errorElement, save) {
+    const button = form.querySelector('[type="submit"]');
+    button.disabled = true;
+    errorElement.textContent = "";
+    try {
+      await save();
+    } catch (error) {
+      errorElement.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  }
 
   async function findDuplicate(client) {
     const same = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
-    return (await records.listClients(barangayId)).find(
+    return (await records.listClients()).find(
       (c) => same(c.last_name, client.last_name) && same(c.first_name, client.first_name) && c.birthdate === client.birthdate,
     );
   }
@@ -242,6 +240,8 @@ export function createClinic({ config, identity, router, onSaved }) {
 
     const form = $("visit-form");
     form.reset();
+    $("visit-form-error").textContent = "";
+    newVisitId = records.newId();
     form.elements.visit_date.value = today();
     form.elements.visit_date.max = today();
     form.elements.onset_date.max = today();
@@ -332,25 +332,26 @@ export function createClinic({ config, identity, router, onSaved }) {
       case_status: tracked ? values.case_status : "CONFIRMED", // the protocol requires a status; "Other" visits aren't surveillance cases
     };
 
-    let consultation;
+    let changes = [];
     if (correctingVisit) {
-      const changes = describeChanges(correctingVisit, fields);
+      changes = describeChanges(correctingVisit, fields);
       const reason = form.elements.correction_reason;
       reason.setCustomValidity(changes.length ? "" : "You haven't changed anything in this checkup.");
       if (!form.reportValidity()) return;
-      consultation = await records.correctConsultation(identity.node_id, visitClient, correctingVisit.consultation_id, fields, reasonValue.trim(), changes);
-    } else {
-      consultation = await records.saveConsultation(identity.node_id, visitClient, fields);
     }
-    onSaved();
-    router.go("visit", consultation.consultation_id);
+
+    await submitting(form, $("visit-form-error"), async () => {
+      const saved = correctingVisit
+        ? await records.correctConsultation(correctingVisit.consultation_id, fields, reasonValue.trim(), changes)
+        : await records.saveConsultation(visitClient.client_id, newVisitId, fields);
+      router.go("visit", saved.consultation_id);
+    });
   });
 
   // ---- visit list -----------------------------------------------------------------------------
 
   async function showVisits() {
-    if (!(await records.isAvailable())) return;
-    const [consultations, clients] = await Promise.all([records.listConsultations(barangayId), records.listClients(barangayId)]);
+    const [consultations, clients] = await Promise.all([records.listConsultations(), records.listClients()]);
     const clientsById = new Map(clients.map((c) => [c.client_id, c]));
 
     $("visits-today").textContent = consultations.filter((c) => c.visit_date === today() && !c.voided).length;
@@ -462,6 +463,7 @@ export function createClinic({ config, identity, router, onSaved }) {
   const voidDialog = $("void-dialog");
   $("visit-void").addEventListener("click", () => {
     $("void-reason").value = "";
+    $("void-error").textContent = "";
     voidDialog.showModal();
   });
   $("void-cancel").addEventListener("click", () => voidDialog.close());
@@ -470,10 +472,15 @@ export function createClinic({ config, identity, router, onSaved }) {
     const reason = $("void-reason");
     reason.setCustomValidity(reason.value.trim() ? "" : "Please give the reason.");
     if (!reason.reportValidity()) return;
-    const { visit, client } = shownVisit;
-    await records.voidConsultation(identity.node_id, client, visit.consultation_id, reason.value.trim());
+    const { visit } = shownVisit;
+    $("void-error").textContent = "";
+    try {
+      await records.voidConsultation(visit.consultation_id, reason.value.trim());
+    } catch (error) {
+      $("void-error").textContent = error.message;
+      return;
+    }
     voidDialog.close();
-    onSaved();
     showVisit(visit.consultation_id);
   });
   $("void-reason").addEventListener("input", (event) => event.target.setCustomValidity(""));
@@ -490,16 +497,20 @@ export function createClinic({ config, identity, router, onSaved }) {
     visit: showVisit,
   };
 
+  /** Loading a screen can fail if the server is out of reach; say so instead of showing nothing. */
+  const show = (loading) =>
+    loading?.catch((error) => toast({ title: "Couldn't load this screen", body: error.message }));
+
   return {
     /** Call when the screen changes. */
     show(name, param) {
       lastScreen = { name, param };
-      handlers[name]?.(param);
+      show(handlers[name]?.(param));
     },
     /** Call when a report's delivery status changes: refreshes what's on screen (never a form). */
     refresh() {
       const { name, param } = lastScreen;
-      if (["clients", "client", "visits", "visit"].includes(name)) handlers[name](param);
+      if (["clients", "client", "visits", "visit"].includes(name)) show(handlers[name](param));
     },
   };
 }

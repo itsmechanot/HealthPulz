@@ -54,7 +54,7 @@
           <section id="setup" class="card" style="max-width: 520px; width: 100%; justify-self: center; margin-top: 4vh">
             <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg></span>
             <h2 style="font-size: 1.3rem">Choose your Barangay Health Unit</h2>
-            <p class="muted" style="margin: 0">Client records are saved on this device. Only de-identified case reports go to RHU Naval.</p>
+            <p class="muted" style="margin: 0">Client records are kept in your barangay's account and are the same on any device. Only de-identified case reports go to RHU Naval.</p>
             <label for="barangay-input">Barangay</label>
             <div class="combobox">
               <input id="barangay-input" type="text" role="combobox" autocomplete="off"
@@ -69,10 +69,12 @@
 
         <!-- ===== Clients ===== -->
         <section class="screen" data-screen="clients" hidden>
-          <p id="storage-warning" class="note note-danger" role="alert" hidden>
-            <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>
-            This browser can't save records on this device (it may be a private window). Open HealthPulz in a normal window before entering clients.
-          </p>
+          <section id="move-banner" class="card" hidden>
+            <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Records found in this browser</h2>
+            <p class="muted small" style="margin: 0">This browser still holds <strong id="move-count"></strong> saved before records moved to your barangay's account. Move them so they appear on every device.</p>
+            <div><button id="move-btn" class="btn btn-primary btn-small" type="button">Move to this barangay's account</button></div>
+            <p id="move-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
+          </section>
           <section class="card" aria-labelledby="clients-title">
             <div class="card-header">
               <h2 id="clients-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Clients</h2>
@@ -109,7 +111,7 @@
           <form id="client-form" class="card" novalidate>
             <h2 id="client-form-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>New client</h2>
             <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-              These details stay on this device. Only the client's age, sex and purok are included in case reports.</p>
+              These details stay in your barangay's records. Only the client's age, sex and purok are included in case reports.</p>
             <div class="form-grid">
               <div class="field"><label for="c-last">Last name *</label><input id="c-last" name="last_name" type="text" required autocomplete="off"></div>
               <div class="field"><label for="c-first">First name *</label><input id="c-first" name="first_name" type="text" required autocomplete="off"></div>
@@ -125,6 +127,7 @@
               <div class="field"><label for="c-philhealth">PhilHealth number</label><input id="c-philhealth" name="philhealth" type="text" autocomplete="off"></div>
             </div>
             <div class="form-actions">
+              <p id="client-form-error" class="small" role="alert" style="color: var(--danger); margin: 0 auto 0 0; align-self: center"></p>
               <a id="client-form-cancel" class="btn btn-ghost" href="#/clients">Cancel</a>
               <button class="btn btn-primary" type="submit">Save client</button>
             </div>
@@ -183,16 +186,17 @@
             <section id="visit-reason-card" class="card" hidden>
               <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Reason for correction</h3>
               <div class="field"><label for="v-reason">Why is this being corrected? *</label><input id="v-reason" name="correction_reason" type="text" autocomplete="off" placeholder="e.g. Laboratory result came back negative for dengue"></div>
-              <span class="muted small">Kept in this checkup's history on this device. The RHU only receives the corrected report.</span>
+              <span class="muted small">Kept in this checkup's history in your barangay's records. The RHU only receives the corrected report.</span>
             </section>
 
             <section class="card" aria-labelledby="preview-title">
               <h3 id="preview-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>What the RHU receives</h3>
               <div id="visit-preview" class="preview"></div>
-              <p class="muted small" style="margin: 0"><strong>Stays on this device:</strong> name, birthdate, contact details, complaint, vital signs, findings, specific diagnosis text and treatment.</p>
+              <p class="muted small" style="margin: 0"><strong>Stays in your barangay's records:</strong> name, birthdate, contact details, complaint, vital signs, findings, specific diagnosis text and treatment.</p>
             </section>
 
             <div class="form-actions">
+              <p id="visit-form-error" class="small" role="alert" style="color: var(--danger); margin: 0 auto 0 0; align-self: center"></p>
               <a id="visit-form-cancel" class="btn btn-ghost">Cancel</a>
               <button id="visit-submit" class="btn btn-primary" type="submit">Save checkup and send</button>
             </div>
@@ -238,6 +242,7 @@
               <h2 id="void-title">Void this checkup?</h2>
               <p class="muted small" style="margin: 0">Use this for a checkup entered by mistake, such as for the wrong client. It stays here marked as voided, and the RHU stops counting it. This can't be undone.</p>
               <div class="field"><label for="void-reason">Reason *</label><input id="void-reason" type="text" required autocomplete="off" placeholder="e.g. Entered under the wrong client"></div>
+              <p id="void-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
               <div class="form-actions">
                 <button id="void-cancel" class="btn btn-ghost" type="button">Keep checkup</button>
                 <button class="btn btn-primary btn-danger-solid" type="submit">Void checkup</button>
@@ -315,13 +320,13 @@
                 <div class="stat"><div id="stat-rejected" class="stat-value">0</div><div class="stat-label">Rejected</div></div>
               </div>
               <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-                Case reports stay on this device until the RHU confirms they are stored, so nothing is lost if the connection drops.</p>
+                Each report stays in your barangay's outbox until the RHU confirms it, so nothing is lost if something fails midway.</p>
             </section>
 
             <section class="card" aria-labelledby="backup-title">
               <h2 id="backup-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Backup of records</h2>
               <p class="note note-danger"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>
-                Client records exist only in this browser. Clearing browser data deletes them, so back up regularly. The backup file contains names and health details: keep it private.</p>
+                The backup file contains names and health details: keep it private. Records are stored on the RHU's laptop, so also keep a copy elsewhere.</p>
               <div class="form-actions" style="justify-content: flex-start">
                 <button id="backup-export" class="btn btn-primary btn-small" type="button">Download backup</button>
                 <label class="btn btn-ghost btn-small" for="backup-import">Restore from file</label>
