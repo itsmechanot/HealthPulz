@@ -27,8 +27,8 @@ export function setupMenu() {
 export function createRouter(defaultScreen, onChange) {
   const sections = [...document.querySelectorAll("[data-screen]")];
   const parse = () => {
-    const [name, param = null] = location.hash.replace(/^#\/?/, "").split("/");
-    return sections.some((s) => s.dataset.screen === name) ? { name, param } : { name: defaultScreen, param: null };
+    const [name, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
+    return sections.some((s) => s.dataset.screen === name) ? { name, param: rest.join("/") || null } : { name: defaultScreen, param: null };
   };
   const show = () => {
     const { name, param } = parse();

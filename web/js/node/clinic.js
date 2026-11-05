@@ -7,6 +7,25 @@ import * as records from "./records.js";
 
 const OTHER_CODE = "OTH";
 const STATUS_LABELS = { SUSPECTED: "Suspected", CONFIRMED: "Confirmed" };
+// Fields compared when a checkup is corrected, with the names shown in its history.
+const FIELD_LABELS = {
+  visit_date: "Visit date",
+  onset_date: "Symptom onset",
+  chief_complaint: "Chief complaint",
+  temperature: "Temperature",
+  bp_systolic: "BP systolic",
+  bp_diastolic: "BP diastolic",
+  pulse: "Pulse",
+  respiratory_rate: "Respiratory rate",
+  weight: "Weight",
+  height: "Height",
+  findings: "Findings",
+  case_status: "Case status",
+  treatment: "Treatment",
+  disposition: "Disposition",
+  follow_up_date: "Follow-up date",
+  attended_by: "Attended by",
+};
 const SYNC_LABELS = {
   [records.SYNC.WAITING]: ["Waiting to reach the RHU", "ALERT"],
   [records.SYNC.STORED]: ["Sent to the RHU", "OK"],
@@ -29,24 +48,35 @@ export function createClinic({ config, identity, router, onSaved }) {
   const diseases = new Map(config.diseases.map((d) => [d.disease_code, d]));
   let visitClient = null;
   let editingClient = null;
+  let correctingVisit = null;
+  let shownVisit = null;
 
   const diagnosisLabel = (c) => (c.diagnosis_code === OTHER_CODE ? c.diagnosis_text : diseases.get(c.diagnosis_code)?.name ?? c.diagnosis_code);
 
   // ---- reusable pieces --------------------------------------------------------------
 
-  function syncBadge(consultation) {
+  function syncLabel(consultation) {
     const [label, level] = SYNC_LABELS[consultation.sync];
+    if (!consultation.voided || consultation.sync === records.SYNC.REJECTED) return [label, level];
+    return consultation.sync === records.SYNC.WAITING ? ["Void waiting to reach the RHU", "ALERT"] : ["Voided", "RESOLVED"];
+  }
+
+  function syncBadge(consultation) {
+    const [label, level] = syncLabel(consultation);
     return el("span", { className: "badge", dataset: { level }, textContent: label });
   }
+
+  const wasCorrected = (c) => (c.history ?? []).some((entry) => entry.action === "CORRECTED");
 
   function visitRow(consultation, client) {
     return el(
       "a",
-      { className: "record-row", href: `#/visit/${consultation.consultation_id}` },
+      { className: `record-row${consultation.voided ? " voided" : ""}`, href: `#/visit/${consultation.consultation_id}` },
       el(
         "div",
         { className: "grow" },
         el("strong", { textContent: client ? records.fullName(client) : diagnosisLabel(consultation) }),
+        wasCorrected(consultation) ? el("span", { className: "chip", textContent: "Corrected", style: "margin-left: 6px" }) : null,
         el("div", {
           className: "muted small",
           textContent: `${formatDate(consultation.visit_date)}${client ? ` · ${diagnosisLabel(consultation)}` : ` · ${consultation.chief_complaint}`}`,
@@ -68,7 +98,7 @@ export function createClinic({ config, identity, router, onSaved }) {
 
     const [clients, consultations] = await Promise.all([records.listClients(barangayId), records.listConsultations(barangayId)]);
     const lastVisit = new Map();
-    for (const c of consultations) if (!lastVisit.has(c.client_id)) lastVisit.set(c.client_id, c.visit_date);
+    for (const c of consultations) if (!c.voided && !lastVisit.has(c.client_id)) lastVisit.set(c.client_id, c.visit_date);
 
     const query = $("client-search").value.trim().toLowerCase();
     const matches = clients
@@ -151,7 +181,16 @@ export function createClinic({ config, identity, router, onSaved }) {
     event.preventDefault();
     const form = event.target;
     const birthdate = form.elements.birthdate;
-    birthdate.setCustomValidity(birthdate.value && records.ageOn(birthdate.value, today()) > 110 ? "Check the year: age must be 110 or below." : "");
+    // A checkup dated before the birthdate would give a negative age in its report.
+    const visits = editingClient ? await records.listClientConsultations(editingClient.client_id) : [];
+    const firstVisit = visits.map((v) => v.visit_date).sort()[0];
+    birthdate.setCustomValidity(
+      birthdate.value && records.ageOn(birthdate.value, today()) > 110
+        ? "Check the year: age must be 110 or below."
+        : birthdate.value && firstVisit && birthdate.value > firstVisit
+          ? `This client has a checkup on ${formatDate(firstVisit)}, before this birthdate.`
+          : "",
+    );
     if (!form.reportValidity()) return;
 
     const values = Object.fromEntries(new FormData(form));
@@ -167,7 +206,12 @@ export function createClinic({ config, identity, router, onSaved }) {
 
     if (!editingClient && (await findDuplicate(client)) && !confirm("A client with the same name and birthdate already exists. Register anyway?")) return;
 
-    const saved = await records.saveClient(client);
+    // Age and sex are in the reports the RHU already has, so those must be corrected too.
+    const reportsAffected = editingClient && (client.birthdate !== editingClient.birthdate || client.sex !== editingClient.sex);
+    const saved = reportsAffected && visits.length
+      ? await records.correctClient(identity.node_id, client, "Client birthdate or sex corrected")
+      : await records.saveClient(client);
+    if (reportsAffected && visits.length) onSaved();
     router.go("client", saved.client_id);
   });
 
@@ -187,17 +231,33 @@ export function createClinic({ config, identity, router, onSaved }) {
     el("option", { value: OTHER_CODE, textContent: "Other (specify)" }),
   );
 
-  async function showVisitForm(clientId) {
+  /** param: "<clientId>" for a new checkup, "<clientId>/<consultationId>" to correct one. */
+  async function showVisitForm(param) {
+    const [clientId, consultationId] = (param ?? "").split("/");
     visitClient = clientId && (await records.getClient(clientId));
     if (!visitClient) return router.go("clients");
+    correctingVisit = consultationId ? await records.getConsultation(consultationId) : null;
+    if (consultationId && (!correctingVisit || correctingVisit.voided)) return router.go("client", clientId);
 
     const form = $("visit-form");
     form.reset();
     form.elements.visit_date.value = today();
     form.elements.visit_date.max = today();
     form.elements.onset_date.max = today();
+    form.elements.correction_reason.setCustomValidity("");
+
+    const correcting = Boolean(correctingVisit);
+    $("visit-form-title").lastChild.textContent = correcting ? "Correct checkup" : "New checkup";
+    $("visit-submit").textContent = correcting ? "Save correction and send" : "Save checkup and send";
+    $("visit-reason-card").hidden = !correcting;
+    form.elements.correction_reason.required = correcting;
+    if (correcting) {
+      for (const field of form.elements) {
+        if (field.name && correctingVisit[field.name] != null) field.value = correctingVisit[field.name];
+      }
+    }
+    $("visit-form-cancel").href = correcting ? `#/visit/${correctingVisit.consultation_id}` : `#/client/${visitClient.client_id}`;
     $("visit-client").textContent = `${records.fullName(visitClient)} · ${records.ageOn(visitClient.birthdate, today())} years old · ${sexLabel(visitClient.sex)} · Purok ${visitClient.purok}`;
-    $("visit-form-cancel").href = `#/client/${visitClient.client_id}`;
     updateVisitForm();
   }
 
@@ -225,14 +285,31 @@ export function createClinic({ config, identity, router, onSaved }) {
       ["Symptom onset", form.elements.onset_date.value || visitDate || "–"],
       ["Age", age],
       ["Sex", sexLabel(visitClient.sex)],
-      ["Purok", visitClient.purok],
+      ["Purok", correctingVisit?.purok ?? visitClient.purok],
     ];
     $("visit-preview").replaceChildren(
       ...rows.map(([label, value]) => el("div", {}, el("span", { className: "muted small", textContent: label }), el("strong", { textContent: value }))),
     );
   }
 
-  $("visit-form").addEventListener("input", updateVisitForm);
+  $("visit-form").addEventListener("input", () => {
+    $("visit-form").elements.correction_reason.setCustomValidity("");
+    updateVisitForm();
+  });
+
+  /** What differs between a saved checkup and the corrected fields, for its history. */
+  function describeChanges(before, after) {
+    const changes = Object.entries(FIELD_LABELS)
+      .filter(([key]) => String(before[key] ?? "") !== String(after[key] ?? ""))
+      .map(([key, field]) => {
+        const shown = (value) => (key === "case_status" ? STATUS_LABELS[value] : String(value ?? ""));
+        return { field, from: shown(before[key]), to: shown(after[key]) };
+      });
+    const oldDiagnosis = diagnosisLabel(before);
+    const newDiagnosis = diagnosisLabel(after);
+    if (oldDiagnosis !== newDiagnosis) changes.push({ field: "Diagnosis", from: oldDiagnosis, to: newDiagnosis });
+    return changes;
+  }
 
   $("visit-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -242,14 +319,25 @@ export function createClinic({ config, identity, router, onSaved }) {
     onsetDate.setCustomValidity(onsetDate.value && onsetDate.value > visitDate.value ? "Symptom onset can't be after the visit date." : "");
     if (!form.reportValidity()) return;
 
-    const values = Object.fromEntries(new FormData(form));
+    const { correction_reason: reasonValue, ...values } = Object.fromEntries(new FormData(form));
     const tracked = diseases.get(values.diagnosis_code).tracked;
-    const consultation = await records.saveConsultation(identity.node_id, visitClient, {
+    const fields = {
       ...values,
       chief_complaint: values.chief_complaint.trim(),
       diagnosis_text: tracked ? "" : values.diagnosis_text.trim(),
       case_status: tracked ? values.case_status : "CONFIRMED", // the protocol requires a status; "Other" visits aren't surveillance cases
-    });
+    };
+
+    let consultation;
+    if (correctingVisit) {
+      const changes = describeChanges(correctingVisit, fields);
+      const reason = form.elements.correction_reason;
+      reason.setCustomValidity(changes.length ? "" : "You haven't changed anything in this checkup.");
+      if (!form.reportValidity()) return;
+      consultation = await records.correctConsultation(identity.node_id, visitClient, correctingVisit.consultation_id, fields, reasonValue.trim(), changes);
+    } else {
+      consultation = await records.saveConsultation(identity.node_id, visitClient, fields);
+    }
     onSaved();
     router.go("visit", consultation.consultation_id);
   });
@@ -261,7 +349,7 @@ export function createClinic({ config, identity, router, onSaved }) {
     const [consultations, clients] = await Promise.all([records.listConsultations(barangayId), records.listClients(barangayId)]);
     const clientsById = new Map(clients.map((c) => [c.client_id, c]));
 
-    $("visits-today").textContent = consultations.filter((c) => c.visit_date === today()).length;
+    $("visits-today").textContent = consultations.filter((c) => c.visit_date === today() && !c.voided).length;
     $("clients-total").textContent = clients.length;
     $("visits-waiting").textContent = consultations.filter((c) => c.sync === records.SYNC.WAITING).length;
 
@@ -285,13 +373,16 @@ export function createClinic({ config, identity, router, onSaved }) {
     const v = id && (await records.getConsultation(id));
     if (!v) return router.go("visits");
     const client = await records.getClient(v.client_id);
+    shownVisit = { visit: v, client };
 
+    $("visit-correct").href = `#/visit-form/${v.client_id}/${v.consultation_id}`;
+    $("visit-actions").hidden = v.voided;
     $("visit-title").textContent = `${diagnosisLabel(v)} · ${formatDate(v.visit_date)}`;
     $("visit-client-link").textContent = client ? `${records.fullName(client)} →` : "";
     $("visit-client-link").href = `#/client/${v.client_id}`;
     $("visit-back").href = `#/client/${v.client_id}`;
     $("visit-back").textContent = "← Back to client";
-    const [label, level] = SYNC_LABELS[v.sync];
+    const [label, level] = syncLabel(v);
     $("visit-sync").textContent = label;
     $("visit-sync").dataset.level = level;
 
@@ -320,7 +411,9 @@ export function createClinic({ config, identity, router, onSaved }) {
         ["Attended by", v.attended_by],
       ]],
     ];
+    const voidEntry = v.voided ? v.history.findLast((entry) => entry.action === "VOIDED") : null;
     $("visit-details").replaceChildren(
+      ...(voidEntry ? [el("p", { className: "note note-danger", textContent: `Voided: ${voidEntry.reason}. This checkup is no longer counted by the RHU.` })] : []),
       ...(v.sync_detail ? [el("p", { className: "note note-danger", textContent: `The RHU did not count this report: ${v.sync_detail}` })] : []),
       ...sections.map(([title, rows]) =>
         el(
@@ -330,8 +423,56 @@ export function createClinic({ config, identity, router, onSaved }) {
           el("dl", { className: "kv-grid" }, ...rows.flatMap(([k, value]) => [el("dt", { textContent: k }), el("dd", { textContent: value || "—" })])),
         ),
       ),
+      ...changeHistory(v),
     );
   }
+
+  /** Who changed what is kept on this device; only the corrected report goes to the RHU. */
+  function changeHistory(v) {
+    const entries = v.history ?? [];
+    if (!entries.length) return [];
+    const titles = { CORRECTED: "Corrected", VOIDED: "Voided", CLIENT_CORRECTED: "Report re-sent" };
+    return [
+      el(
+        "div",
+        {},
+        el("h3", { textContent: "Change history" }),
+        el(
+          "ul",
+          { className: "change-list" },
+          ...[...entries].reverse().map((entry) =>
+            el(
+              "li",
+              {},
+              el("strong", { textContent: `${titles[entry.action]} · ${new Date(entry.at).toLocaleString()}` }),
+              el("div", { className: "muted small", textContent: `Reason: ${entry.reason}` }),
+              ...entry.changes.map((c) => el("div", { className: "small", textContent: `${c.field}: ${c.from || "—"} → ${c.to || "—"}` })),
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  // Void: the record stays here marked as voided, and the RHU stops counting it.
+  const voidDialog = $("void-dialog");
+  $("visit-void").addEventListener("click", () => {
+    $("void-reason").value = "";
+    voidDialog.showModal();
+  });
+  $("void-cancel").addEventListener("click", () => voidDialog.close());
+  $("void-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const reason = $("void-reason");
+    reason.setCustomValidity(reason.value.trim() ? "" : "Please give the reason.");
+    if (!reason.reportValidity()) return;
+    const { visit, client } = shownVisit;
+    await records.voidConsultation(identity.node_id, client, visit.consultation_id, reason.value.trim());
+    voidDialog.close();
+    onSaved();
+    showVisit(visit.consultation_id);
+  });
+  $("void-reason").addEventListener("input", (event) => event.target.setCustomValidity(""));
 
   // ---- routing ---------------------------------------------------------------------------------
 

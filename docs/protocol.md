@@ -66,6 +66,23 @@ Rules:
 - `disease_code` is one of the 6 surveillance diseases, or `OTH` for any other diagnosis. `OTH` is stored and counted as "Other consultations", but has no thresholds or alerts and stays out of the case totals. The specific diagnosis text stays at the BHU.
 - Optional `"drill": true` marks **stress-test data**. It is validated, stored and counted like any batch, but **left out of the analytics**, so it can never raise an alert. The node page sets it in Stress test mode, and the load-test simulator always sets it.
 
+### Corrections and voids
+
+A BHU corrects a report by sending the **same `record_id`** in a new batch, with a higher `revision` (any increasing integer; the first report has 0). To void one, it sends `"voided": true` with a higher revision.
+
+```json
+{ "record_id": "b3e1f7a2-…", "revision": 1793512345678, "voided": false, "disease_code": "ILI", "…": "…" }
+```
+
+| The RHU already holds | What happens | Counted in `STORED` as |
+|---|---|---|
+| Nothing | Stored | `updated` (or `accepted` for revision 0) |
+| A lower revision, same barangay | **Replaced** | `updated` |
+| The same or a higher revision | Ignored, so late or resent messages can't undo a correction | `duplicates` |
+| A case from another barangay | Ignored | `duplicates` |
+
+Voided cases stay in the database for audit but are left out of the analytics. Corrections travel through the same queue, retries and offline outbox as new reports, and the next analytics run updates the counts. An alert raised before a correction stays open for RHU staff to review; `GET /api/alerts` includes `current_count` for this.
+
 ### Two-stage acknowledgement
 
 **Stage 1: `RECEIVED`.** This is the HTTP response (`202 Accepted`), returned as soon as the batch is placed in the ingest queue.
@@ -79,6 +96,7 @@ Rules:
   "type": "STORED",
   "batch_id": "6f1c…",
   "accepted": 98,
+  "updated": 0,
   "duplicates": 1,
   "rejected": [{ "record_id": "…", "reason": "INVALID_DISEASE_CODE" }]
 }

@@ -102,7 +102,7 @@ def test_reimport_replaces_history_and_keeps_live_data(tmp_path):
         )
         conn.execute(
             "INSERT INTO cases VALUES ('live-1', 'b1', 'BRGY-08-LIVE', 'BRGY-08', 'DEN', '2026-10-27', "
-            "'2026-10-28', 10, 'F', 1, 'SUSPECTED', 'now')"
+            "'2026-10-28', 10, 'F', 1, 'SUSPECTED', 'now', 0, 0)"
         )
 
     result = import_history(db_path, years=1, seed=2, today=TODAY)

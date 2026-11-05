@@ -7,9 +7,9 @@
 |---|---|---|
 | ![Clients](bhu-clients-phone.png) | ![Profile](bhu-profile-phone.png) | ![Form](bhu-form-phone.png) |
 
-| Checkup form (desktop) | Visit record | Visits |
-|---|---|---|
-| ![Form](bhu-visit-form.png) | ![Record](bhu-visit-record.png) | ![Visits](bhu-visits.png) |
+| Checkup form (desktop) | Visit record | Corrected record | Visits |
+|---|---|---|---|
+| ![Form](bhu-visit-form.png) | ![Record](bhu-visit-record.png) | ![Corrected](bhu-visit-corrected.png) | ![Visits](bhu-visits.png) |
 
 ## Users and context
 - **Who:** BHU workers (midwife, nurse, barangay health worker).
@@ -49,16 +49,21 @@ Name, age, sex and purok, the other details, **Edit**, **+ New checkup**, and th
 | Plan | Treatment, disposition (Home care / For follow-up / Referred to RHU / Referred to hospital), follow-up date, attended by |
 | What the RHU receives | Live preview of the exact report, and what stays on the device |
 
-Main action: **Save checkup and send**. A saved checkup can't be edited yet, and the form says so.
+Main action: **Save checkup and send**. In correction mode (below) the title and button change, and a required **Reason for correction** appears.
 
 ### 6. Visits
 Key numbers: checkups today, clients registered, waiting to reach the RHU. Then all checkups, newest first, searchable by name or diagnosis.
 
 ### 7. Visit record
-The full read-only record in sections, with a link to the client and a delivery badge:
+The full record in sections, with a link to the client, **Correct** and **Void** buttons, a **Change history** (when, reason, old → new value), and a delivery badge:
 - **Waiting to reach the RHU** (warning): saved, not yet confirmed; it sends by itself when the connection returns
 - **Sent to the RHU** (OK): confirmed stored by the RHU
 - **Rejected by the RHU** (danger): shown with the reason
+- **Void waiting to reach the RHU** (warning), then **Voided** (OK)
+
+**Correct** opens the checkup form filled in; it needs a reason and at least one change. **Void** asks for a reason in a confirmation dialog, can't be undone, and marks the record as voided (crossed out in lists, not counted in "Checkups today"). A corrected record shows a **Corrected** chip in lists. Reasons and history stay on the device; the RHU only receives the corrected report. Checkup under the wrong client: void it and record it again under the right client.
+
+If a client's **birthdate or sex** is corrected, their past reports are re-sent automatically and each checkup's history notes it. A change of **purok** is treated as moving: past reports keep the purok at the time of the visit.
 
 ### 8. Alerts
 Cards colored by level, with "In your barangay" or "Nearby: Brgy. X". A new alert on another screen shows one pop-up notice (grouped if several arrive together), raises the count on the tab, and vibrates phones. After a reload, alerts already seen are listed quietly.

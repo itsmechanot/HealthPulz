@@ -8,8 +8,9 @@ from datetime import date, timedelta
 import pytest
 
 from rhu import db
-from rhu.analytics import Analytics, baseline_values
+from rhu.analytics import Analytics, _cases_signature, baseline_values
 from rhu.history import import_history
+from tests.factories import NODE, make_batch, make_record, wait_for_stored
 
 TODAY = date(2026, 10, 30)
 FIRST_WEEK = date.fromisocalendar(2023, 1, 1)
@@ -112,3 +113,37 @@ def test_analytics_endpoints(client):
     assert run["workers"] == 1
     assert run["partitions"] == 26
     assert client.get("/api/analytics").json()["last_run"]["finished_at"] == run["finished_at"]
+
+
+def test_corrections_and_voids_change_the_counts(registered):
+    today = date.today().isoformat()
+    first = make_record(disease_code="DEN", onset_date=today, consult_date=today)
+    second = make_record(disease_code="DEN", onset_date=today, consult_date=today)
+
+    def send(records):
+        batch = make_batch(NODE, records=records)
+        registered.post("/api/batches", json=batch)
+        wait_for_stored(registered, batch["batch_id"])
+        registered.post("/api/analytics/run")
+        summary = registered.get("/api/stats/summary").json()
+        return {d["disease_code"]: d["this_week"] for d in summary["diseases"]}
+
+    assert send([first, second])["DEN"] == 2
+    counts = send([{**first, "disease_code": "ILI", "revision": 2}])  # wrong diagnosis corrected
+    assert (counts["DEN"], counts["ILI"]) == (1, 1)
+    assert send([{**second, "revision": 2, "voided": True}])["DEN"] == 0  # entered by mistake
+
+
+def test_scheduler_notices_a_correction(registered):
+    db_path = registered.app.state.db_path
+    record = make_record()
+    batch = make_batch(NODE, records=[record])
+    registered.post("/api/batches", json=batch)
+    wait_for_stored(registered, batch["batch_id"])
+    before = _cases_signature(db_path)
+
+    correction = make_batch(NODE, records=[{**record, "disease_code": "ILI", "revision": 2}])
+    registered.post("/api/batches", json=correction)
+    wait_for_stored(registered, correction["batch_id"])
+
+    assert _cases_signature(db_path) != before

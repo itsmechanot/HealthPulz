@@ -80,7 +80,7 @@ function remember(p) {
 
 function renderKpis(p, nodes) {
   const online = nodes.filter((n) => n.status === "ONLINE").length;
-  const accounted = p.records_accepted + p.records_duplicate + p.records_rejected;
+  const accounted = p.records_accepted + p.records_updated + p.records_duplicate + p.records_rejected;
   const inPipeline = p.records_received - accounted;
 
   $("kpi-rate").textContent = fmt(Math.round(p.records_per_second));

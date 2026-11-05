@@ -28,13 +28,16 @@ export const fullName = (c) => `${c.last_name}, ${c.first_name}${c.middle_name ?
 /** What the RHU receives for a consultation. Nothing here identifies the client. */
 export function toCaseRecord(client, consultation) {
   return {
+    revision: consultation.revision ?? 0,
+    voided: consultation.voided ?? false,
     record_id: consultation.consultation_id,
     disease_code: consultation.diagnosis_code,
     onset_date: consultation.onset_date || consultation.visit_date,
     consult_date: consultation.visit_date,
     age_years: ageOn(client.birthdate, consultation.visit_date),
     sex: client.sex,
-    purok: client.purok ?? null,
+    // Where the client lived at the visit; moving later doesn't change past reports.
+    purok: consultation.purok ?? client.purok ?? null,
     case_status: consultation.case_status,
   };
 }
@@ -77,6 +80,10 @@ export async function saveConsultation(nodeId, client, fields) {
     consultation_id: uuid4(),
     client_id: client.client_id,
     barangay_id: client.barangay_id,
+    purok: client.purok,
+    revision: 0,
+    voided: false,
+    history: [],
     batch_id: uuid4(),
     sync: SYNC.WAITING,
     sync_detail: null,
@@ -88,6 +95,65 @@ export async function saveConsultation(nodeId, client, fields) {
     outbox.put(batch);
   });
   return consultation;
+}
+
+/**
+ * The next version of a consultation: a new batch and a higher revision, so the RHU
+ * replaces its copy. Time-based, so it stays higher than anything sent before, even
+ * after an older backup is restored. The change is added to the local history.
+ */
+function nextRevision(current, fields, entry) {
+  return {
+    ...current,
+    ...fields,
+    revision: Math.max(Date.now(), (current.revision ?? 0) + 1),
+    batch_id: uuid4(),
+    sync: SYNC.WAITING,
+    sync_detail: null,
+    history: [...(current.history ?? []), { at: new Date().toISOString(), ...entry }],
+  };
+}
+
+/** Saves a new version and queues its report in one transaction (like saveConsultation). */
+async function revise(nodeId, client, consultationId, fields, entry) {
+  let saved = null;
+  await transaction(["consultations", "outbox"], "readwrite", ({ consultations, outbox }) => {
+    const request = consultations.get(consultationId);
+    request.onsuccess = () => {
+      saved = nextRevision(request.result, fields, entry);
+      consultations.put(saved);
+      outbox.put(toBatch(nodeId, saved.batch_id, toCaseRecord(client, saved)));
+    };
+  });
+  return saved;
+}
+
+/** changes: [{ field, from, to }] for the history. */
+export const correctConsultation = (nodeId, client, consultationId, fields, reason, changes) =>
+  revise(nodeId, client, consultationId, fields, { action: "CORRECTED", reason, changes });
+
+export const voidConsultation = (nodeId, client, consultationId, reason) =>
+  revise(nodeId, client, consultationId, { voided: true }, { action: "VOIDED", reason, changes: [] });
+
+/**
+ * Saves a client whose birthdate or sex was corrected, and re-sends the reports of all
+ * their checkups, since the age and sex the RHU holds were wrong too. All in one transaction.
+ */
+export async function correctClient(nodeId, client, reason) {
+  const now = new Date().toISOString();
+  const saved = { ...client, updated_at: now };
+  await transaction(["clients", "consultations", "outbox"], "readwrite", ({ clients, consultations, outbox }) => {
+    clients.put(saved);
+    const request = consultations.index("client_id").getAll(client.client_id);
+    request.onsuccess = () => {
+      for (const current of request.result) {
+        const next = nextRevision(current, {}, { action: "CLIENT_CORRECTED", reason, changes: [] });
+        consultations.put(next);
+        outbox.put(toBatch(nodeId, next.batch_id, toCaseRecord(saved, next)));
+      }
+    };
+  });
+  return saved;
 }
 
 export const getConsultation = (id) =>

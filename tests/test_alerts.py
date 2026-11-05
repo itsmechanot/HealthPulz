@@ -240,3 +240,15 @@ def test_other_consultations_are_counted_but_never_alert(registered):
     assert registered.get("/api/stats/trend?weeks=1").json()["weeks"][-1]["cases"] == 0
     other = registered.get("/api/stats/trend?disease=OTH&barangay_id=BRGY-08&weeks=1").json()["weeks"][-1]
     assert (other["cases"], other["alert_threshold"]) == (9, None)
+
+
+def test_correction_leaves_the_alert_open_and_reports_the_new_count(registered):
+    record = make_record(disease_code="MEA")
+    send_cases(registered, [record])
+    registered.post("/api/analytics/run")
+
+    send_cases(registered, [{**record, "revision": 2, "voided": True}])
+    assert registered.post("/api/analytics/run").json()["alerts_sent"] == 0
+
+    [alert] = registered.get("/api/alerts").json()
+    assert (alert["status"], alert["observed"], alert["current_count"]) == ("OPEN", 1, 0)

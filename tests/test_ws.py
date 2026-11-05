@@ -28,7 +28,7 @@ def test_stored_is_pushed_to_the_node(registered):
         registered.post("/api/batches", json=batch)
 
         assert ws.receive_json() == {
-            "type": "STORED", "batch_id": batch["batch_id"], "accepted": 5, "duplicates": 0, "rejected": [],
+            "type": "STORED", "batch_id": batch["batch_id"], "accepted": 5, "updated": 0, "duplicates": 0, "rejected": [],
         }
 
 

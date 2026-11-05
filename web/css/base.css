@@ -413,6 +413,21 @@ a { color: var(--accent); }
 .record-row:hover { border-color: var(--accent); background: var(--surface-2); }
 .record-row .grow { flex: 1; min-width: 0; }
 .record-row > .icon { color: var(--text-muted); }
+.record-row.voided { opacity: 0.65; }
+.record-row.voided strong { text-decoration: line-through; }
+
+.change-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.change-list li { padding-left: 10px; border-left: 3px solid var(--border); }
+
+.dialog {
+  width: min(480px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  padding: 20px;
+}
+.dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 
 .kv-grid { display: grid; gap: 10px 20px; grid-template-columns: minmax(120px, 170px) minmax(0, 1fr); margin: 0; }
 .kv-grid dt { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
@@ -472,6 +487,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 .btn-ghost:hover { background: var(--surface-2); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-small { padding: 5px 11px; font-size: 0.85rem; }
+.btn-danger { color: var(--danger); }
+.btn-danger-solid, .btn-danger-solid:hover { background: var(--danger); color: #fff; }
 .btn-block { width: 100%; }
 .btn-large { padding: 14px 20px; font-size: 1.05rem; }
 

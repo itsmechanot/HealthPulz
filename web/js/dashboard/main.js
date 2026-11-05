@@ -299,6 +299,10 @@ function alertRow(alert, { compact = false } = {}) {
       el("span", { className: "muted small", textContent: ` · week ${week}` }),
     ),
     compact ? null : el("div", { className: "small", textContent: alert.message }),
+    // BHU corrections can lower the count after the alert was raised; staff decide if it still applies.
+    alert.status !== "RESOLVED" && alert.current_count != null && alert.current_count < alert.observed
+      ? el("div", { className: "note note-danger", textContent: `Corrected by the BHU: now ${alert.current_count} case(s), down from ${alert.observed}. Review whether this alert still applies.` })
+      : null,
     el("div", {
       className: "muted small",
       textContent: compact

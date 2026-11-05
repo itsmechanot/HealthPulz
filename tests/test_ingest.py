@@ -49,7 +49,7 @@ def test_valid_batch_is_stored(db_path):
     _, stored = run(db_path, [batch])
 
     assert stored == [
-        {"type": "STORED", "batch_id": batch["batch_id"], "accepted": 10, "duplicates": 0, "rejected": []}
+        {"type": "STORED", "batch_id": batch["batch_id"], "accepted": 10, "updated": 0, "duplicates": 0, "rejected": []}
     ]
     assert count(db_path, "cases") == 10
 
@@ -141,4 +141,69 @@ def test_every_received_record_is_accounted_for(db_path):
 
     s = pipeline.stats.snapshot()
     assert s["records_received"] == 7
-    assert s["records_received"] == s["records_accepted"] + s["records_duplicate"] + s["records_rejected"]
+    assert s["records_received"] == s["records_accepted"] + s["records_updated"] + s["records_duplicate"] + s["records_rejected"]
+
+
+# ---- corrections and voids ----------------------------------------------------------
+
+def case_row(db_path, record_id):
+    with closing(db.connect(db_path)) as conn:
+        row = conn.execute(
+            "SELECT disease_code, age_years, revision, voided FROM cases WHERE record_id = ?", (record_id,)
+        ).fetchone()
+    return tuple(row)
+
+
+def test_higher_revision_replaces_the_case(db_path):
+    record = make_record(disease_code="DEN", age_years=12)
+    correction = {**record, "disease_code": "ILI", "age_years": 13, "revision": 5}
+    pipeline, stored = run(db_path, [make_batch(NODE, records=[record]), make_batch(NODE, records=[correction])])
+
+    assert [(m["accepted"], m["updated"], m["duplicates"]) for m in stored] == [(1, 0, 0), (0, 1, 0)]
+    assert case_row(db_path, record["record_id"]) == ("ILI", 13, 5, 0)
+    assert count(db_path, "cases") == 1
+    assert pipeline.stats.snapshot()["records_updated"] == 1
+
+
+def test_late_older_revision_cannot_undo_a_correction(db_path):
+    record = make_record(disease_code="DEN")
+    newer = {**record, "disease_code": "ILI", "revision": 9}
+    older = {**record, "disease_code": "AWD", "revision": 4}
+    _, stored = run(db_path, [make_batch(NODE, records=[newer]), make_batch(NODE, records=[older]), make_batch(NODE, records=[record])])
+
+    assert [(m["accepted"], m["updated"], m["duplicates"]) for m in stored] == [(0, 1, 0), (0, 0, 1), (0, 0, 1)]
+    disease, _, revision, _ = case_row(db_path, record["record_id"])
+    assert (disease, revision) == ("ILI", 9)
+
+
+def test_same_revision_sent_again_is_a_duplicate(db_path):
+    record = make_record(disease_code="DEN", revision=3)
+    _, stored = run(db_path, [make_batch(NODE, records=[record]), make_batch(NODE, records=[record])])
+    assert [(m["updated"], m["duplicates"]) for m in stored] == [(1, 0), (0, 1)]
+
+
+def test_void_keeps_the_row(db_path):
+    record = make_record()
+    run(db_path, [make_batch(NODE, records=[record]), make_batch(NODE, records=[{**record, "revision": 2, "voided": True}])])
+    assert case_row(db_path, record["record_id"])[3] == 1
+    assert count(db_path, "cases") == 1
+
+
+def test_another_barangay_cannot_change_a_case(db_path):
+    other = "BRGY-01-AAAA"
+    add_nodes(db_path, [other])
+    record = make_record(disease_code="DEN")
+    _, stored = run(db_path, [make_batch(NODE, records=[record]), make_batch(other, records=[{**record, "disease_code": "ILI", "revision": 2}])])
+    assert stored[1]["duplicates"] == 1
+    assert case_row(db_path, record["record_id"])[0] == "DEN"
+
+
+def test_resent_correction_batch_keeps_the_accounting_balanced(db_path):
+    record = make_record()
+    correction = make_batch(NODE, records=[{**record, "revision": 2}])
+    pipeline, stored = run(db_path, [make_batch(NODE, records=[record]), correction, correction])
+
+    assert stored[2]["updated"] == 1  # the original counts of that batch
+    s = pipeline.stats.snapshot()
+    assert s["records_received"] == 3
+    assert s["records_received"] == s["records_accepted"] + s["records_updated"] + s["records_duplicate"] + s["records_rejected"]

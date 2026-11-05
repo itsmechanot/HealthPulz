@@ -11,7 +11,7 @@ Thresholds compare a week with the same ISO week ±1 in up to 5 previous years
     alert    = mean + 2·SD
     epidemic = mean + 3·SD
 A threshold needs at least 2 previous years of data; otherwise it is NULL.
-Cases from drill (stress-test) batches are left out.
+Voided cases and cases from drill (stress-test) batches are left out.
 
 Separate processes (not threads) are used because the map step is CPU-bound
 Python, and Python's GIL lets only one thread run Python code at a time.
@@ -139,7 +139,7 @@ def _map_barangay(
         for disease_code, onset in conn.execute(
             """
             SELECT disease_code, onset_date FROM cases
-            WHERE barangay_id = ? AND batch_id NOT IN (SELECT batch_id FROM batches WHERE drill = 1)
+            WHERE barangay_id = ? AND voided = 0 AND batch_id NOT IN (SELECT batch_id FROM batches WHERE drill = 1)
             """,
             (barangay_id,),
         ):
@@ -208,6 +208,7 @@ async def run_when_cases_change(
 
 
 def _cases_signature(db_path: Path) -> tuple:
-    """Cheap fingerprint of the cases table: changes when cases are added, removed or re-imported."""
+    """Cheap fingerprint of the case data: changes when cases are added, removed or re-imported,
+    and when a batch corrects or voids existing ones (which leaves the case count unchanged)."""
     with closing(db.connect(db_path)) as conn:
-        return tuple(conn.execute("SELECT COUNT(*), MAX(rowid) FROM cases").fetchone())
+        return tuple(conn.execute("SELECT (SELECT COUNT(*) FROM cases), (SELECT MAX(rowid) FROM cases), (SELECT COUNT(*) FROM batches)").fetchone())

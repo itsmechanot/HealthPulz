@@ -48,6 +48,8 @@ class CaseRecord(BaseModel):
     sex: Literal["M", "F"]
     purok: int | None = Field(default=None, ge=1, le=20)
     case_status: Literal["SUSPECTED", "CONFIRMED"]
+    revision: int = Field(default=0, ge=0)  # a higher revision of a record_id replaces the stored one
+    voided: bool = False  # entered by mistake: kept for audit, left out of the analytics
 
 
 class SubmitBatch(BaseModel):

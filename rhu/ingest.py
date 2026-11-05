@@ -27,6 +27,12 @@ _STOP = object()
 
 StoredCallback = Callable[[str, dict], None]
 
+_CASE_COLUMNS = """(
+  record_id, batch_id, node_id, barangay_id, disease_code, onset_date, consult_date,
+  age_years, sex, purok, case_status, received_at, revision, voided
+)"""
+_CASE_VALUES = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+
 
 class PipelineBusy(Exception):
     """The ingest queue is full; the node should retry later (backpressure)."""
@@ -54,9 +60,10 @@ class PipelineStats:
     batches_busy: int = 0  # refused with 503 because the queue was full
     batches_stored: int = 0
     batches_resent: int = 0  # a batch that was already stored arrived again
-    # Once the queues are empty: records_received = accepted + duplicate + rejected (nothing lost).
+    # Once the queues are empty: records_received = accepted + updated + duplicate + rejected (nothing lost).
     records_received: int = 0
     records_accepted: int = 0
+    records_updated: int = 0  # corrections and voids of earlier reports
     records_duplicate: int = 0
     records_rejected: int = 0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -213,12 +220,13 @@ class IngestPipeline:
         for node_id, message, resent in messages:
             if resent:
                 # Every record of a resent batch is already stored, so all of them count as duplicates.
-                batch_size = message["accepted"] + message["duplicates"] + len(message["rejected"])
+                batch_size = message["accepted"] + message["updated"] + message["duplicates"] + len(message["rejected"])
                 self.stats.add(batches_resent=1, records_duplicate=batch_size)
             else:
                 self.stats.add(
                     batches_stored=1,
                     records_accepted=message["accepted"],
+                    records_updated=message["updated"],
                     records_duplicate=message["duplicates"],
                     records_rejected=len(message["rejected"]),
                 )
@@ -230,11 +238,11 @@ class IngestPipeline:
         batch_id = str(batch.batch_id)
 
         previous = conn.execute(
-            "SELECT accepted, duplicates FROM batches WHERE batch_id = ?", (batch_id,)
+            "SELECT accepted, updated, duplicates FROM batches WHERE batch_id = ?", (batch_id,)
         ).fetchone()
         if previous is not None:
             # The node resent a batch we already stored (e.g. it missed the STORED message).
-            message = _stored_message(batch_id, previous["accepted"], previous["duplicates"], item.rejected)
+            message = _stored_message(batch_id, previous["accepted"], previous["updated"], previous["duplicates"], item.rejected)
             return batch.node_id, message, True
 
         conn.execute(
@@ -245,30 +253,43 @@ class IngestPipeline:
             (batch_id, batch.node_id, len(batch.records), batch.sent_at.isoformat(), item.received_at, int(batch.drill)),
         )
         barangay_id = barangay_of(batch.node_id)
-        cursor = conn.executemany(
-            """
-            INSERT OR IGNORE INTO cases (
-              record_id, batch_id, node_id, barangay_id, disease_code, onset_date,
-              consult_date, age_years, sex, purok, case_status, received_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                (
-                    str(r.record_id), batch_id, batch.node_id, barangay_id, r.disease_code,
-                    r.onset_date.isoformat(), r.consult_date.isoformat(), r.age_years,
-                    r.sex, r.purok, r.case_status, item.received_at,
-                )
-                for r in item.valid
-            ],
-        )
+        rows = lambda records: [
+            (
+                str(r.record_id), batch_id, batch.node_id, barangay_id, r.disease_code,
+                r.onset_date.isoformat(), r.consult_date.isoformat(), r.age_years,
+                r.sex, r.purok, r.case_status, item.received_at, r.revision, int(r.voided),
+            )
+            for r in records
+        ]
+        originals = [r for r in item.valid if r.revision == 0]
+        revisions = [r for r in item.valid if r.revision > 0]
         # INSERT OR IGNORE skips record_ids we already have, so those are the duplicates.
-        accepted = cursor.rowcount if item.valid else 0
-        duplicates = len(item.valid) - accepted
+        cursor = conn.executemany(f"INSERT OR IGNORE INTO cases {_CASE_COLUMNS} VALUES {_CASE_VALUES}", rows(originals))
+        accepted = cursor.rowcount if originals else 0
+        updated = 0
+        if revisions:
+            # Only a newer revision from the same barangay replaces what we have, so resent
+            # or out-of-order messages can't undo a later correction.
+            cursor = conn.executemany(
+                f"""
+                INSERT INTO cases {_CASE_COLUMNS} VALUES {_CASE_VALUES}
+                ON CONFLICT (record_id) DO UPDATE SET
+                  batch_id = excluded.batch_id, node_id = excluded.node_id,
+                  disease_code = excluded.disease_code, onset_date = excluded.onset_date,
+                  consult_date = excluded.consult_date, age_years = excluded.age_years,
+                  sex = excluded.sex, purok = excluded.purok, case_status = excluded.case_status,
+                  received_at = excluded.received_at, revision = excluded.revision, voided = excluded.voided
+                WHERE excluded.revision > cases.revision AND excluded.barangay_id = cases.barangay_id
+                """,
+                rows(revisions),
+            )
+            updated = cursor.rowcount
+        duplicates = len(item.valid) - accepted - updated
         conn.execute(
-            "UPDATE batches SET accepted = ?, duplicates = ?, rejected = ?, stored_at = ? WHERE batch_id = ?",
-            (accepted, duplicates, len(item.rejected), db.utc_now(), batch_id),
+            "UPDATE batches SET accepted = ?, updated = ?, duplicates = ?, rejected = ?, stored_at = ? WHERE batch_id = ?",
+            (accepted, updated, duplicates, len(item.rejected), db.utc_now(), batch_id),
         )
-        return batch.node_id, _stored_message(batch_id, accepted, duplicates, item.rejected), False
+        return batch.node_id, _stored_message(batch_id, accepted, updated, duplicates, item.rejected), False
 
     def _notify(self, node_id: str, message: dict) -> None:
         if self._on_stored is None:
@@ -280,11 +301,12 @@ class IngestPipeline:
             log.exception("on_stored callback failed for batch %s", message["batch_id"])
 
 
-def _stored_message(batch_id: str, accepted: int, duplicates: int, rejected: list[dict]) -> dict:
+def _stored_message(batch_id: str, accepted: int, updated: int, duplicates: int, rejected: list[dict]) -> dict:
     return {
         "type": "STORED",
         "batch_id": batch_id,
         "accepted": accepted,
+        "updated": updated,
         "duplicates": duplicates,
         "rejected": rejected,
     }

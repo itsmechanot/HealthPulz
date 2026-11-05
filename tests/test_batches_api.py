@@ -11,7 +11,7 @@ def test_batch_is_received_then_stored(registered):
     assert res.status_code == 202
     assert res.json()["type"] == "RECEIVED"
     status = wait_for_stored(registered, batch["batch_id"])
-    assert (status["accepted"], status["duplicates"], status["rejected"]) == (10, 0, 0)
+    assert (status["accepted"], status["updated"], status["duplicates"], status["rejected"]) == (10, 0, 0, 0)
 
 
 def test_unknown_batch_is_pending(client):

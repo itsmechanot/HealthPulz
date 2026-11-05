@@ -44,10 +44,11 @@ CREATE TABLE IF NOT EXISTS batches (
   received_at   TEXT NOT NULL,
   stored_at     TEXT,
   status        TEXT NOT NULL,                    -- QUEUED | STORED | FAILED
-  drill         INTEGER NOT NULL DEFAULT 0        -- 1 = stress-test data: stored, but not analyzed
+  drill         INTEGER NOT NULL DEFAULT 0,       -- 1 = stress-test data: stored, but not analyzed
+  updated       INTEGER                           -- records that corrected or voided an earlier report
 );
 
--- record_id is the idempotency key: inserts use INSERT OR IGNORE.
+-- record_id is the idempotency key: new reports use INSERT OR IGNORE, corrections an upsert on revision.
 CREATE TABLE IF NOT EXISTS cases (
   record_id     TEXT PRIMARY KEY,
   batch_id      TEXT NOT NULL REFERENCES batches(batch_id),
@@ -60,7 +61,9 @@ CREATE TABLE IF NOT EXISTS cases (
   sex           TEXT NOT NULL CHECK (sex IN ('M', 'F')),
   purok         INTEGER,
   case_status   TEXT NOT NULL,                    -- SUSPECTED | CONFIRMED
-  received_at   TEXT NOT NULL
+  received_at   TEXT NOT NULL,
+  revision      INTEGER NOT NULL DEFAULT 0,       -- higher revision = correction from the BHU; older ones are ignored
+  voided        INTEGER NOT NULL DEFAULT 0        -- 1 = entered by mistake: kept for audit, left out of the analytics
 );
 CREATE INDEX IF NOT EXISTS idx_cases_brgy_disease_date ON cases(barangay_id, disease_code, onset_date);
 CREATE INDEX IF NOT EXISTS idx_cases_disease_date      ON cases(disease_code, onset_date);

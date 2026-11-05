@@ -289,6 +289,7 @@ function recordStored(message) {
   $("stat-rejected").textContent = totals.rejected.toLocaleString();
 
   const parts = [`${message.accepted} stored`];
+  if (message.updated) parts.push(`${message.updated} corrected or voided`);
   if (message.duplicates) parts.push(`${message.duplicates} duplicate`);
   if (rejected) parts.push(`${rejected} rejected`);
   log(`Batch ${shortId(message.batch_id)} confirmed: ${parts.join(", ")}`, "ok");

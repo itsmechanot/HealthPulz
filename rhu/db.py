@@ -42,6 +42,9 @@ def init_db(db_path: Path) -> None:
 _ADDED_COLUMNS = [
     ("nodes", "kind", "TEXT NOT NULL DEFAULT 'LIVE'"),
     ("batches", "drill", "INTEGER NOT NULL DEFAULT 0"),
+    ("batches", "updated", "INTEGER"),
+    ("cases", "revision", "INTEGER NOT NULL DEFAULT 0"),
+    ("cases", "voided", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

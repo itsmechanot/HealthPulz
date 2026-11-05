@@ -60,6 +60,7 @@ Filter: **Active** (open + acknowledged) · **Resolved** · **All**. Newest firs
 - **Level badge and heading:** EPIDEMIC or ALERT; disease · barangay · week.
 - **Message:** e.g. "Dengue cases in Brgy. Cabungaan in week 2026-W44: 9, above the epidemic threshold of 3.2."
 - **Status line:** Open / Acknowledged by RHU / Resolved · when it was raised · **sent to N stations, M acknowledged** (the distributed delivery, made visible).
+- **Corrected note:** if BHU corrections lowered the count after the alert was raised, a note shows the new count and asks staff to review it. The alert isn't closed automatically.
 - **Actions:**
   - **Acknowledge**: only when Open
   - **Resolve**

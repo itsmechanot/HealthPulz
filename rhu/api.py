@@ -103,7 +103,7 @@ def batch_status(batch_id: UUID, conn: sqlite3.Connection = Depends(get_conn)) -
     """Lets a node check a batch when it missed the STORED message.
     PENDING means not stored yet: still queued, or lost, so resend after the timeout."""
     row = conn.execute(
-        "SELECT accepted, duplicates, rejected, stored_at FROM batches WHERE batch_id = ?", (str(batch_id),)
+        "SELECT accepted, updated, duplicates, rejected, stored_at FROM batches WHERE batch_id = ?", (str(batch_id),)
     ).fetchone()
     if row is None:
         return {"type": "BATCH_STATUS", "batch_id": str(batch_id), "status": "PENDING"}
@@ -131,13 +131,18 @@ def list_alerts(
     limit: int = Query(default=100, ge=1, le=1000),
     conn: sqlite3.Connection = Depends(get_conn),
 ) -> list[dict]:
-    """Newest first, with how many nodes received and acknowledged each alert."""
+    """Newest first, with how many nodes received and acknowledged each alert, and the
+    cell's current count (corrections can lower it after the alert was raised)."""
     rows = conn.execute(
         """
         SELECT a.*,
                COUNT(d.delivered_at) AS nodes_delivered,
-               COUNT(d.acked_at) AS nodes_acknowledged
-        FROM alerts a LEFT JOIN alert_deliveries d ON d.alert_id = a.alert_id
+               COUNT(d.acked_at) AS nodes_acknowledged,
+               ws.case_count AS current_count
+        FROM alerts a
+        LEFT JOIN alert_deliveries d ON d.alert_id = a.alert_id
+        LEFT JOIN weekly_stats ws ON ws.barangay_id = a.barangay_id AND ws.disease_code = a.disease_code
+                                 AND ws.iso_year = a.iso_year AND ws.iso_week = a.iso_week
         WHERE ? IS NULL OR a.status = ?
         GROUP BY a.alert_id
         ORDER BY a.created_at DESC
