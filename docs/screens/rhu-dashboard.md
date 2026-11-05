@@ -31,7 +31,7 @@
    - **Open outbreak alerts** (how many at epidemic level, how many not yet acknowledged)
    - **Barangays with cases** (`5 / 26`, how many over a threshold)
    - **BHS stations online** (registered stations, barangays covered)
-2. **Map card**: small map of Naval for this week, all diseases. Clicking a barangay opens it on the Map screen. Link: "Open map →".
+2. **Map card**: small map of Naval, all diseases, with **This week / Last week** (shared with the Map screen) and a line saying which week is shown and its total. Past data ends last week, so "This week" holds only real entries and can look nearly empty. Clicking a barangay opens it on the Map screen. Link: "Open map →".
 3. **Latest alerts**: the 4 newest active alerts, compact (level, disease, barangay, week, cases vs threshold), with **Acknowledge / Resolve / Show trend**. Link: "View all →".
 4. **Disease cards** (6): this week so far, last week, 12-week sparkline, "N barangays on alert". Clicking one opens Trends for that disease.
 

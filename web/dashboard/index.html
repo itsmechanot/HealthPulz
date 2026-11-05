@@ -63,9 +63,16 @@
           <div class="overview-grid">
             <section class="card" aria-labelledby="ov-map-title">
               <div class="card-header">
-                <h2 id="ov-map-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Cases by barangay · this week</h2>
-                <a class="link-btn small" href="#/map">Open map →</a>
+                <h2 id="ov-map-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Cases by barangay</h2>
+                <div class="controls">
+                  <div class="segmented" role="group" aria-label="Map week">
+                    <button type="button" data-map-week="current" aria-pressed="true">This week</button>
+                    <button type="button" data-map-week="previous" aria-pressed="false">Last week</button>
+                  </div>
+                  <a class="link-btn small" href="#/map">Open map →</a>
+                </div>
               </div>
+              <p id="ov-map-hint" class="muted small" style="margin: 0"></p>
               <div id="ov-map"></div>
             </section>
             <section class="card" aria-labelledby="ov-alerts-title">
@@ -92,7 +99,10 @@
             </div>
           </div>
           <div class="map-grid">
-            <section class="card"><div id="big-map"></div></section>
+            <section class="card">
+              <p id="big-map-hint" class="muted small" style="margin: 0"></p>
+              <div id="big-map"></div>
+            </section>
             <section class="card" aria-labelledby="detail-title">
               <h2 id="detail-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>Barangay details</h2>
               <div id="map-detail"><p class="empty">Click a barangay on the map to see its numbers.</p></div>

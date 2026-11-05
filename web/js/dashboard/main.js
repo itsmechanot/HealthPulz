@@ -138,7 +138,8 @@ function renderOverview() {
   $("kpi-barangays-sub").textContent = `${onAlert} over a threshold this week`;
   renderStations();
 
-  overviewMap.update(grid);
+  overviewMap.update(data.grids[state.mapWeek].barangays);
+  $("ov-map-hint").textContent = mapHint();
   const latest = active.slice(0, OVERVIEW_ALERTS);
   $("ov-alerts").replaceChildren(
     ...(latest.length ? latest.map((a) => alertRow(a, { compact: true })) : [el("p", { className: "empty", textContent: "No active alerts. All barangays are within normal levels." })]),
@@ -197,8 +198,17 @@ function renderMapScreen() {
     }),
   );
   bigMap.update(data.grids[state.mapWeek].barangays, state.mapDisease);
+  $("big-map-hint").textContent = mapHint();
   bigMap.select(state.selected);
   renderDetail();
+}
+
+/** Says which week the map shows; early in a week, or before real entries, it can be nearly empty. */
+function mapHint() {
+  const { week, previous_week: previous, totals } = data.summary;
+  return state.mapWeek === "current"
+    ? `Showing ${week.label}, still in progress: ${fmt(totals.this_week)} case(s) so far across all diseases. Last week (${previous.label}) had ${fmt(totals.last_week)}.`
+    : `Showing last week, ${previous.label}: ${fmt(totals.last_week)} case(s) across all diseases.`;
 }
 
 function selectBarangay(id, fromOverview) {
@@ -413,7 +423,7 @@ function buildControls() {
   });
   pressGroup("[data-alert-filter]", "alertFilter", renderAlertsScreen);
   pressGroup("[data-grid-week]", "gridWeek", renderGrid);
-  pressGroup("[data-map-week]", "mapWeek", renderMapScreen);
+  pressGroup("[data-map-week]", "mapWeek", () => renderScreen(router.current())); // on both Overview and Map
 }
 
 /** Toggle buttons where exactly one is pressed; the pressed value goes into state[key]. */
