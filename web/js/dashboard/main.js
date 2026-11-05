@@ -3,6 +3,7 @@
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
+import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
 import { createNavalMap } from "../common/naval-map.js";
 import { createRouter, setupMenu } from "../common/shell.js";
@@ -10,6 +11,7 @@ import { createRouter, setupMenu } from "../common/shell.js";
 const REFRESH_MS = 10_000;
 const SPARKLINE_WEEKS = 12;
 const OVERVIEW_ALERTS = 4;
+const LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2, URGENT: 3 };
 const SCREENS = {
   overview: ["Overview", "Illness situation in Naval, Biliran"],
   map: ["Map", "Cases by barangay, Municipality of Naval"],
@@ -26,6 +28,7 @@ const state = {
   barangay: "", // Trends screen: "" = all of Naval
   weeks: 26,
   gridWeek: "current",
+  gridGroup: "common",
   alertFilter: "active",
   mapDisease: null, // null = all diseases
   mapWeek: "current",
@@ -130,8 +133,10 @@ function renderOverview() {
   $("kpi-cases").textContent = fmt(totals.this_week);
   $("kpi-cases-sub").textContent = `Last week: ${fmt(totals.last_week)} · Other consultations: ${fmt(data.summary.other_consultations.this_week)}`;
   $("kpi-alerts").textContent = fmt(active.length);
-  const epidemic = active.filter((a) => a.level === "EPIDEMIC").length;
-  $("kpi-alerts-sub").textContent = active.length ? `${epidemic} at epidemic level · ${active.filter((a) => a.status === "OPEN").length} not yet acknowledged` : "All barangays within normal levels";
+  const atLevel = (level) => active.filter((a) => a.level === level).length;
+  $("kpi-alerts-sub").textContent = active.length
+    ? `${atLevel("URGENT")} urgent · ${atLevel("EPIDEMIC")} epidemic · ${active.filter((a) => a.status === "OPEN").length} not yet acknowledged`
+    : "All barangays within normal levels";
   const withCases = grid.filter((b) => b.total > 0).length;
   const onAlert = grid.filter((b) => Object.values(b.diseases).some((c) => c.level !== "NORMAL")).length;
   $("kpi-barangays").textContent = `${withCases} / ${grid.length}`;
@@ -144,7 +149,7 @@ function renderOverview() {
   $("ov-alerts").replaceChildren(
     ...(latest.length ? latest.map((a) => alertRow(a, { compact: true })) : [el("p", { className: "empty", textContent: "No active alerts. All barangays are within normal levels." })]),
   );
-  renderDiseaseCards(diseases);
+  renderIllnesses(diseases);
 }
 
 function renderStations() {
@@ -155,48 +160,52 @@ function renderStations() {
   $("kpi-stations-sub").textContent = `${fmt(data.nodes.length)} active in the last 12 hours · ${barangays} of 26 barangays`;
 }
 
-async function renderDiseaseCards(diseases) {
-  const trends = await Promise.all(diseases.map((d) => api.fetchJson(api.trendUrl(d.disease_code, "", SPARKLINE_WEEKS))));
-  $("disease-cards").replaceChildren(
-    ...diseases.map((d, i) => {
+async function renderIllnesses(diseases) {
+  // Most cases first; last week breaks ties, since early in a week most counts are low.
+  const listed = diseases
+    .filter((d) => d.group !== "urgent")
+    .sort((a, b) => b.this_week - a.this_week || b.last_week - a.last_week);
+  const trends = await Promise.all(listed.map((d) => api.fetchJson(api.trendUrl(d.disease_code, "", SPARKLINE_WEEKS))));
+  $("common-list").replaceChildren(
+    ...listed.map((d, i) => {
       const spark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       spark.setAttribute("aria-hidden", "true");
       lineChart(spark, [{ values: trends[i].weeks.map((w) => w.cases), className: "series-accent" }], { slots: SPARKLINE_WEEKS });
-      const card = el(
-        "button",
-        { type: "button", className: "disease-card", title: `Open the ${d.name} trend` },
-        el("span", { className: "small muted", textContent: d.name }),
-        el("span", { className: "stat-value", textContent: fmt(d.this_week) }),
-        el("span", { className: "small muted", textContent: `this week so far · last week ${fmt(d.last_week)}` }),
-        spark,
-        d.barangays_on_alert
-          ? el("span", { className: "badge", dataset: { level: "ALERT" }, textContent: `${d.barangays_on_alert} barangay${d.barangays_on_alert > 1 ? "s" : ""} on alert` })
-          : el("span", { className: "badge", textContent: "No alerts" }),
-      );
-      card.addEventListener("click", () => {
-        state.disease = d.disease_code;
-        router.go("trends");
-      });
-      return card;
+      return illnessRow(d, spark);
     }),
   );
+  $("urgent-list").replaceChildren(...diseases.filter((d) => d.group === "urgent").map((d) => illnessRow(d)));
+}
+
+function illnessRow(d, spark = null) {
+  const cases = d.this_week > 0 && d.group === "urgent";
+  const row = el(
+    "button",
+    { type: "button", className: `rank-row${cases ? " urgent" : ""}`, title: `Open the ${d.name} trend` },
+    el(
+      "span",
+      { className: "grow" },
+      el("span", { className: "rank-name", textContent: d.name }),
+      d.group === "monitored" ? el("span", { className: "chip", textContent: "Also monitored", style: "margin-left: 6px" }) : null,
+      el("span", {
+        className: "small muted",
+        style: "display: block",
+        textContent: `last week ${fmt(d.last_week)}${d.barangays_on_alert ? ` · ${d.barangays_on_alert} barangay${d.barangays_on_alert > 1 ? "s" : ""} on alert` : ""}`,
+      }),
+    ),
+    spark,
+    el("span", { className: "rank-value", textContent: fmt(d.this_week) }),
+  );
+  row.addEventListener("click", () => {
+    state.disease = d.disease_code;
+    router.go("trends");
+  });
+  return row;
 }
 
 // ---- Map -------------------------------------------------------------------------------
 
 function renderMapScreen() {
-  const chips = [{ code: null, name: "All diseases" }, ...tracked.map((d) => ({ code: d.disease_code, name: d.name }))];
-  $("map-diseases").replaceChildren(
-    ...chips.map(({ code, name }) => {
-      const chip = el("button", { type: "button", className: "filter-chip", textContent: name });
-      chip.setAttribute("aria-pressed", code === state.mapDisease);
-      chip.addEventListener("click", () => {
-        state.mapDisease = code;
-        renderMapScreen();
-      });
-      return chip;
-    }),
-  );
   bigMap.update(data.grids[state.mapWeek].barangays, state.mapDisease);
   $("big-map-hint").textContent = mapHint();
   bigMap.select(state.selected);
@@ -225,10 +234,11 @@ function renderDetail() {
   const b = data.grids[state.mapWeek].barangays.find((x) => x.barangay_id === state.selected);
   const meta = config.barangays.find((x) => x.barangay_id === state.selected);
   const week = state.mapWeek === "current" ? `${data.summary.week.label} (so far)` : data.summary.previous_week.label;
-  const worst = Object.values(b.diseases).reduce((w, c) => (c.level === "EPIDEMIC" || (c.level === "ALERT" && w !== "EPIDEMIC") ? c.level : w), "NORMAL");
+  const worst = Object.values(b.diseases).reduce((w, c) => (LEVEL_RANK[c.level] > LEVEL_RANK[w] ? c.level : w), "NORMAL");
 
-  const rows = tracked.map((d) => {
-    const cell = b.diseases[d.disease_code] ?? { cases: 0, level: "NORMAL" };
+  const withCases = tracked.filter((d) => b.diseases[d.disease_code]?.cases > 0);
+  const rows = withCases.map((d) => {
+    const cell = b.diseases[d.disease_code];
     return el(
       "div",
       {},
@@ -236,7 +246,8 @@ function renderDetail() {
       el("span", {}, cell.level !== "NORMAL" ? el("span", { className: "badge", dataset: { level: cell.level }, textContent: cell.level }) : "", ` ${fmt(cell.cases)}`),
     );
   });
-  rows.push(el("div", { className: "muted" }, el("span", { textContent: "Other consultations" }), el("span", { textContent: fmt(b.other_consultations) })));
+  if (!rows.length) rows.push(el("div", { className: "muted", textContent: "No tracked illness this week." }));
+  if (b.other_consultations) rows.push(el("div", { className: "muted" }, el("span", { textContent: "Other consultations" }), el("span", { textContent: fmt(b.other_consultations) })));
   const trendBtn = el("button", { type: "button", className: "btn btn-ghost btn-small", textContent: "Open trend" });
   trendBtn.addEventListener("click", () => {
     state.barangay = b.barangay_id;
@@ -316,7 +327,7 @@ function alertRow(alert, { compact = false } = {}) {
     el("div", {
       className: "muted small",
       textContent: compact
-        ? `${alert.observed} cases (threshold ${alert.threshold}) · ${statusText}`
+        ? `${alert.level === "URGENT" ? `${alert.observed} case${alert.observed === 1 ? "" : "s"}: any single case is urgent` : `${alert.observed} cases (threshold ${alert.threshold})`} · ${statusText}`
         : `${statusText} · raised ${new Date(alert.created_at).toLocaleString()} · sent to ${alert.nodes_delivered} station${alert.nodes_delivered === 1 ? "" : "s"}, ${alert.nodes_acknowledged} acknowledged`,
     }),
     actions,
@@ -326,21 +337,12 @@ function alertRow(alert, { compact = false } = {}) {
 // ---- Trends ------------------------------------------------------------------------------
 
 async function renderTrends() {
-  $("trend-diseases").replaceChildren(
-    ...config.diseases.map((d) => {
-      const chip = el("button", { type: "button", className: "filter-chip", textContent: d.name });
-      chip.setAttribute("aria-pressed", d.disease_code === state.disease);
-      chip.addEventListener("click", () => {
-        state.disease = d.disease_code;
-        renderTrends();
-      });
-      return chip;
-    }),
-  );
+  $("trend-disease").value = state.disease;
   $("trend-barangay").value = state.barangay;
 
   const { weeks } = await api.fetchJson(api.trendUrl(state.disease, state.barangay, state.weeks));
-  const withThresholds = Boolean(state.barangay) && tracked.some((d) => d.disease_code === state.disease);
+  const selected = config.diseases.find((d) => d.disease_code === state.disease);
+  const withThresholds = Boolean(state.barangay) && selected.threshold_alerts;
   const series = [{ values: weeks.map((w) => w.cases), className: "series-accent" }];
   if (withThresholds) {
     series.push(
@@ -356,8 +358,10 @@ async function renderTrends() {
   document.querySelectorAll(".threshold-legend").forEach((item) => (item.hidden = !withThresholds));
   $("trend-note").textContent = withThresholds
     ? "Thresholds come from the same weeks in past years (mean + 2 SD for alert, + 3 SD for epidemic). The last week is still in progress."
-    : state.disease === "OTH"
-    ? "Other consultations are counted but not under outbreak surveillance, so they have no thresholds. The last week is still in progress."
+    : selected.single_case_alert
+    ? "A single case of this disease raises an urgent alert, so it has no thresholds. The last week is still in progress."
+    : !selected.threshold_alerts
+    ? "Counted for trends. It isn't contagious, or isn't under outbreak surveillance, so it has no thresholds and raises no alerts. The last week is still in progress."
     : "Choose a barangay to compare with its alert and epidemic thresholds. The last week is still in progress.";
   const labels = weeks.length ? [weeks[0], weeks[Math.floor(weeks.length / 2)], weeks.at(-1)] : [];
   $("trend-axis").replaceChildren(...labels.map((w, i) => el("span", { textContent: i === 2 ? `${w.label} (so far)` : w.label })));
@@ -368,10 +372,11 @@ async function renderTrends() {
 function renderGrid() {
   const week = state.gridWeek === "current" ? data.summary.week : data.summary.previous_week;
   $("grid-title").textContent = `Barangays · ${week.label}${state.gridWeek === "current" ? " (so far)" : ""}`;
+  const columns = tracked.filter((d) => d.group === state.gridGroup);
   $("grid-head").replaceChildren(
     el("th", { scope: "col", textContent: "Barangay" }),
-    ...tracked.map((d) => el("th", { scope: "col", textContent: d.name })),
-    el("th", { scope: "col", textContent: "Total" }),
+    ...columns.map((d) => el("th", { scope: "col", textContent: d.name })),
+    el("th", { scope: "col", textContent: "All tracked" }),
     el("th", { scope: "col", textContent: "Other" }),
     el("th", { scope: "col", textContent: "Per 10,000" }),
   );
@@ -382,13 +387,13 @@ function renderGrid() {
         "tr",
         { title: `Show Brgy. ${b.name} on the map`, tabIndex: 0 },
         el("th", { scope: "row", textContent: b.name }),
-        ...tracked.map((d) => {
+        ...columns.map((d) => {
           const cell = b.diseases[d.disease_code] ?? { cases: 0, level: "NORMAL" };
           return el("td", {
             textContent: fmt(cell.cases),
             className: cell.cases ? "" : "zero",
             dataset: { level: cell.level },
-            title: cell.alert_threshold == null ? "No threshold yet" : `Alert above ${cell.alert_threshold}, epidemic above ${cell.epidemic_threshold}`,
+            title: d.single_case_alert ? "Any single case is urgent" : !d.threshold_alerts ? "Counted for trends; no outbreak alerts" : cell.alert_threshold == null ? "No threshold yet" : `Alert above ${cell.alert_threshold}, epidemic above ${cell.epidemic_threshold}`,
           });
         }),
         el("td", { textContent: fmt(b.total) }),
@@ -413,6 +418,16 @@ function renderGrid() {
 function buildControls() {
   const sorted = [...config.barangays].sort((a, b) => a.name.localeCompare(b.name));
   $("trend-barangay").append(...sorted.map((b) => el("option", { value: b.barangay_id, textContent: b.name })));
+  $("trend-disease").append(...diseaseOptions(tracked), el("option", { value: "OTH", textContent: "Other consultations" }));
+  $("trend-disease").addEventListener("change", (e) => {
+    state.disease = e.target.value;
+    renderTrends();
+  });
+  $("map-disease").append(...diseaseOptions(tracked));
+  $("map-disease").addEventListener("change", (e) => {
+    state.mapDisease = e.target.value || null;
+    renderMapScreen();
+  });
   $("trend-barangay").addEventListener("change", (e) => {
     state.barangay = e.target.value;
     renderTrends();
@@ -423,6 +438,7 @@ function buildControls() {
   });
   pressGroup("[data-alert-filter]", "alertFilter", renderAlertsScreen);
   pressGroup("[data-grid-week]", "gridWeek", renderGrid);
+  pressGroup("[data-grid-group]", "gridGroup", renderGrid);
   pressGroup("[data-map-week]", "mapWeek", () => renderScreen(router.current())); // on both Overview and Map
 }
 

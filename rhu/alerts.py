@@ -2,9 +2,10 @@
 
 Detection checks the current and the previous ISO week in weekly_stats (cases
 are often reported a few days after onset):
+    URGENT    any case of a single-case-alert disease (the RHU's list, e.g. measles)
     EPIDEMIC  count > epidemic threshold  and count ≥ MIN_ALERT_CASES
     ALERT     count > alert threshold     and count ≥ MIN_ALERT_CASES
-    any case of a single-case-alert disease (measles) → ALERT
+Non-communicable diseases have no thresholds, so they are counted but never alert.
 
 There is one alert per barangay × disease × week. It is sent again only if it
 escalates from ALERT to EPIDEMIC.
@@ -28,7 +29,7 @@ from rhu import db, rules
 from rhu.config import MIN_ALERT_CASES
 from rhu.hub import Hub
 
-LEVEL_RANK = {"ALERT": 1, "EPIDEMIC": 2}
+LEVEL_RANK = {"ALERT": 1, "EPIDEMIC": 2, "URGENT": 3}
 
 
 def classify(
@@ -36,7 +37,7 @@ def classify(
 ) -> tuple[str, float] | None:
     """Returns (level, threshold that was exceeded), or None if there is nothing to report."""
     if single_case_alert:
-        return ("ALERT", 0.0) if count >= 1 else None
+        return ("URGENT", 0.0) if count >= 1 else None
     if alert_threshold is None or count < MIN_ALERT_CASES:
         return None
     if epidemic_threshold is not None and count > epidemic_threshold:
@@ -121,7 +122,7 @@ def _save(conn, row, year, week, level, threshold, message) -> str | None:
 def _describe(disease: dict, barangay_id: str, year: int, week: int, count: int, level: str, threshold: float) -> str:
     place = f"Brgy. {rules.barangays_by_id()[barangay_id]['name']}"
     if disease["single_case_alert"]:
-        return f"{count} {disease['name'].lower()} case(s) in {place} in week {year}-W{week:02d}. Any case needs immediate investigation."
+        return f"{count} {disease['name'].lower()} case(s) in {place} in week {year}-W{week:02d}. Any single case needs immediate investigation."
     return (
         f"{disease['name']} cases in {place} in week {year}-W{week:02d}: {count}, "
         f"above the {level.lower()} threshold of {threshold:.1f}."

@@ -34,6 +34,7 @@ def init_db(db_path: Path) -> None:
     with closing(connect(db_path)) as conn:
         conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
         add_missing_columns(conn)
+        create_analytics_index(conn)
         seed_reference_data(conn)
 
 
@@ -53,6 +54,16 @@ def add_missing_columns(conn: sqlite3.Connection) -> None:
         existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
         if column not in existing:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def create_analytics_index(conn: sqlite3.Connection) -> None:
+    """Holds every column the analytics read, so each worker scans one index in order instead
+    of jumping to a table row per case. That keeps the map step CPU-bound, which is what
+    extra processes can speed up. Created here because `voided` may have just been added."""
+    conn.execute("DROP INDEX IF EXISTS idx_cases_brgy_disease_date")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cases_analytics ON cases(barangay_id, voided, disease_code, onset_date, batch_id)"
+    )
 
 
 def seed_reference_data(conn: sqlite3.Connection) -> None:

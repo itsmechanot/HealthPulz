@@ -3,12 +3,13 @@
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
+import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
 import { createNavalMap } from "../common/naval-map.js";
 
 const REFRESH_MS = 30_000;
 const CHART_WEEKS = 12;
-const SOON_MS = 11_000; // the RHU re-runs its analytics every 10 s, so new data shows up after one run
+const SOON_MS = 13_000; // the RHU re-runs its analytics every 10 s, so new data shows up after one run
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString();
@@ -21,7 +22,7 @@ export function startTrendsPanel(config, barangay) {
   const map = createNavalMap($("node-map"), { ownBarangay: barangay.barangay_id });
 
   const select = $("trend-disease");
-  select.replaceChildren(...config.diseases.filter((d) => d.tracked).map((d) => el("option", { value: d.disease_code, textContent: d.name })));
+  select.replaceChildren(...diseaseOptions(config.diseases.filter((d) => d.tracked)));
   select.addEventListener("change", () => {
     disease = select.value;
     renderChart();
@@ -89,7 +90,9 @@ export function startTrendsPanel(config, barangay) {
       ],
       { slots: Math.max(weeks.length, 2) },
     );
-    const name = config.diseases.find((d) => d.disease_code === disease).name;
+    const selected = config.diseases.find((d) => d.disease_code === disease);
+    const name = selected.name;
+    document.querySelectorAll(".threshold-legend").forEach((item) => (item.hidden = !selected.threshold_alerts));
     $("trend-chart-title").textContent = `Brgy. ${barangay.name} · ${name} · last ${weeks.length} weeks`;
     $("trend-chart").setAttribute("aria-label", `${name} cases per week in Brgy. ${barangay.name}, with alert and epidemic thresholds`);
     $("trend-scale").textContent = `max ${fmt(Math.round(max))} cases`;

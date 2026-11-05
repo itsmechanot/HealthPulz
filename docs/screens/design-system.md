@@ -23,6 +23,7 @@ Screen specs: [Home](#home-page) · [BHS Node](bhs-node.md) · [RHU Dashboard](r
 | `--ok` | `#1d8a4a` | `#4cc47f` | Online, confirmed, "nothing lost" |
 | `--warn` | `#a8640a` | `#e6ad4e` | **ALERT** level, connecting, queue > 50% |
 | `--danger` | `#c2372a` | `#f07062` | **EPIDEMIC** level, offline, errors, queue > 80% |
+| `--urgent` | `#8e1f7a` | `#e684d4` | **URGENT** level: a single case of the RHU's urgent diseases |
 | `--bg` / `--surface` / `--surface-2` | `#f3f6f5` / `#fff` / `#eef4f2` | `#0e1412` / `#161f1c` / `#1d2824` | Page / cards / insets |
 | `--text` / `--text-muted` | `#13201c` / `#5b6b66` | `#e5eeeb` / `#93a49e` | Body text / secondary text |
 

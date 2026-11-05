@@ -56,7 +56,7 @@ def caraycaray_borders_catmon(monkeypatch):
         (4, 4.0, 6.0, False, None),          # must be above, not equal
         (2, 0.5, 1.0, False, None),          # below the 3-case minimum
         (9, None, None, False, None),        # no baseline yet
-        (1, None, None, True, ("ALERT", 0.0)),  # measles: any case
+        (1, None, None, True, ("URGENT", 0.0)),  # the RHU's urgent list: any case
         (0, None, None, True, None),
     ],
 )
@@ -103,14 +103,15 @@ def test_level_is_never_lowered(db_path):
 
 def test_previous_week_is_checked_but_older_weeks_are_not(db_path):
     put_stats(db_path, count=9, week=43)
-    put_stats(db_path, count=9, week=42, disease="ILI")
+    put_stats(db_path, count=9, week=42, disease="ARI")
     assert [(a["iso_week"], a["disease_code"]) for a in detect_alerts(db_path, TODAY)] == [(43, "DEN")]
 
 
-def test_single_measles_case_alerts(db_path):
-    put_stats(db_path, count=1, alert=None, epidemic=None, disease="MEA")
+@pytest.mark.parametrize("disease", ["AFP", "DIP", "MEA", "NTT", "TET", "PER"])
+def test_single_case_of_an_urgent_disease_alerts(db_path, disease):
+    put_stats(db_path, count=1, alert=None, epidemic=None, disease=disease)
     [alert] = detect_alerts(db_path, TODAY)
-    assert alert["disease_code"] == "MEA"
+    assert (alert["disease_code"], alert["level"]) == (disease, "URGENT")
     assert "immediate investigation" in alert["message"]
 
 
@@ -252,3 +253,14 @@ def test_correction_leaves_the_alert_open_and_reports_the_new_count(registered):
 
     [alert] = registered.get("/api/alerts").json()
     assert (alert["status"], alert["observed"], alert["current_count"]) == ("OPEN", 1, 0)
+
+
+@pytest.mark.parametrize("disease", ["HTN", "ART", "KID", "WND"])
+def test_non_communicable_illnesses_never_alert(registered, disease):
+    today = date.today().isoformat()
+    send_cases(registered, [make_record(disease_code=disease, onset_date=today, consult_date=today) for _ in range(30)])
+    assert registered.post("/api/analytics/run").json()["alerts_sent"] == 0
+
+    summary = registered.get("/api/stats/summary").json()
+    assert next(d for d in summary["diseases"] if d["disease_code"] == disease)["this_week"] == 30
+    assert summary["totals"]["this_week"] == 30  # counted like any tracked illness

@@ -90,7 +90,7 @@ It reports how long it took until every batch was RECEIVED and STORED, records p
 ## Benchmark the parallel analytics
 
 ```powershell
-python -m rhu.history --db var/bench.db --scale 50
+python -m rhu.history --db var/bench.db --scale 16
 python tools/benchmark_analytics.py --db var/bench.db --workers 1 2 4 8
 ```
 

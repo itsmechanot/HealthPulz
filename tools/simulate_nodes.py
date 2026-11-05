@@ -20,7 +20,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 import websockets
 
-DISEASES = ["DEN", "ILI", "AWD", "LEP", "TYP", "MEA"]
+DISEASES = ["ARI", "SKN", "PNE", "WND", "HTN", "TB", "FEV", "DIA", "DEN", "TYP"]
 STORED_TIMEOUT_SECONDS = 30
 
 

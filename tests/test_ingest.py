@@ -156,24 +156,24 @@ def case_row(db_path, record_id):
 
 def test_higher_revision_replaces_the_case(db_path):
     record = make_record(disease_code="DEN", age_years=12)
-    correction = {**record, "disease_code": "ILI", "age_years": 13, "revision": 5}
+    correction = {**record, "disease_code": "ARI", "age_years": 13, "revision": 5}
     pipeline, stored = run(db_path, [make_batch(NODE, records=[record]), make_batch(NODE, records=[correction])])
 
     assert [(m["accepted"], m["updated"], m["duplicates"]) for m in stored] == [(1, 0, 0), (0, 1, 0)]
-    assert case_row(db_path, record["record_id"]) == ("ILI", 13, 5, 0)
+    assert case_row(db_path, record["record_id"]) == ("ARI", 13, 5, 0)
     assert count(db_path, "cases") == 1
     assert pipeline.stats.snapshot()["records_updated"] == 1
 
 
 def test_late_older_revision_cannot_undo_a_correction(db_path):
     record = make_record(disease_code="DEN")
-    newer = {**record, "disease_code": "ILI", "revision": 9}
-    older = {**record, "disease_code": "AWD", "revision": 4}
+    newer = {**record, "disease_code": "ARI", "revision": 9}
+    older = {**record, "disease_code": "DIA", "revision": 4}
     _, stored = run(db_path, [make_batch(NODE, records=[newer]), make_batch(NODE, records=[older]), make_batch(NODE, records=[record])])
 
     assert [(m["accepted"], m["updated"], m["duplicates"]) for m in stored] == [(0, 1, 0), (0, 0, 1), (0, 0, 1)]
     disease, _, revision, _ = case_row(db_path, record["record_id"])
-    assert (disease, revision) == ("ILI", 9)
+    assert (disease, revision) == ("ARI", 9)
 
 
 def test_same_revision_sent_again_is_a_duplicate(db_path):
@@ -193,7 +193,7 @@ def test_another_barangay_cannot_change_a_case(db_path):
     other = "BRGY-01-AAAA"
     add_nodes(db_path, [other])
     record = make_record(disease_code="DEN")
-    _, stored = run(db_path, [make_batch(NODE, records=[record]), make_batch(other, records=[{**record, "disease_code": "ILI", "revision": 2}])])
+    _, stored = run(db_path, [make_batch(NODE, records=[record]), make_batch(other, records=[{**record, "disease_code": "ARI", "revision": 2}])])
     assert stored[1]["duplicates"] == 1
     assert case_row(db_path, record["record_id"])[0] == "DEN"
 

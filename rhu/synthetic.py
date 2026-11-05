@@ -42,8 +42,8 @@ def iso_week_mondays(start: date, end: date) -> list[date]:
 def plan_outbreaks(
     rng: random.Random, barangays: list[dict], diseases: list[dict], weeks: list[date], count: int
 ) -> list[Outbreak]:
-    # Single-case-alert diseases (measles) already alert on any case, so they don't need injected outbreaks.
-    candidates = [d for d in diseases if not d["single_case_alert"]]
+    # Only diseases with outbreak thresholds: urgent ones alert on any case, and non-communicable ones never do.
+    candidates = [d for d in diseases if d["threshold_alerts"]]
     return [
         Outbreak(
             barangay_id=rng.choice(barangays)["barangay_id"],

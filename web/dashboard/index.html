@@ -84,15 +84,26 @@
             </section>
           </div>
 
-          <section aria-label="Diseases">
-            <div id="disease-cards" class="disease-cards"></div>
-          </section>
+          <div class="overview-grid">
+            <section class="card" aria-labelledby="ov-common-title">
+              <h2 id="ov-common-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pulse"/></svg>Common illnesses · this week so far</h2>
+              <div id="common-list" class="rank-list"></div>
+            </section>
+            <section class="card" aria-labelledby="ov-urgent-title">
+              <h2 id="ov-urgent-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Urgent diseases</h2>
+              <p class="muted small" style="margin: 0">A single case raises an urgent alert.</p>
+              <div id="urgent-list" class="rank-list"></div>
+            </section>
+          </div>
         </section>
 
         <!-- ===== Map ===== -->
         <section class="screen" data-screen="map" hidden>
           <div class="card-header">
-            <div class="chips-row" id="map-diseases" role="group" aria-label="Disease"></div>
+            <div class="controls">
+              <label for="map-disease" class="small">Disease</label>
+              <select id="map-disease"><option value="">All diseases</option></select>
+            </div>
             <div class="segmented" role="group" aria-label="Week">
               <button type="button" data-map-week="current" aria-pressed="true">This week</button>
               <button type="button" data-map-week="previous" aria-pressed="false">Last week</button>
@@ -131,6 +142,8 @@
             <div class="card-header">
               <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg><span id="trend-title">Trend</span></h2>
               <div class="controls">
+                <label for="trend-disease" class="small">Disease</label>
+                <select id="trend-disease"></select>
                 <label for="trend-barangay" class="small">Area</label>
                 <select id="trend-barangay"><option value="">All of Naval</option></select>
                 <label for="trend-weeks" class="small">Period</label>
@@ -141,7 +154,6 @@
                 </select>
               </div>
             </div>
-            <div class="chips-row" id="trend-diseases" role="group" aria-label="Disease"></div>
             <div class="legend">
               <span style="--swatch: var(--accent)">cases per week</span>
               <span class="threshold-legend" style="--swatch: var(--warn)">alert threshold</span>
@@ -161,12 +173,19 @@
           <section class="card" aria-labelledby="grid-title">
             <div class="card-header">
               <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#table"/></svg><span id="grid-title">Barangays</span></h2>
-              <div class="segmented" role="group" aria-label="Week">
-                <button type="button" data-grid-week="current" aria-pressed="true">This week</button>
-                <button type="button" data-grid-week="previous" aria-pressed="false">Last week</button>
+              <div class="controls">
+                <div class="segmented" role="group" aria-label="Diseases shown">
+                  <button type="button" data-grid-group="common" aria-pressed="true">Common</button>
+                  <button type="button" data-grid-group="urgent" aria-pressed="false">Urgent</button>
+                  <button type="button" data-grid-group="monitored" aria-pressed="false">Monitored</button>
+                </div>
+                <div class="segmented" role="group" aria-label="Week">
+                  <button type="button" data-grid-week="current" aria-pressed="true">This week</button>
+                  <button type="button" data-grid-week="previous" aria-pressed="false">Last week</button>
+                </div>
               </div>
             </div>
-            <p class="muted small" style="margin: 0">Cases per disease. Colored cells are over the alert or epidemic threshold. Click a row to see the barangay on the map.</p>
+            <p class="muted small" style="margin: 0">Cases per disease. Colored cells are urgent or over the alert or epidemic threshold. Click a row to see the barangay on the map.</p>
             <div class="table-wrap">
               <table class="heat">
                 <thead><tr id="grid-head"></tr></thead>

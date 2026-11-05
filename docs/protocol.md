@@ -63,7 +63,7 @@ Rules:
 - `batch_id` and `record_id` are UUID v4s created **on the node**. They make retries safe (idempotency). The node page builds them with `crypto.getRandomValues()`, because `crypto.randomUUID()` is unavailable on plain-HTTP LAN addresses such as `http://192.168.1.5:8000`.
 - At most **100 records per batch**.
 - **No names or addresses** are sent, only the purok number (Data Privacy Act of 2012). Client records stay on the BHU's device; the node sends only this case report (see [BHU screen spec](screens/bhs-node.md)).
-- `disease_code` is one of the 6 surveillance diseases, or `OTH` for any other diagnosis. `OTH` is stored and counted as "Other consultations", but has no thresholds or alerts and stays out of the case totals. The specific diagnosis text stays at the BHU.
+- `disease_code` is one of the 19 tracked diseases in `rhu/data/diseases.json` (served at `GET /api/config`), or `OTH` for any other diagnosis. `OTH` is stored and counted as "Other consultations", but has no thresholds or alerts and stays out of the case totals. The specific diagnosis text stays at the BHU.
 - Optional `"drill": true` marks **stress-test data**. It is validated, stored and counted like any batch, but **left out of the analytics**, so it can never raise an alert. The node page sets it in Stress test mode, and the load-test simulator always sets it.
 
 ### Corrections and voids
@@ -170,11 +170,13 @@ Example `ALERT`:
 
 | Level | Condition |
 |---|---|
+| `URGENT` | any single case of the RHU's 6 urgent diseases (AFP, diphtheria, measles, neonatal and non-neonatal tetanus, pertussis) |
 | `EPIDEMIC` | count > epidemic threshold and count ≥ 3 |
 | `ALERT` | count > alert threshold and count ≥ 3 |
-| `ALERT` (measles) | any single case |
 
-**One alert per barangay × disease × week.** If the count keeps rising at the same level, the alert's count is updated quietly. It is sent again only if it **escalates** from `ALERT` to `EPIDEMIC`, with the same `alert_id`, so the node updates its card instead of adding a new one.
+Hypertension, arthritis, kidney diseases, wounds and `OTH` are counted but never raise alerts.
+
+**One alert per barangay × disease × week.** If the count keeps rising at the same level, the alert's count is updated quietly. It is sent again only if it **escalates** to a higher level, with the same `alert_id`, so the node updates its card instead of adding a new one.
 
 **Who receives it:** every live node of the affected barangay (`scope: "LOCAL"`) and of its neighboring barangays (`scope: "NEIGHBOR"`).
 
@@ -203,9 +205,9 @@ These read `weekly_stats`, the output of the parallel analytics, so they return 
 
 | Method | Path | Returns |
 |---|---|---|
-| `GET` | `/api/stats/summary` | Per surveillance disease: cases **this week (so far)** vs **last week**, % change, barangays with an open alert; `other_consultations` (this week, last week); total open alerts; when the analytics last ran |
-| `GET` | `/api/stats/trend?disease=DEN&barangay_id=BRGY-08&weeks=26` | Weekly counts, oldest first, up to the current week. Without `barangay_id` it covers the whole municipality; without `disease`, all surveillance diseases (`disease=OTH` asks for Other consultations, which have no thresholds). Threshold lines are included only for one barangay **and** one disease (summing thresholds isn't statistically valid). |
-| `GET` | `/api/stats/barangays?week=2026-W44` | Every barangay × disease for one week (default: current): cases, thresholds, level (`NORMAL` / `ALERT` / `EPIDEMIC`, same rule as the alerts), barangay total and **rate per 10,000 people** (fair comparison of barangays of different sizes), and `other_consultations` (not part of the total or rate) |
+| `GET` | `/api/stats/summary` | Per tracked disease, with its `group`: cases **this week (so far)** vs **last week**, % change, barangays with an open alert; `other_consultations` (this week, last week); total open alerts; when the analytics last ran |
+| `GET` | `/api/stats/trend?disease=DEN&barangay_id=BRGY-08&weeks=26` | Weekly counts, oldest first, up to the current week. Without `barangay_id` it covers the whole municipality; without `disease`, all tracked diseases (`disease=OTH` asks for Other consultations, which have no thresholds). Threshold lines are included only for one barangay **and** one disease with thresholds (summing thresholds isn't statistically valid). |
+| `GET` | `/api/stats/barangays?week=2026-W44` | Every barangay × disease for one week (default: current): cases, thresholds, level (`NORMAL` / `ALERT` / `EPIDEMIC` / `URGENT`, same rule as the alerts), barangay total and **rate per 10,000 people** (fair comparison of barangays of different sizes), and `other_consultations` (not part of the total or rate) |
 
 Example `GET /api/stats/summary` (shortened):
 ```json

@@ -33,7 +33,8 @@
    - **BHS stations online** (registered stations, barangays covered)
 2. **Map card**: small map of Naval, all diseases, with **This week / Last week** (shared with the Map screen) and a line saying which week is shown and its total. Past data ends last week, so "This week" holds only real entries and can look nearly empty. Clicking a barangay opens it on the Map screen. Link: "Open map →".
 3. **Latest alerts**: the 4 newest active alerts, compact (level, disease, barangay, week, cases vs threshold), with **Acknowledge / Resolve / Show trend**. Link: "View all →".
-4. **Disease cards** (6): this week so far, last week, 12-week sparkline, "N barangays on alert". Clicking one opens Trends for that disease.
+4. **Common illnesses** (the RHU's 10 + dengue, leptospirosis and typhoid, tagged "Also monitored"): ranked by cases this week, with last week, a 12-week sparkline and "N barangays on alert". Clicking one opens Trends.
+5. **Urgent diseases** (6): count this week and last week. A row with a case turns the urgent color. A single case raises an alert.
 
 ## Screen 2 · Map
 The **municipality of Naval is the focus**:
@@ -43,9 +44,10 @@ The **municipality of Naval is the focus**:
   - cases: green, darker = more cases per 10,000 people
   - **ALERT:** warning color
   - **EPIDEMIC:** danger color
+  - **URGENT:** purple, its own color
 - **Markers:** a circle on each barangay with cases; size = number of cases; EPIDEMIC markers pulse.
 - **Labels:** barangay names (smaller in the tight poblacion area; hidden on phones, where you tap instead).
-- **Filters:** disease chips (**All diseases**, Dengue, ILI, …) and **This week / Last week**.
+- **Filters:** a disease dropdown grouped as Common / Urgent / Also monitored, and **This week / Last week**.
 - **Hover:** tooltip with name, cases, rate per 10,000, level.
 - **Click a barangay:** fills the **Barangay details** panel:
   - avatar, name, week, level badge
@@ -57,7 +59,7 @@ The **municipality of Naval is the focus**:
 
 ## Screen 3 · Alerts
 Filter: **Active** (open + acknowledged) · **Resolved** · **All**. Newest first. Each alert:
-- **Level badge and heading:** EPIDEMIC or ALERT; disease · barangay · week.
+- **Level badge and heading:** URGENT, EPIDEMIC or ALERT; disease · barangay · week.
 - **Message:** e.g. "Dengue cases in Brgy. Cabungaan in week 2026-W44: 9, above the epidemic threshold of 3.2."
 - **Status line:** Open / Acknowledged by RHU / Resolved · when it was raised · **sent to N stations, M acknowledged** (the distributed delivery, made visible).
 - **Corrected note:** if BHU corrections lowered the count after the alert was raised, a note shows the new count and asks staff to review it. The alert isn't closed automatically.
@@ -67,23 +69,23 @@ Filter: **Active** (open + acknowledged) · **Resolved** · **All**. Newest firs
   - **Reopen**: only when Resolved
   - **Show trend**
 
-Expect around 4–12 active alerts. About 3 per week are false alarms from the synthetic data (see [analytics.md](../analytics.md)). Measles alerts on **one** case.
+Expect around 5–15 active alerts. About 7 per week are false alarms from the synthetic data (see [analytics.md](../analytics.md)). The 6 urgent diseases alert on **one** case.
 
 ## Screen 4 · Trends
-- **Disease chips:** pick the disease to chart.
+- **Disease dropdown:** grouped like the map's, plus Other consultations.
 - **Area:** All of Naval, or one barangay.
 - **Period:** 12, 26 or 52 weeks.
 - **Line chart:**
   - cases per week (solid)
   - with one barangay selected, also the **alert threshold** and **epidemic threshold** (dashed)
-  - thresholds are hidden for "All of Naval" on purpose (adding them across barangays isn't statistically valid)
+  - thresholds are hidden for "All of Naval" on purpose (adding them across barangays isn't statistically valid), and for diseases without thresholds; the note under the chart says why
 - **Axis:** first, middle and last week, the last marked "(so far)".
 - **Note under the chart:** explains the thresholds.
 
 ## Screen 5 · Barangays
-Heatmap table: all 26 barangays × 6 diseases + Total + **Per 10,000**, sorted by rate.
+Heatmap table: all 26 barangays, with a **Common / Urgent / Monitored** switch for the disease columns, plus All tracked, Other and **Per 10,000**, sorted by rate.
 - **Toggle:** This week / Last week.
-- **Cell colors:** ALERT and EPIDEMIC cells are colored; zeros are muted.
+- **Cell colors:** ALERT, EPIDEMIC and URGENT cells are colored; zeros are muted.
 - **Hover a cell:** shows its thresholds.
 - **Click a row:** opens the barangay on the Map.
 - **Phones:** the table scrolls sideways inside its card.

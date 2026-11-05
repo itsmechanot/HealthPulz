@@ -18,6 +18,8 @@
   --warn-soft: #fff2d9;
   --danger: #c2372a;
   --danger-soft: #fde9e6;
+  --urgent: #8e1f7a;
+  --urgent-soft: #f8e6f5;
 
   --sea: #d9eaf2;
   --land: #f7f4ec;
@@ -49,6 +51,8 @@
     --warn-soft: #3a2d14;
     --danger: #f07062;
     --danger-soft: #3e1c19;
+    --urgent: #e684d4;
+    --urgent-soft: #3a1a35;
     --sea: #10232b;
     --land: #26332e;
     --land-muted: #1b2421;
@@ -301,7 +305,9 @@ a { color: var(--accent); }
   animation: slide-in 0.25s ease-out;
 }
 .toast[data-level="EPIDEMIC"] { border-left-color: var(--danger); }
+.toast[data-level="URGENT"] { border-left-color: var(--urgent); }
 .toast .icon { color: var(--warn); margin-top: 2px; }
+.toast[data-level="URGENT"] .icon { color: var(--urgent); }
 .toast[data-level="EPIDEMIC"] .icon { color: var(--danger); }
 .toast .grow { flex: 1; display: grid; gap: 2px; font-size: 0.88rem; }
 @keyframes slide-in { from { transform: translateY(-8px); opacity: 0; } }
@@ -319,6 +325,7 @@ a { color: var(--accent); }
 .map .brgy[data-level="CASES"] { fill: color-mix(in srgb, var(--accent) calc(var(--intensity, 0.3) * 100%), var(--land)); }
 .map .brgy[data-level="ALERT"] { fill: color-mix(in srgb, var(--warn) 55%, var(--land)); }
 .map .brgy[data-level="EPIDEMIC"] { fill: color-mix(in srgb, var(--danger) 65%, var(--land)); }
+.map .brgy[data-level="URGENT"] { fill: color-mix(in srgb, var(--urgent) 70%, var(--land)); }
 .map .brgy:hover { filter: brightness(0.95); }
 .map .brgy.selected { stroke: var(--text); stroke-width: 2.5; }
 .map .brgy.own { stroke: var(--accent-strong); stroke-width: 3; }
@@ -326,6 +333,7 @@ a { color: var(--accent); }
 .map .marker { stroke: var(--surface); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; opacity: 0.92; fill: var(--accent-strong); }
 .map .marker[data-level="ALERT"] { fill: var(--warn); }
 .map .marker[data-level="EPIDEMIC"] { fill: var(--danger); }
+.map .marker[data-level="URGENT"] { fill: var(--urgent); }
 .map .marker.pulse { animation: marker-pulse 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes marker-pulse { 50% { transform: scale(1.25); opacity: 0.7; } }
 .map .brgy-label {
@@ -546,6 +554,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 }
 .badge[data-level="ALERT"] { background: var(--warn-soft); color: var(--warn); }
 .badge[data-level="EPIDEMIC"] { background: var(--danger-soft); color: var(--danger); }
+.badge[data-level="URGENT"] { background: var(--urgent-soft); color: var(--urgent); }
 .badge[data-level="RESOLVED"], .badge[data-level="OK"] { background: var(--ok-soft); color: var(--ok); }
 
 .chip {
@@ -596,6 +605,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
   padding: 12px 14px;
 }
 .alert-card[data-level="EPIDEMIC"] { border-color: var(--danger); background: var(--danger-soft); }
+.alert-card[data-level="URGENT"] { border-color: var(--urgent); background: var(--urgent-soft); }
 .alert-card strong { display: block; font-size: 1rem; }
 .alert-card.is-new { animation: attention 1.2s ease-out 3; }
 
@@ -662,6 +672,7 @@ table.heat tbody tr:hover { background: var(--surface-2); }
 table.heat tbody tr[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); }
 table.heat td[data-level="ALERT"] { background: var(--warn-soft); color: var(--warn); font-weight: 700; }
 table.heat td[data-level="EPIDEMIC"] { background: var(--danger-soft); color: var(--danger); font-weight: 700; }
+table.heat td[data-level="URGENT"] { background: var(--urgent-soft); color: var(--urgent); font-weight: 700; }
 table.heat td.zero { color: var(--text-muted); }
 
 /* ---- BHS Node ---- */
@@ -708,6 +719,30 @@ table.heat td.zero { color: var(--text-muted); }
 .disease-card polyline { fill: none; stroke-width: 1.6; }
 
 .alert-list { display: grid; gap: 10px; }
+
+.rank-list { display: grid; gap: 2px; }
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rank-row:hover { background: var(--surface-2); }
+.rank-row .grow { flex: 1; min-width: 0; }
+.rank-row .rank-name { font-weight: 600; }
+.rank-row svg { width: 90px; height: 26px; flex-shrink: 0; }
+.rank-row polyline { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.rank-row .rank-value { min-width: 2.5ch; text-align: right; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rank-row.urgent { background: var(--urgent-soft); color: var(--urgent); }
+@media (max-width: 480px) { .rank-row svg { display: none; } }
 .alert-row {
   border: 1px solid var(--border);
   border-left: 4px solid var(--warn);
@@ -717,6 +752,7 @@ table.heat td.zero { color: var(--text-muted); }
   gap: 6px;
 }
 .alert-row[data-level="EPIDEMIC"] { border-left-color: var(--danger); }
+.alert-row[data-level="URGENT"] { border-left-color: var(--urgent); }
 .alert-row[data-status="RESOLVED"] { border-left-color: var(--border); opacity: 0.7; }
 .alert-row .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 

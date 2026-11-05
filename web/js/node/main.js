@@ -3,6 +3,7 @@
 
 import * as api from "../common/api.js";
 import { newNodeId, uuid4 } from "../common/ids.js";
+import { diseaseOptions } from "../common/diseases.js";
 import { createRouter, setupMenu, toast } from "../common/shell.js";
 import { createClinic } from "./clinic.js";
 import { createCombobox } from "./combobox.js";
@@ -227,6 +228,7 @@ function setupBackup(identity, sender, clinic) {
 
 function setupGenerator(config, identity, barangay, sender) {
   const tracked = config.diseases.filter((d) => d.tracked);
+  const canAlert = tracked.filter((d) => d.threshold_alerts || d.single_case_alert);
   let mode = "realistic";
   const modeButtons = document.querySelectorAll("[data-mode]");
   modeButtons.forEach((button) =>
@@ -240,7 +242,7 @@ function setupGenerator(config, identity, barangay, sender) {
 
   const diseaseSelect = $("outbreak-disease");
   diseaseSelect.replaceChildren(
-    ...tracked.map((d) => Object.assign(document.createElement("option"), { value: d.disease_code, textContent: d.name })),
+    ...diseaseOptions(canAlert),
   );
   $("outbreak-toggle").addEventListener("change", (e) => (diseaseSelect.disabled = !e.target.checked));
 
@@ -252,7 +254,7 @@ function setupGenerator(config, identity, barangay, sender) {
       generated = stressRecords(tracked, count);
     } else {
       const outbreak = $("outbreak-toggle").checked
-        ? { code: diseaseSelect.value, minimumCases: await outbreakSize(diseaseSelect.value, barangay) }
+        ? { code: diseaseSelect.value, minimumCases: await outbreakSize(diseaseSelect.value, barangay, config) }
         : null;
       generated = realisticWeek(tracked, barangay, outbreak);
     }
@@ -338,7 +340,7 @@ function announceAlerts(config) {
   toast({
     title: single ? `${first.level}: ${disease}` : `${alerts.length} new alerts`,
     body: !single ? "In your barangay and nearby" : first.scope === "NEIGHBOR" ? "In a neighboring barangay" : "In your barangay",
-    level: alerts.some((a) => a.level === "EPIDEMIC") ? "EPIDEMIC" : "ALERT",
+    level: ["URGENT", "EPIDEMIC"].find((level) => alerts.some((a) => a.level === level)) ?? "ALERT",
     actionLabel: "View",
     onAction: () => router.go("alerts"),
   });
@@ -384,9 +386,11 @@ const OUTBREAK_FALLBACK_CASES = 12; // when the RHU can't be asked (offline) or 
  * How many cases a simulated outbreak needs so the RHU flags it: comfortably above this
  * barangay's epidemic threshold for the current week, which the RHU shares.
  */
-async function outbreakSize(diseaseCode, barangay) {
+async function outbreakSize(diseaseCode, barangay, config) {
   try {
     const { weeks } = await api.fetchJson(api.trendUrl(diseaseCode, barangay.barangay_id, 1));
+    // An urgent disease needs only one case; the others go comfortably over the threshold.
+    if (config.diseases.find((d) => d.disease_code === diseaseCode)?.single_case_alert) return 1;
     const threshold = weeks.at(-1)?.epidemic_threshold;
     return threshold == null ? OUTBREAK_FALLBACK_CASES : Math.ceil(threshold * 1.3) + 3;
   } catch {

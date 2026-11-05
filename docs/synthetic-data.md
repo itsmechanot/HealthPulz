@@ -53,22 +53,47 @@ There are 30–40 classmates and only 26 barangays, so some barangays will have 
 
 ## 2. Diseases
 
-| Code | Disease | Category | Base rate (cases/week per 10k pop) | Peak months (multiplier) | Main age groups |
-|---|---|---|---|---|---|
-| `DEN` | Dengue | VECTOR | 1.5 | Jun–Oct (×3) | 5–19 |
-| `ILI` | Influenza-like illness | RESPIRATORY | 4.0 | Jul–Sep, Dec–Feb (×2) | all ages |
-| `AWD` | Acute watery diarrhea | WATERBORNE | 2.5 | Jun–Sep (×2) | 0–4, 60+ |
-| `LEP` | Leptospirosis | WATERBORNE | 0.3 | Jul–Oct (×4) | 20–59, mostly male |
-| `TYP` | Typhoid fever | WATERBORNE | 0.4 | Jun–Sep (×1.5) | 5–39 |
-| `MEA` | Measles | VACCINE_PREVENTABLE | 0.05 | Jan–Apr (×2) | 0–9 · **any case = alert** |
+The lists come from **RHU Naval**, collected by the team in November 2026: its 10 common illnesses and the diseases it flags on a single case. Dengue, leptospirosis and typhoid aren't on those lists; the team kept them as extra monitored diseases. The source of truth is [`rhu/data/diseases.json`](../rhu/data/diseases.json).
 
-Months outside the peak use a multiplier of **×1**.
+> ⚠️ **The rates are estimates**, not RHU figures. They only shape the synthetic history. Replace `base_rate` with real numbers if the RHU provides them, then re-run `python -m rhu.history`.
 
----
+### Common illnesses (the RHU's top 10, in its order)
+
+| Code | Disease | Estimated rate (cases/week per 10k) | Peak months | Alerts |
+|---|---|---|---|---|
+| `ARI` | Acute respiratory tract infection | 8.0 | Jan, Feb, Jul, Aug, Sep, Dec (×2) | Above threshold |
+| `SKN` | Skin problem, all types | 3.0 | Jun, Jul, Aug, Sep (×2) | Above threshold |
+| `PNE` | Pneumonia | 2.0 | Jan, Feb, Jul, Aug, Sep, Dec (×2) | Above threshold |
+| `WND` | Wound, all types | 2.5 | none | None: not contagious, counted for trends |
+| `KID` | Kidney diseases | 0.6 | none | None: not contagious, counted for trends |
+| `HTN` | Hypertension | 5.0 | none | None: not contagious, counted for trends |
+| `ART` | Arthritis, all forms | 1.5 | none | None: not contagious, counted for trends |
+| `TB` | Tuberculosis, all forms | 0.8 | none | Above threshold |
+| `FEV` | Fever, unknown cause | 3.0 | Jun, Jul, Aug, Sep (×2) | Above threshold |
+| `DIA` | Diarrhea | 2.5 | Jun, Jul, Aug, Sep (×2) | Above threshold |
+
+### Urgent: a single case raises an alert
+
+| Code | Disease | Estimated rate (cases/week per 10k) | Peak months | Alerts |
+|---|---|---|---|---|
+| `AFP` | Acute flaccid paralysis | 0.002 | none | **URGENT** on any case |
+| `DIP` | Diphtheria | 0.005 | none | **URGENT** on any case |
+| `MEA` | Measles | 0.05 | Jan, Feb, Mar, Apr (×2) | **URGENT** on any case |
+| `NTT` | Neonatal tetanus | 0.002 | none | **URGENT** on any case |
+| `TET` | Non-neonatal tetanus | 0.005 | none | **URGENT** on any case |
+| `PER` | Pertussis | 0.01 | none | **URGENT** on any case |
+
+### Also monitored
+
+| Code | Disease | Estimated rate (cases/week per 10k) | Peak months | Alerts |
+|---|---|---|---|---|
+| `DEN` | Dengue | 1.5 | Jun, Jul, Aug, Sep, Oct (×3) | Above threshold |
+| `LEP` | Leptospirosis | 0.3 | Jul, Aug, Sep, Oct (×4) | Above threshold |
+| `TYP` | Typhoid fever | 0.4 | Jun, Jul, Aug, Sep (×1.5) | Above threshold |
 
 ### Other consultations (`OTH`)
 
-`rhu/data/diseases.json` also has an entry with `"tracked": false` and a rate of 0. It exists for real checkups whose diagnosis isn't one of the 6 diseases above. The generators never produce it, so the history is unaffected.
+`rhu/data/diseases.json` also has an entry with `"tracked": false` and a rate of 0. It exists for real checkups whose diagnosis isn't on the lists above. The generators never produce it, so the history is unaffected.
 
 ---
 
@@ -115,25 +140,26 @@ Both the Python and JS generators read the **same rules file** (`diseases.json`,
 
 ```powershell
 python -m rhu.history                # 3 past years + this year up to last week (seed 42)
-python -m rhu.history --scale 50     # ~930,000 cases, for the speedup benchmark
+python -m rhu.history --scale 16     # ~900,000 cases, for the speedup benchmark
 ```
 
 - History covers ISO week 1 of three years ago up to **last week**. The current week is left for live data from the nodes.
 - It is stored under one `HISTORY` node per barangay (e.g. `BRGY-08-HIST`). These nodes are hidden from the System Monitor.
 - Running it again **replaces** the previous history. Live data sent by nodes is never touched.
 - The command prints the injected outbreaks, which the docs team can use as the "expected answers" when checking that alerts fire correctly.
-- Reference run (seed 42, scale 1): 199 weeks, ~18,500 cases, 16 injected outbreaks, under 1 second. Scale 50: ~930,000 cases in ~50 seconds.
+- Reference run (seed 42, scale 1): 200 weeks, ~57,000 cases, 16 injected outbreaks.
 
 ---
 
-## 6. Alert thresholds
+## 6. Alert levels
 
-Computed in parallel by the analytics process pool. For each barangay × disease × week, compared against the **same ISO week in previous years** of history:
+Computed by the analytics. For each barangay × disease × week, thresholds compare with the **same ISO week ±1 in up to 5 previous years** (see [analytics.md](analytics.md)):
 
-| Level | Condition |
-|---|---|
-| **ALERT** | `count > mean + 2·SD` **and** `count ≥ 3` (the minimum stops tiny numbers from triggering alerts) |
-| **EPIDEMIC** | `count > mean + 3·SD` |
-| **Measles** | Any single case → ALERT |
+| Level | Condition | Applies to |
+|---|---|---|
+| **URGENT** | Any single case | The 6 urgent diseases |
+| **EPIDEMIC** | `count > mean + 3·SD` and `count ≥ 3` | Contagious common illnesses (ARI, skin, pneumonia, TB, unknown fever, diarrhea) and dengue, leptospirosis, typhoid |
+| **ALERT** | `count > mean + 2·SD` and `count ≥ 3` | Same as EPIDEMIC |
+| None | Counted for trends only | Hypertension, arthritis, kidney diseases, wounds, Other consultations |
 
 > **TODO (docs team):** cite the exact threshold method DOH/PIDSR uses so the formula can be adjusted to match.

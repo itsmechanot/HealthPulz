@@ -7,8 +7,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from rhu import db
-from rhu.analytics import Analytics, _cases_signature, baseline_values
+from rhu import db, rules
+from rhu.analytics import ANALYTICS_QUERY, Analytics, _cases_signature, baseline_values
 from rhu.history import import_history
 from tests.factories import NODE, make_batch, make_record, wait_for_stored
 
@@ -54,13 +54,14 @@ def test_sequential_run(history):
 
     weeks = (date.fromisocalendar(2026, 44, 1) - FIRST_WEEK).days // 7 + 1  # up to the current week
     assert result.partitions == 26
-    assert result.rows == 26 * 7 * weeks  # 6 tracked diseases + Other consultations
+    assert result.rows == 26 * 20 * weeks  # 19 tracked diseases + Other consultations
     assert result.cases == imported.cases
 
     rows = weekly_stats(db_path)
     assert sum(r[4] for r in rows) == imported.cases
     assert all(r[5] is None for r in rows if r[2] == 2024)      # only 1 past year
-    assert all((r[5] is not None) == (r[1] != "OTH") for r in rows if r[2] == 2026)  # 3 past years; Other has none
+    thresholded = {d["disease_code"] for d in rules.diseases() if d["threshold_alerts"]}
+    assert all((r[5] is not None) == (r[1] in thresholded) for r in rows if r[2] == 2026)  # 3 past years
 
 
 def test_parallel_gives_the_same_result_as_sequential(history):
@@ -129,8 +130,8 @@ def test_corrections_and_voids_change_the_counts(registered):
         return {d["disease_code"]: d["this_week"] for d in summary["diseases"]}
 
     assert send([first, second])["DEN"] == 2
-    counts = send([{**first, "disease_code": "ILI", "revision": 2}])  # wrong diagnosis corrected
-    assert (counts["DEN"], counts["ILI"]) == (1, 1)
+    counts = send([{**first, "disease_code": "ARI", "revision": 2}])  # wrong diagnosis corrected
+    assert (counts["DEN"], counts["ARI"]) == (1, 1)
     assert send([{**second, "revision": 2, "voided": True}])["DEN"] == 0  # entered by mistake
 
 
@@ -142,8 +143,16 @@ def test_scheduler_notices_a_correction(registered):
     wait_for_stored(registered, batch["batch_id"])
     before = _cases_signature(db_path)
 
-    correction = make_batch(NODE, records=[{**record, "disease_code": "ILI", "revision": 2}])
+    correction = make_batch(NODE, records=[{**record, "disease_code": "ARI", "revision": 2}])
     registered.post("/api/batches", json=correction)
     wait_for_stored(registered, correction["batch_id"])
 
     assert _cases_signature(db_path) != before
+
+
+def test_analytics_query_only_reads_the_index(tmp_path):
+    db_path = tmp_path / "plan.db"
+    db.init_db(db_path)
+    with closing(sqlite3.connect(db_path)) as conn:
+        plan = conn.execute(f"EXPLAIN QUERY PLAN {ANALYTICS_QUERY}", ("BRGY-01",)).fetchall()
+    assert "COVERING INDEX idx_cases_analytics" in plan[0][3]

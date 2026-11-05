@@ -164,6 +164,7 @@
                 <div class="field"><label for="v-diagnosis">Diagnosis *</label><select id="v-diagnosis" name="diagnosis_code" required></select></div>
                 <div class="field" id="v-status-field" hidden><label for="v-status">Case status *</label>
                   <select id="v-status" name="case_status"><option value="SUSPECTED">Suspected</option><option value="CONFIRMED">Confirmed</option></select></div>
+                <p id="v-urgent-note" class="note note-danger field wide" hidden><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Urgent disease: this single case raises an alert at the RHU as soon as it arrives.</p>
                 <div class="field" id="v-text-field" hidden><label for="v-text">Specify diagnosis *</label><input id="v-text" name="diagnosis_text" type="text" autocomplete="off" placeholder="e.g. Hypertension"></div>
               </div>
             </section>
@@ -290,8 +291,8 @@
             </div>
             <div class="legend">
               <span style="--swatch: var(--accent)">cases per week</span>
-              <span style="--swatch: var(--warn)">alert threshold</span>
-              <span style="--swatch: var(--danger)">epidemic threshold</span>
+              <span class="threshold-legend" style="--swatch: var(--warn)">alert threshold</span>
+              <span class="threshold-legend" style="--swatch: var(--danger)">epidemic threshold</span>
             </div>
             <div class="chart">
               <svg id="trend-chart" role="img" style="height: 180px"></svg>

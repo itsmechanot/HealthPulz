@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS nodes (
 CREATE TABLE IF NOT EXISTS diseases (
   disease_code       TEXT PRIMARY KEY,            -- 'DEN'
   name               TEXT NOT NULL,
-  category           TEXT NOT NULL,               -- VECTOR | RESPIRATORY | WATERBORNE | VACCINE_PREVENTABLE | OTHER
-  single_case_alert  INTEGER NOT NULL DEFAULT 0   -- 1 = any case triggers an alert (e.g., measles)
+  category           TEXT NOT NULL,               -- e.g. RESPIRATORY, WATERBORNE, VACCINE_PREVENTABLE, NON_COMMUNICABLE
+  single_case_alert  INTEGER NOT NULL DEFAULT 0   -- 1 = any case raises an URGENT alert (e.g., measles)
 );
 
 -- Audit trail: proves zero data loss after the demo
@@ -65,7 +65,6 @@ CREATE TABLE IF NOT EXISTS cases (
   revision      INTEGER NOT NULL DEFAULT 0,       -- higher revision = correction from the BHU; older ones are ignored
   voided        INTEGER NOT NULL DEFAULT 0        -- 1 = entered by mistake: kept for audit, left out of the analytics
 );
-CREATE INDEX IF NOT EXISTS idx_cases_brgy_disease_date ON cases(barangay_id, disease_code, onset_date);
 CREATE INDEX IF NOT EXISTS idx_cases_disease_date      ON cases(disease_code, onset_date);
 CREATE INDEX IF NOT EXISTS idx_cases_node              ON cases(node_id);
 
@@ -86,7 +85,7 @@ CREATE TABLE IF NOT EXISTS alerts (
   alert_id      TEXT PRIMARY KEY,
   disease_code  TEXT NOT NULL REFERENCES diseases(disease_code),
   barangay_id   TEXT REFERENCES barangays(barangay_id),  -- NULL = municipality-wide
-  level         TEXT NOT NULL,                    -- ALERT | EPIDEMIC
+  level         TEXT NOT NULL,                    -- ALERT | EPIDEMIC | URGENT
   iso_year      INTEGER NOT NULL,
   iso_week      INTEGER NOT NULL,
   observed      INTEGER NOT NULL,

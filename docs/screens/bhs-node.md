@@ -43,9 +43,9 @@ Name, age, sex and purok, the other details, **Edit**, **+ New checkup**, and th
 ### 5. Checkup form
 | Section | Fields |
 |---|---|
-| Visit | Visit date* (today by default, can't be in the future), symptom onset (*required for surveillance diseases*), chief complaint* |
+| Visit | Visit date* (today by default, can't be in the future), symptom onset (*required for diseases that can raise alerts*), chief complaint* |
 | Vital signs | Temperature, BP systolic/diastolic, pulse, respiratory rate, weight, height (optional; realistic ranges are enforced) |
-| Findings and diagnosis | Findings, diagnosis*: the 6 surveillance diseases or **Other (specify)**. A surveillance disease adds **Case status** (Suspected/Confirmed); Other adds **Specify diagnosis*** |
+| Findings and diagnosis | Findings, diagnosis*: grouped as **Common illnesses** (the RHU's 10), **Urgent** (6), **Also monitored** (3), or **Other (specify)**. A listed disease adds **Case status** (Suspected/Confirmed); an urgent one also shows a warning note; Other adds **Specify diagnosis*** |
 | Plan | Treatment, disposition (Home care / For follow-up / Referred to RHU / Referred to hospital), follow-up date, attended by |
 | What the RHU receives | Live preview of the exact report, and what stays on the device |
 
@@ -66,7 +66,7 @@ The full record in sections, with a link to the client, **Correct** and **Void**
 If a client's **birthdate or sex** is corrected, their past reports are re-sent automatically and each checkup's history notes it. A change of **purok** is treated as moving: past reports keep the purok at the time of the visit.
 
 ### 8. Alerts
-Cards colored by level, with "In your barangay" or "Nearby: Brgy. X". A new alert on another screen shows one pop-up notice (grouped if several arrive together), raises the count on the tab, and vibrates phones. After a reload, alerts already seen are listed quietly.
+Cards colored by level (ALERT, EPIDEMIC, URGENT), with "In your barangay" or "Nearby: Brgy. X". A new alert on another screen shows one pop-up notice (grouped if several arrive together), raises the count on the tab, and vibrates phones. After a reload, alerts already seen are listed quietly.
 
 ### 9. Trends
 Map of Naval with this barangay outlined, a table per disease (your barangay this week, Naval this week and last week, barangays on alert) plus an **Other consultations** row, and a 12-week chart with thresholds. It updates about 11 s after new data. A note says only aggregated counts are shared.
@@ -82,4 +82,4 @@ Clearly marked as demonstration only; it creates no client records.
 - **Stress test** (1–5,000 cases, sent as a drill, so it never raises alerts).
 
 ## Color meanings (same as the other screens)
-OK = online, sent to the RHU · Warning = ALERT, waiting, connecting · Danger = EPIDEMIC, rejected, offline, errors · Accent = primary buttons, selected items.
+OK = online, sent to the RHU · Warning = ALERT, waiting, connecting · Danger = EPIDEMIC, rejected, offline, errors · Urgent (purple) = URGENT · Accent = primary buttons, selected items.

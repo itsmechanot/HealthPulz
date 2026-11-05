@@ -40,6 +40,11 @@ BASELINE_YEARS = 5
 BASELINE_WINDOW_WEEKS = 1  # weeks on each side of the same ISO week
 MIN_BASELINE_YEARS = 2
 
+ANALYTICS_QUERY = """
+    SELECT disease_code, onset_date FROM cases
+    WHERE barangay_id = ? AND voided = 0 AND batch_id NOT IN (SELECT batch_id FROM batches WHERE drill = 1)
+"""
+
 
 @dataclass
 class AnalyticsResult:
@@ -80,14 +85,14 @@ class Analytics:
 
     def _run(self, today: date) -> AnalyticsResult:
         diseases = [d["disease_code"] for d in rules.diseases()]
-        tracked = {d["disease_code"] for d in rules.tracked_diseases()}
+        thresholded = {d["disease_code"] for d in rules.diseases() if d["threshold_alerts"]}
         barangay_ids = [b["barangay_id"] for b in rules.barangays()]
         first_case = self._first_onset()
         # Every week from the first case up to and including the current week.
         weeks = iso_week_mondays(first_case, today + timedelta(weeks=1)) if first_case else []
 
         start = time.perf_counter()
-        args = [(str(self.db_path), barangay_id, diseases, tracked, weeks) for barangay_id in barangay_ids]
+        args = [(str(self.db_path), barangay_id, diseases, thresholded, weeks) for barangay_id in barangay_ids]
         if self._executor is None:
             parts = [_map_barangay(*a) for a in args]
         else:
@@ -129,20 +134,14 @@ class Analytics:
 # Top-level functions, so they can be sent to other processes.
 
 def _map_barangay(
-    db_path: str, barangay_id: str, diseases: list[str], tracked: set[str], weeks: list[date]
+    db_path: str, barangay_id: str, diseases: list[str], thresholded: set[str], weeks: list[date]
 ) -> tuple[int, list[tuple]]:
     """Returns (cases read, weekly_stats rows) for one barangay."""
     counts: Counter = Counter()
     cases = 0
     uri = Path(db_path).as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True)) as conn:
-        for disease_code, onset in conn.execute(
-            """
-            SELECT disease_code, onset_date FROM cases
-            WHERE barangay_id = ? AND voided = 0 AND batch_id NOT IN (SELECT batch_id FROM batches WHERE drill = 1)
-            """,
-            (barangay_id,),
-        ):
+        for disease_code, onset in conn.execute(ANALYTICS_QUERY, (barangay_id,)):
             day = date.fromisoformat(onset)
             counts[disease_code, day - timedelta(days=day.weekday())] += 1
             cases += 1
@@ -151,8 +150,9 @@ def _map_barangay(
     for disease in diseases:
         for monday in weeks:
             alert = epidemic = None
-            # Only surveillance diseases get thresholds; "Other" is just counted.
-            baseline = baseline_values(counts, disease, monday, first_week=weeks[0]) if disease in tracked else None
+            # Only contagious diseases get thresholds. Non-communicable ones and "Other" are just
+            # counted, and for the urgent diseases a single case is already enough.
+            baseline = baseline_values(counts, disease, monday, first_week=weeks[0]) if disease in thresholded else None
             if baseline is not None:
                 mean, sd = statistics.fmean(baseline), statistics.stdev(baseline)
                 alert, epidemic = round(mean + 2 * sd, 2), round(mean + 3 * sd, 2)

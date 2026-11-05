@@ -7,7 +7,7 @@
 import { el } from "./dom.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2 };
+const LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2, URGENT: 3 };
 
 let mapData = null;
 
@@ -134,7 +134,7 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
             cx: b.center[0], cy: b.center[1] + 6, r: Math.min(26, 5 + Math.sqrt(s.cases) * 3.2), class: "marker",
           });
           if (s.level !== "NORMAL") circle.dataset.level = s.level;
-          if (s.level === "EPIDEMIC") circle.classList.add("pulse");
+          if (s.level === "EPIDEMIC" || s.level === "URGENT") circle.classList.add("pulse");
           return circle;
         }),
       );
@@ -155,6 +155,7 @@ function legend() {
     swatch("color-mix(in srgb, var(--accent) 45%, var(--land))", "Cases (darker = more per 10,000)"),
     swatch("color-mix(in srgb, var(--warn) 55%, var(--land))", "Alert"),
     swatch("color-mix(in srgb, var(--danger) 65%, var(--land))", "Epidemic"),
+    swatch("color-mix(in srgb, var(--urgent) 70%, var(--land))", "Urgent"),
     el("span", { textContent: "● circle size = number of cases" }),
   );
 }

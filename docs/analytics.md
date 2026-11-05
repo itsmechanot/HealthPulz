@@ -17,7 +17,7 @@ For every **barangay × disease × ISO week**, from the first case up to the cur
 
 > **TODO (docs team):** cite the DOH/PIDSR threshold method and the CDC historical limits method, and note where ours differs.
 
-**Other consultations (`OTH`)** are counted per week like the rest, but get no thresholds and can't raise alerts.
+**Thresholds apply only to the 9 contagious diseases.** Non-communicable illnesses and Other consultations are counted but can't raise alerts, and for the 6 urgent diseases any single case is already an URGENT alert.
 
 ## How it runs in parallel (MapReduce)
 
@@ -40,33 +40,39 @@ The server re-runs the analytics automatically every 10 s **if cases changed** (
 
 ## Benchmark results
 
-Reference run: 12-core laptop, 928,576 cases (`python -m rhu.history --scale 50`), median of 3 runs per setting.
+Reference run: 12-core laptop, 905,409 cases (`python -m rhu.history --scale 16`). Runs take turns between worker counts and report the median of 7, so a busy moment on the machine affects all of them alike.
 
-| Workers | Total (s) | Map (s) | Reduce (s) | Speedup | Efficiency |
-|---|---|---|---|---|---|
-| 1 | 2.23 | 2.07 | 0.14 | 1.00× | 100% |
-| 2 | 1.22 | 1.11 | 0.10 | 1.83× | 91% |
-| 4 | 0.85 | 0.74 | 0.10 | 2.63× | 66% |
-| 8 | 0.63 | 0.53 | 0.10 | 3.55× | 44% |
+| Workers | Total (s) | Map (s) | Reduce (s) | Speedup | Efficiency | Fastest–slowest (s) |
+|---|---|---|---|---|---|---|
+| 1 | 9.52 | 8.53 | 0.99 | 1.00× | 100% | 3.23–11.02 |
+| 2 | 5.64 | 4.59 | 1.15 | 1.69× | 84% | 2.30–6.05 |
+| 4 | 3.21 | 1.93 | 1.26 | 2.96× | 74% | 2.10–3.31 |
+| 8 | 2.13 | 1.05 | 1.11 | 4.46× | 56% | 1.04–2.46 |
+
+A second pass gave 2.02×, 3.73× and 4.66×.
+
+> **How far to trust these:** the laptop was running other programs, and the 1-worker time varied a lot. Comparing the *fastest* runs instead gives about 3× at 8 workers, so read this as **about 3–4.5×**, not an exact figure. **Before quoting numbers in the paper, re-run the benchmark with other apps closed.**
 
 **Why efficiency drops as workers increase** (talking points for the defense):
-1. **Amdahl's law:** the reduce step (writing ~36,000 rows, ~31,000 at the time of this benchmark) is sequential and takes ~0.1 s no matter how many workers there are. As the map step gets faster, this fixed part becomes a larger share of the total.
+1. **Amdahl's law:** the reduce step (writing ~104,000 rows) is sequential and takes about 1 s no matter how many workers there are. As the map step gets faster, this fixed part becomes a larger share of the total.
 2. **Load imbalance:** with 26 uneven barangays and 8 workers, the run can't finish before the largest barangay is done, so some workers sit idle at the end.
 3. **Overhead:** sending tasks and results between processes, and all workers reading the same database file at once.
 
+**Why a covering index matters:** the workers read only one index (`idx_cases_analytics`), which holds every column they need. Without it, each case meant a jump to its table row. That work is limited by the disk, not the CPU, so adding processes barely helped: in one run, 4 workers were no faster than 1.
+
 To reproduce:
 ```powershell
-python -m rhu.history --db var/bench.db --scale 50
+python -m rhu.history --db var/bench.db --scale 16
 python tools/benchmark_analytics.py --db var/bench.db --workers 1 2 4 8 --csv var/bench.csv
 ```
 
-## Detection quality (seed 42, 3 years of history)
+## Detection quality (seed 42, 3 years of history, the 9 diseases with thresholds)
 
 | Rule | Injected outbreak weeks flagged | False alarms |
 |---|---|---|
-| count > alert threshold | 58% | 9.0% of normal weeks (~12 per week across Naval) |
-| count > alert threshold **and count ≥ 3** | 58% (≥75% of outbreaks flagged in at least one week) | 2.8% of normal weeks (~3.6 per week across Naval) |
+| count > alert threshold | 56% (19 of 34) | 8.5% of normal weeks (~20 per week across Naval) |
+| count > alert threshold **and count ≥ 3** | 35% (12 of 34); 7 of 11 checkable outbreaks in at least one week | 2.8% of normal weeks (~6.6 per week across Naval) |
 
-The minimum of 3 cases cuts false alarms by about 70% without missing any more outbreak weeks in this run (both rules flag 19 of 33). Figures are from the history with real barangay neighbors (outbreaks spill over ×1.5 into neighboring barangays). This trade-off between sensitivity and false alarms is normal for threshold-based surveillance.
+The minimum of 3 cases cuts false alarms by about two-thirds, at the cost of missing small outbreaks, especially of rare diseases and in small barangays. This trade-off is normal for threshold-based surveillance, and it matters because all of these figures come from synthetic data with estimated rates. They show the method works, not how it would perform on Naval's real data.
 
 > **Note:** the map step counts cases record by record in Python. SQL's `GROUP BY` could count faster, but the per-record map step is kept on purpose to show data parallelism.

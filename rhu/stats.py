@@ -60,6 +60,7 @@ def summary(conn: sqlite3.Connection, today: date) -> dict:
         diseases.append({
             "disease_code": d["disease_code"],
             "name": d["name"],
+            "group": d["group"],
             "this_week": now,
             "last_week": before,
             "change_pct": round((now - before) / before * 100, 1) if before else None,

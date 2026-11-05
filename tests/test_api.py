@@ -98,14 +98,26 @@ def test_config_has_all_barangays_and_diseases(client):
     body = client.get("/api/config").json()
     assert body["protocol_version"] == 1
     assert len(body["barangays"]) == 26
-    assert {d["disease_code"] for d in body["diseases"]} == {"DEN", "ILI", "AWD", "LEP", "TYP", "MEA", "OTH"}
+    groups = {}
+    for d in body["diseases"]:
+        groups.setdefault(d["group"], set()).add(d["disease_code"])
+    assert groups == {
+        "common": {"ARI", "SKN", "PNE", "WND", "KID", "HTN", "ART", "TB", "FEV", "DIA"},
+        "urgent": {"AFP", "DIP", "MEA", "NTT", "TET", "PER"},
+        "monitored": {"DEN", "LEP", "TYP"},
+        "other": {"OTH"},
+    }
+    single = {d["disease_code"] for d in body["diseases"] if d["single_case_alert"]}
+    assert single == groups["urgent"]
+    no_outbreaks = {d["disease_code"] for d in body["diseases"] if not d["threshold_alerts"]}
+    assert no_outbreaks == {"WND", "KID", "HTN", "ART", "OTH"} | groups["urgent"]
 
 
 def test_reference_data_is_seeded(client):
     conn = db.connect(client.app.state.db_path)
     try:
         assert conn.execute("SELECT COUNT(*) FROM barangays").fetchone()[0] == 26
-        assert conn.execute("SELECT COUNT(*) FROM diseases").fetchone()[0] == 7
+        assert conn.execute("SELECT COUNT(*) FROM diseases").fetchone()[0] == 20
     finally:
         conn.close()
 

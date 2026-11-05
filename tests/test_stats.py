@@ -38,7 +38,7 @@ def test_summary_compares_this_week_with_last_week(analyzed):
 
     assert (body["week"]["iso_year"], body["week"]["iso_week"]) == (year, week)
     assert body["previous_week"]["label"] == f"{last_year}-W{last_week:02d}"
-    assert len(body["diseases"]) == 6  # tracked diseases only
+    assert len(body["diseases"]) == 19  # tracked diseases only
     assert body["other_consultations"]["this_week"] == 0
     dengue = next(d for d in body["diseases"] if d["disease_code"] == "DEN")
     assert dengue["this_week"] == 4  # only the live cases: history stops at last week

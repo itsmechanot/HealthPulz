@@ -1,6 +1,7 @@
 // The BHU's clinic screens: clients, client profile, client form, checkup form, visit
 // list and visit record. Everything is read from and saved to this device (records.js).
 
+import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
 import { icon } from "../common/shell.js";
 import * as records from "./records.js";
@@ -227,7 +228,7 @@ export function createClinic({ config, identity, router, onSaved }) {
   const diagnosisSelect = $("v-diagnosis");
   diagnosisSelect.replaceChildren(
     el("option", { value: "", textContent: "Select…" }),
-    ...config.diseases.filter((d) => d.tracked).map((d) => el("option", { value: d.disease_code, textContent: d.name })),
+    ...diseaseOptions(config.diseases.filter((d) => d.tracked)),
     el("option", { value: OTHER_CODE, textContent: "Other (specify)" }),
   );
 
@@ -269,8 +270,11 @@ export function createClinic({ config, identity, router, onSaved }) {
     $("v-status-field").hidden = !tracked;
     $("v-text-field").hidden = code !== OTHER_CODE;
     form.elements.diagnosis_text.required = code === OTHER_CODE;
-    form.elements.onset_date.required = tracked;
-    $("v-onset-required").textContent = tracked ? "*" : "(optional)";
+    // Onset dates matter for spotting outbreaks; long-term conditions may not have a clear one.
+    const needsOnset = Boolean(diseases.get(code)?.threshold_alerts || diseases.get(code)?.single_case_alert);
+    form.elements.onset_date.required = needsOnset;
+    $("v-onset-required").textContent = needsOnset ? "*" : "(optional)";
+    $("v-urgent-note").hidden = !diseases.get(code)?.single_case_alert;
     if (visitClient) renderPreview(form, code);
   }
 
