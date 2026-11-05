@@ -21,7 +21,7 @@
 ## Layout (app shell)
 | Part | Content |
 |---|---|
-| **Sidebar** | Logo + "RHU Naval"; *Surveillance*: **Overview, Map, Alerts** (red count of open alerts), **Trends, Barangays**; *System*: System Monitor, BHS Node, Home; footer "All data is synthetic". On phones it slides in from a ☰ button over a dimmed page. |
+| **Sidebar** | Logo + "RHU Naval"; *Surveillance*: **Overview, Map, Alerts** (red count of open alerts), **Trends, Barangays**; *System*: System Monitor (no links to the BHU's page); footer "All data is synthetic". On phones it slides in from a ☰ button over a dimmed page. |
 | **Top bar** | Screen title + one-line description · **week chip** ("Week 2026-W44 · from Oct 26 (so far)") · live pill (**Live** / **Reconnecting…**) · user chip "RHU Staff" |
 | **Screens** | One at a time. The URL remembers it (`/dashboard/#/map`), so reload and the Back button work. |
 

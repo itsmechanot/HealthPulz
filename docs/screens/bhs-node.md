@@ -21,10 +21,10 @@
 | | Phone | Laptop |
 |---|---|---|
 | Main | Bottom tabs: **Clients · Visits · Alerts · Trends** | Sidebar with the same items |
-| More | ☰ menu: **Sync & Backup**, **Demo Tools**, RHU Dashboard, System Monitor, Change barangay | In the sidebar |
+| More | ☰ menu: **Sync & Backup**, **Demo Tools**, Change barangay | In the sidebar |
 | Top bar | Barangay avatar and name, node ID, connection pill (Online / Connecting / Offline) | same |
 
-Screens have their own URLs (`/node/#/client/<id>`), so reload and the Back button work.
+Screens have their own URLs (`/node/#/client/<id>`), so reload and the Back button work. The BHU has **no links to the RHU's pages**; the logo returns to Clients.
 
 ## Screens
 

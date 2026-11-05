@@ -55,11 +55,19 @@ def test_icon_sprite_is_served_as_svg(client):
     assert 'id="logo"' in res.text
 
 
-def test_every_page_links_to_the_other_pages(client):
-    pages = ("/node/", "/dashboard/", "/monitor/")
-    for page in ("/", *pages):
-        html = client.get(page).text
-        assert all(f'href="{target}"' in html for target in pages if target != page), page
+def test_home_links_to_each_side(client):
+    html = client.get("/").text
+    assert all(f'href="{target}"' in html for target in ("/node/", "/dashboard/", "/monitor/"))
+
+
+def test_rhu_and_bhu_pages_do_not_link_to_each_other(client):
+    bhu = client.get("/node/").text
+    assert not any(f'href="{target}"' in bhu for target in ("/", "/dashboard/", "/monitor/"))
+
+    for page, other_rhu_page in (("/dashboard/", "/monitor/"), ("/monitor/", "/dashboard/")):
+        rhu = client.get(page).text
+        assert not any(f'href="{target}"' in rhu for target in ("/", "/node/")), page
+        assert f'href="{other_rhu_page}"' in rhu, page
 
 
 def test_map_matches_the_barangay_list(client):
