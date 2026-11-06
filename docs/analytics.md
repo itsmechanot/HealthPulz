@@ -9,7 +9,7 @@ For every **barangay × disease × ISO week**, from the first case up to the cur
 
 | Output (table `weekly_stats`) | Meaning |
 |---|---|
-| `case_count` | Cases whose onset date falls in that week |
+| `case_count` | Cases whose **checkup date** falls in that week, so what a BHU sends today shows in this week's numbers |
 | `alert_threshold` | mean + 2·SD of the baseline |
 | `epidemic_threshold` | mean + 3·SD of the baseline |
 
@@ -58,7 +58,7 @@ A second pass gave 2.02×, 3.73× and 4.66×.
 2. **Load imbalance:** with 26 uneven barangays and 8 workers, the run can't finish before the largest barangay is done, so some workers sit idle at the end.
 3. **Overhead:** sending tasks and results between processes, and all workers reading the same database file at once.
 
-**Why a covering index matters:** the workers read only one index (`idx_cases_analytics`), which holds every column they need. Without it, each case meant a jump to its table row. That work is limited by the disk, not the CPU, so adding processes barely helped: in one run, 4 workers were no faster than 1.
+**Why a covering index matters:** the workers read only one index (`idx_cases_weekly`), which holds every column they need. Without it, each case meant a jump to its table row. That work is limited by the disk, not the CPU, so adding processes barely helped: in one run, 4 workers were no faster than 1.
 
 To reproduce:
 ```powershell

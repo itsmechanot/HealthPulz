@@ -22,12 +22,12 @@ def _report(
     record_id: str, barangay_id: str, disease_code: str, onset_date: str, consult_date: str, age_years: int,
     sex: str, purok: int, case_status: str, received_at: str, revision: int, voided: bool,
 ) -> dict:
-    year, week, _ = date.fromisoformat(onset_date).isocalendar()
+    year, week, _ = date.fromisoformat(consult_date).isocalendar()
     return {
         "record_id": record_id, "barangay_id": barangay_id, "disease_code": disease_code,
         "onset_date": onset_date, "consult_date": consult_date, "age_years": age_years, "sex": sex, "purok": purok,
         "case_status": case_status, "received_at": received_at, "revision": revision, "voided": bool(voided),
-        "counted_in_week": f"{year}-W{week:02d}",  # cases count in the week the illness started
+        "counted_in_week": f"{year}-W{week:02d}",  # cases count in the week of the checkup
     }
 
 

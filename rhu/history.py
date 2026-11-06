@@ -14,7 +14,7 @@ import random
 import uuid
 from contextlib import closing
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from itertools import batched
 from pathlib import Path
 
@@ -73,7 +73,10 @@ def import_history(
             )
 
         total = 0
-        cases = generate_cases(rng, barangays, diseases, weeks, outbreaks, latest=today, scale=scale)
+        # Checkups end with last week too, because a case counts in the week of its checkup:
+        # this week's numbers must show only what the BHUs send.
+        last_sunday = today - timedelta(days=today.isoweekday())
+        cases = generate_cases(rng, barangays, diseases, weeks, outbreaks, latest=last_sunday, scale=scale)
         for chunk in batched(cases, INSERT_CHUNK):
             conn.executemany(
                 """

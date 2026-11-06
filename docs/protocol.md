@@ -221,7 +221,7 @@ Example `ALERT`:
 }
 ```
 
-**When alerts are raised:** after every analytics run (every 10 s when cases changed), the RHU checks the **previous and current ISO week**. Cases are often reported a few days after onset, so last week can still change.
+**When alerts are raised:** after every analytics run (every 10 s when cases changed), the RHU checks the **previous and current ISO week**. A case counts in the week of its checkup, and a BHU can enter a checkup a few days late, so last week can still change.
 
 | Level | Condition |
 |---|---|

@@ -125,3 +125,11 @@ def test_old_database_gets_the_kind_column(tmp_path):
     db.init_db(db_path)
 
     assert query(db_path, "SELECT kind FROM nodes") == [("LIVE",)]
+
+
+def test_no_imported_checkup_falls_in_the_current_week(tmp_path):
+    """A case counts in the week of its checkup, so this week must show only what the BHUs send."""
+    db_path = tmp_path / "history.db"
+    import_history(db_path, years=1, today=date(2026, 11, 6))
+    assert query(db_path, "SELECT MAX(consult_date) FROM cases")[0][0] <= "2026-11-01"
+

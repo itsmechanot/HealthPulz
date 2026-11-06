@@ -61,9 +61,10 @@ def create_analytics_index(conn: sqlite3.Connection) -> None:
     """Holds every column the analytics read, so each worker scans one index in order instead
     of jumping to a table row per case. That keeps the map step CPU-bound, which is what
     extra processes can speed up. Created here because `voided` may have just been added."""
-    conn.execute("DROP INDEX IF EXISTS idx_cases_brgy_disease_date")
+    for older_version in ("idx_cases_brgy_disease_date", "idx_cases_analytics"):
+        conn.execute(f"DROP INDEX IF EXISTS {older_version}")
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_cases_analytics ON cases(barangay_id, voided, disease_code, onset_date, batch_id)"
+        "CREATE INDEX IF NOT EXISTS idx_cases_weekly ON cases(barangay_id, voided, disease_code, consult_date, batch_id)"
     )
 
 

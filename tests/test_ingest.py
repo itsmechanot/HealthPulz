@@ -232,7 +232,7 @@ def test_a_stored_report_is_listed_without_private_details(db_path):
 
     assert report["barangay_id"] == "BRGY-08"
     assert report["disease_code"] == "FEV"
-    assert report["counted_in_week"] == "2026-W44"
+    assert report["counted_in_week"] == "2026-W45"  # the checkup's week; the illness started in W44
     assert (report["age_years"], report["sex"], report["purok"]) == (22, "M", 1)
     assert report["received_at"]
     assert not {"name", "last_name", "first_name", "address", "contact", "findings"} & report.keys()

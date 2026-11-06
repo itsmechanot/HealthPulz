@@ -111,7 +111,7 @@ Each generated case gets:
 - `sex`: 50/50, except leptospirosis (~80% male)
 - `purok`: 1–7
 - `onset_date`: random day within the week
-- `consult_date`: 0–3 days after onset
+- `consult_date`: 0–3 days after onset. This date decides which week a case counts in. The BHU generator keeps it in the current week, so generated data shows in this week's numbers
 - `case_status`: ~70% SUSPECTED, ~30% CONFIRMED
 
 ---

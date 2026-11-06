@@ -106,11 +106,21 @@ function watchStations() {
     data.nodes = snapshot.nodes;
     renderStations();
     updateReports(snapshot.latest_reports);
+    refreshAfterAnalytics(snapshot.analytics?.finished_at);
   };
   ws.onclose = (event) => {
     if (event.code === api.CLOSE_NOT_LOGGED_IN) return api.toLogin();
     setTimeout(watchStations, 3000);
   };
+}
+
+let lastAnalyticsRun = null;
+
+/** New numbers are ready as soon as a run finishes, so don't wait for the 10-second refresh. */
+function refreshAfterAnalytics(finishedAt) {
+  if (!finishedAt) return;
+  if (lastAnalyticsRun && finishedAt !== lastAnalyticsRun) refresh();
+  lastAnalyticsRun = finishedAt;
 }
 
 function setConnection(stateName, text) {
@@ -173,7 +183,7 @@ function reportRow(report, flash) {
     el("div", {}, el("strong", { textContent: disease }), el("div", { className: "muted small", textContent: `Brgy. ${barangay}` })),
     el("span", { className: "small", textContent: `${report.age_years} ${report.sex} · Purok ${report.purok}` }),
     el("span", { className: "badge", textContent: change ?? (report.case_status === "CONFIRMED" ? "Confirmed" : "Suspected"), dataset: change ? { level: "ALERT" } : {} }),
-    el("span", { className: "muted small", textContent: `Illness started ${formatDate(report.onset_date)} · counts in ${weekName(report.counted_in_week)}` }),
+    el("span", { className: "muted small", textContent: `Checkup ${formatDate(report.consult_date)} · illness started ${formatDate(report.onset_date)} · counts in ${weekName(report.counted_in_week)}` }),
   );
 }
 

@@ -1,7 +1,7 @@
 """Outbreak alerts: detection after each analytics run, delivery to nodes, acknowledgement.
 
-Detection checks the current and the previous ISO week in weekly_stats (cases
-are often reported a few days after onset):
+Detection checks the current and the previous ISO week in weekly_stats (a BHU
+can enter a checkup a few days late, so last week can still change):
     URGENT    any case of a single-case-alert disease (the RHU's list, e.g. measles)
     EPIDEMIC  count > epidemic threshold  and count ≥ MIN_ALERT_CASES
     ALERT     count > alert threshold     and count ≥ MIN_ALERT_CASES

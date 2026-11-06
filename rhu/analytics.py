@@ -41,7 +41,7 @@ BASELINE_WINDOW_WEEKS = 1  # weeks on each side of the same ISO week
 MIN_BASELINE_YEARS = 2
 
 ANALYTICS_QUERY = """
-    SELECT disease_code, onset_date FROM cases
+    SELECT disease_code, consult_date FROM cases
     WHERE barangay_id = ? AND voided = 0 AND batch_id NOT IN (SELECT batch_id FROM batches WHERE drill = 1)
 """
 
@@ -87,7 +87,7 @@ class Analytics:
         diseases = [d["disease_code"] for d in rules.diseases()]
         thresholded = {d["disease_code"] for d in rules.diseases() if d["threshold_alerts"]}
         barangay_ids = [b["barangay_id"] for b in rules.barangays()]
-        first_case = self._first_onset()
+        first_case = self._first_checkup()
         # Every week from the first case up to and including the current week.
         weeks = iso_week_mondays(first_case, today + timedelta(weeks=1)) if first_case else []
 
@@ -124,9 +124,9 @@ class Analytics:
             finished_at=db.utc_now(),
         )
 
-    def _first_onset(self) -> date | None:
+    def _first_checkup(self) -> date | None:
         with closing(db.connect(self.db_path)) as conn:
-            first = conn.execute("SELECT MIN(onset_date) FROM cases").fetchone()[0]
+            first = conn.execute("SELECT MIN(consult_date) FROM cases").fetchone()[0]
         return date.fromisoformat(first) if first else None
 
 
@@ -141,8 +141,9 @@ def _map_barangay(
     cases = 0
     uri = Path(db_path).as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True)) as conn:
-        for disease_code, onset in conn.execute(ANALYTICS_QUERY, (barangay_id,)):
-            day = date.fromisoformat(onset)
+        # A case counts in the week of its checkup, so what a BHU sends today shows in this week's numbers.
+        for disease_code, consult in conn.execute(ANALYTICS_QUERY, (barangay_id,)):
+            day = date.fromisoformat(consult)
             counts[disease_code, day - timedelta(days=day.weekday())] += 1
             cases += 1
 

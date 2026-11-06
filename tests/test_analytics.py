@@ -10,6 +10,8 @@ import pytest
 from rhu import db, rules
 from rhu.analytics import ANALYTICS_QUERY, Analytics, _cases_signature, baseline_values
 from rhu.history import import_history
+from rhu.ingest import IngestPipeline
+from rhu.models import SubmitBatch
 from tests.factories import NODE, make_batch, make_record, wait_for_stored
 
 TODAY = date(2026, 10, 30)
@@ -155,4 +157,51 @@ def test_analytics_query_only_reads_the_index(tmp_path):
     db.init_db(db_path)
     with closing(sqlite3.connect(db_path)) as conn:
         plan = conn.execute(f"EXPLAIN QUERY PLAN {ANALYTICS_QUERY}", ("BRGY-01",)).fetchall()
-    assert "COVERING INDEX idx_cases_analytics" in plan[0][3]
+    assert "COVERING INDEX idx_cases_weekly" in plan[0][3]
+
+
+def test_a_case_counts_in_the_week_of_its_checkup(tmp_path):
+    """Illness started in one week, checked up in the next: it counts in the checkup's week."""
+    db_path = tmp_path / "weeks.db"
+    db.init_db(db_path)
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    with closing(db.connect(db_path)) as conn, conn:
+        conn.execute("INSERT INTO nodes (node_id, barangay_id, registered_at) VALUES ('BRGY-01-MAIN', 'BRGY-01', ?)", (db.utc_now(),))
+    pipeline = IngestPipeline(db_path)
+    pipeline.start()
+    record = make_record(disease_code="DEN", onset_date=(monday - timedelta(days=1)).isoformat(), consult_date=today.isoformat())
+    pipeline.submit(SubmitBatch(**make_batch("BRGY-01-MAIN", records=[record])))
+    pipeline.stop()
+
+    Analytics(db_path, workers=1).run(today)
+
+    this_year, this_week, _ = today.isocalendar()
+    last_year, last_week, _ = (monday - timedelta(days=1)).isocalendar()
+    count = lambda year, week: query_count(db_path, year, week)
+    assert count(this_year, this_week) == 1
+    assert count(last_year, last_week) == 0
+
+
+def query_count(db_path, year, week):
+    with closing(db.connect(db_path)) as conn:
+        row = conn.execute(
+            "SELECT case_count FROM weekly_stats WHERE barangay_id = 'BRGY-01' AND disease_code = 'DEN' AND iso_year = ? AND iso_week = ?",
+            (year, week),
+        ).fetchone()
+    return row[0] if row else 0
+
+
+def test_upgrading_replaces_the_index_on_the_old_date(tmp_path):
+    db_path = tmp_path / "old.db"
+    db.init_db(db_path)
+    with closing(sqlite3.connect(db_path)) as conn, conn:
+        conn.execute("DROP INDEX idx_cases_weekly")
+        conn.execute("CREATE INDEX idx_cases_analytics ON cases(barangay_id, voided, disease_code, onset_date, batch_id)")
+
+    db.init_db(db_path)
+
+    with closing(sqlite3.connect(db_path)) as conn:
+        names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'")}
+    assert "idx_cases_weekly" in names
+    assert "idx_cases_analytics" not in names

@@ -11,8 +11,7 @@ const PUROKS = 7;
  *
  * outbreak: { code, minimumCases }. The outbreak disease gets ×5 its normal rate but
  * at least `minimumCases`, so it goes over the RHU's threshold in any season (×5 of a
- * low off-season rate can still be below it). Its onsets all fall in the current week,
- * so the spike isn't split across two weeks.
+ * low off-season rate can still be below it).
  */
 export function realisticWeek(diseases, barangay, outbreak = null) {
   const month = new Date().getMonth();
@@ -21,8 +20,7 @@ export function realisticWeek(diseases, barangay, outbreak = null) {
     const lambda = disease.base_rate * (barangay.population / 10_000) * disease.season[month] * uniform(0.8, 1.2);
     if (disease.disease_code === outbreak?.code) {
       const count = Math.max(poisson(lambda * OUTBREAK_MULTIPLIER), outbreak.minimumCases);
-      const daysThisWeek = (new Date().getDay() + 6) % 7; // Monday = 0
-      for (let i = 0; i < count; i++) records.push(makeRecord(disease, daysThisWeek));
+      for (let i = 0; i < count; i++) records.push(makeRecord(disease));
     } else {
       const count = poisson(lambda);
       for (let i = 0; i < count; i++) records.push(makeRecord(disease));
@@ -36,11 +34,13 @@ export function stressRecords(diseases, count) {
   return Array.from({ length: count }, () => makeRecord(pickWeighted(diseases, (d) => d.base_rate)));
 }
 
-/** maxDaysAgo: how far back the onset may be (6 = anywhere in the last week). */
-function makeRecord(disease, maxDaysAgo = 6) {
+/** The illness may have started up to 6 days ago, but the checkup is always this week, because
+ *  a case counts in the week of its checkup and sent data should show in this week's numbers. */
+function makeRecord(disease) {
   const today = new Date();
-  const onset = addDays(today, -randInt(0, maxDaysAgo));
-  const consult = addDays(onset, randInt(0, 3));
+  const monday = addDays(today, -((today.getDay() + 6) % 7));
+  const onset = addDays(today, -randInt(0, 6));
+  const consult = latest(addDays(onset, randInt(0, 3)), monday);
   const ageBand = pickWeighted(disease.age_profile, (band) => band.weight);
   return {
     record_id: uuid4(),
@@ -53,6 +53,8 @@ function makeRecord(disease, maxDaysAgo = 6) {
     case_status: Math.random() < 0.7 ? "SUSPECTED" : "CONFIRMED",
   };
 }
+
+const latest = (a, b) => (a > b ? a : b);
 
 // ---- random helpers ------------------------------------------------------
 
