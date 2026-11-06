@@ -19,8 +19,9 @@ const STORED_TIMEOUT_MS = 30_000;
 const PUMP_INTERVAL_MS = 5_000;
 
 export class Sender extends EventTarget {
-  constructor(reRegister) {
+  constructor(nodeId, reRegister) {
     super();
+    this.nodeId = nodeId;
     this.reRegister = reRegister;
     this.inFlight = new Map(); // batch_id -> time it was RECEIVED
     this.pausedUntil = 0;
@@ -60,7 +61,7 @@ export class Sender extends EventTarget {
     try {
       do {
         this.pumpAgain = false;
-        for (const batch of await outbox.allBatches()) {
+        for (const batch of await outbox.allBatches(this.nodeId)) {
           if (Date.now() < this.pausedUntil) return;
           if (!(await this.process(batch))) return;
         }

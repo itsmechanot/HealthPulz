@@ -104,3 +104,17 @@ CREATE TABLE IF NOT EXISTS alert_deliveries (
   acked_at      TEXT,
   PRIMARY KEY (alert_id, node_id)
 );
+
+-- Logins. Passwords are stored only as salted hashes, and login tokens only as hashes.
+CREATE TABLE IF NOT EXISTS accounts (
+  username      TEXT PRIMARY KEY,                 -- RHU | LOADTEST | a barangay_id
+  role          TEXT NOT NULL,                    -- RHU | BHU | LOADTEST
+  barangay_id   TEXT REFERENCES barangays(barangay_id),  -- BHU accounts only
+  password_hash TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash    TEXT PRIMARY KEY,
+  username      TEXT NOT NULL REFERENCES accounts(username),
+  expires_at    TEXT NOT NULL
+);

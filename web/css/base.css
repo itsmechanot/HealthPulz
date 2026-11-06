@@ -459,7 +459,7 @@ textarea { resize: vertical; }
 .form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 input:invalid:not(:placeholder-shown):not([type="date"]) { border-color: var(--danger); }
 
-input[type="text"], input[type="number"], input[type="date"], input[type="tel"], input[type="search"], select, textarea {
+input[type="text"], input[type="number"], input[type="date"], input[type="tel"], input[type="search"], input[type="password"], select, textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -809,32 +809,20 @@ table.heat td.zero { color: var(--text-muted); }
 .kv dt { color: var(--text-muted); }
 .kv dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; }
 
-/* ---- Home ---- */
+/* ---- Login ---- */
 
-.hero { display: grid; gap: 10px; padding: 12px 0 4px; }
-.hero .brand-mark { width: 52px; height: 52px; }
-.hero h1 { font-size: clamp(1.6rem, 4vw, 2.3rem); }
-.hero p { margin: 0; font-size: 1.05rem; color: var(--text-muted); max-width: 720px; }
-
-.role-cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-.role-card { text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s; }
-.role-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.role-icon {
-  width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
-  background: var(--accent-soft); color: var(--accent-strong);
+.login {
+  min-height: 100dvh; display: grid; gap: 18px; align-content: center; justify-items: center;
+  padding: 24px 16px; max-width: 440px; margin: 0 auto;
 }
-.role-icon .icon { width: 24px; height: 24px; }
-.role-card p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
-.role-card .open { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 650; font-size: 0.9rem; }
-
-.steps { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); counter-reset: step; }
-.step { display: grid; gap: 6px; align-content: start; padding: 14px; border-radius: var(--radius-sm); background: var(--surface-2); }
-.step h3 { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
-.step h3::before {
-  counter-increment: step;
-  content: counter(step);
-  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: #fff; font-size: 0.75rem;
-}
-.step p { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
-.step .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.login-brand { display: grid; gap: 6px; justify-items: center; text-align: center; }
+.login-brand .brand-mark { width: 56px; height: 56px; }
+.login-brand h1 { font-size: 1.7rem; }
+.login-brand p { margin: 0; }
+.login-card { width: 100%; }
+.login-error { color: var(--danger); margin: 0; min-height: 1.4em; }
+.password-field { position: relative; }
+.password-field input { width: 100%; padding-right: 64px; }
+.password-field button { position: absolute; top: 0; bottom: 0; right: 12px; }
+.login-note { display: flex; gap: 8px; margin: 0; }
+.login-note .icon { flex: none; }

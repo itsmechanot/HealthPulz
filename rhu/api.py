@@ -10,12 +10,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from rhu import db, rules, stats
+from rhu import auth, db, rules, stats
+from rhu.accounts import Session
 from rhu.config import PROTOCOL_VERSION, RETRY_AFTER_SECONDS
 from rhu.ingest import IngestPipeline, PipelineBusy
-from rhu.models import AlertStatusUpdate, RegisterRequest, RegisterResponse, SubmitBatch
+from rhu.models import AlertStatusUpdate, RegisterRequest, RegisterResponse, SubmitBatch, barangay_of
 
-router = APIRouter(prefix="/api")
+# Every route needs a login unless it is on public_router, so a new route can't be left open by accident.
+public_router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", dependencies=[Depends(auth.current_session)])
 
 
 def get_conn(request: Request) -> Iterator[sqlite3.Connection]:
@@ -30,12 +33,12 @@ def get_pipeline(request: Request) -> IngestPipeline:
     return request.app.state.pipeline
 
 
-@router.get("/health")
+@public_router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
 
 
-@router.get("/server/addresses")
+@router.get("/server/addresses", dependencies=[Depends(auth.require_rhu)])
 def server_addresses(request: Request) -> dict:
     """This server's LAN addresses, so the System Monitor can show classmates where to connect."""
     try:
@@ -46,7 +49,7 @@ def server_addresses(request: Request) -> dict:
     return {"addresses": addresses, "port": request.url.port}
 
 
-@router.get("/config")
+@public_router.get("/config")
 def get_config() -> dict:
     return {
         "protocol_version": PROTOCOL_VERSION,
@@ -55,13 +58,18 @@ def get_config() -> dict:
     }
 
 
-@router.get("/barangays")
+@public_router.get("/barangays")
 def list_barangays() -> list[dict]:
     return [{"barangay_id": b["barangay_id"], "name": b["name"]} for b in rules.barangays()]
 
 
 @router.post("/nodes/register")
-def register_node(req: RegisterRequest, conn: sqlite3.Connection = Depends(get_conn)) -> RegisterResponse:
+def register_node(
+    req: RegisterRequest,
+    conn: sqlite3.Connection = Depends(get_conn),
+    session: Session = Depends(auth.current_session),
+) -> RegisterResponse:
+    auth.require_may_send_for(session, req.barangay_id)
     barangay = rules.barangays_by_id().get(req.barangay_id)
     if barangay is None:
         raise HTTPException(status_code=404, detail="Unknown barangay_id")
@@ -81,9 +89,11 @@ def submit_batch(
     batch: SubmitBatch,
     conn: sqlite3.Connection = Depends(get_conn),
     pipeline: IngestPipeline = Depends(get_pipeline),
+    session: Session = Depends(auth.current_session),
 ) -> dict:
     """Stage 1 of the acknowledgement: queue the batch and reply RECEIVED right away.
     STORED follows once the DB writer thread has committed it."""
+    auth.require_may_send_for(session, barangay_of(batch.node_id))
     if conn.execute("SELECT 1 FROM nodes WHERE node_id = ?", (batch.node_id,)).fetchone() is None:
         raise HTTPException(status_code=404, detail="Unknown node_id; register first")
 
@@ -110,14 +120,14 @@ def batch_status(batch_id: UUID, conn: sqlite3.Connection = Depends(get_conn)) -
     return {"type": "BATCH_STATUS", "batch_id": str(batch_id), "status": "STORED", **dict(row)}
 
 
-@router.get("/analytics")
+@router.get("/analytics", dependencies=[Depends(auth.require_rhu)])
 def analytics_status(request: Request) -> dict:
     """The last analytics run (workers used, cases read, map/reduce time)."""
     result = request.app.state.analytics.last_result
     return {"last_run": result.to_dict() if result else None}
 
 
-@router.post("/analytics/run")
+@router.post("/analytics/run", dependencies=[Depends(auth.require_rhu)])
 async def run_analytics(request: Request) -> dict:
     """Run the analytics (and alert detection) now instead of waiting for the scheduler."""
     result = await asyncio.to_thread(request.app.state.analytics.run)
@@ -125,7 +135,7 @@ async def run_analytics(request: Request) -> dict:
     return {"last_run": result.to_dict(), "alerts_sent": len(alerts)}
 
 
-@router.get("/alerts")
+@router.get("/alerts", dependencies=[Depends(auth.require_rhu)])
 def list_alerts(
     status: Literal["OPEN", "ACKNOWLEDGED", "RESOLVED"] | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
@@ -153,7 +163,7 @@ def list_alerts(
     return [dict(r) for r in rows]
 
 
-@router.post("/alerts/{alert_id}/status")
+@router.post("/alerts/{alert_id}/status", dependencies=[Depends(auth.require_rhu)])
 def update_alert_status(alert_id: str, update: AlertStatusUpdate, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
     """RHU staff: acknowledge or resolve an alert."""
     with conn:
@@ -206,6 +216,6 @@ def stats_barangays(
     return stats.barangay_grid(conn, year, number)
 
 
-@router.get("/monitor/stats")
+@router.get("/monitor/stats", dependencies=[Depends(auth.require_rhu)])
 def monitor_stats(pipeline: IngestPipeline = Depends(get_pipeline)) -> dict:
     return pipeline.snapshot()

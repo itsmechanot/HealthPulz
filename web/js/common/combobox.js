@@ -1,4 +1,4 @@
-// Searchable dropdown: type part of a barangay name to filter the list.
+// Searchable dropdown: type part of a name to filter the list.
 // Keyboard: ↑/↓ to move, Enter to choose, Esc to close.
 // Matching ignores case and accents, so "capinahan" finds "Capiñahan".
 
@@ -25,7 +25,7 @@ export function createCombobox({ input, listbox, options, labelOf, onSelect }) {
             });
             return li;
           })
-        : [Object.assign(document.createElement("li"), { className: "no-match", textContent: "No barangay found" })]),
+        : [Object.assign(document.createElement("li"), { className: "no-match", textContent: "No match found" })]),
     );
     highlight();
     open(true);

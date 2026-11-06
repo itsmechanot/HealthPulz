@@ -2,7 +2,7 @@
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
-import { setupMenu } from "../common/shell.js";
+import { setupLogout, setupMenu } from "../common/shell.js";
 
 const HISTORY_SECONDS = 120;
 const RECONNECT_MS = 2000;
@@ -17,6 +17,7 @@ start();
 
 async function start() {
   setupMenu();
+  setupLogout();
   try {
     const config = await api.getConfig();
     barangayNames = Object.fromEntries(config.barangays.map((b) => [b.barangay_id, b.name]));
@@ -29,14 +30,14 @@ async function start() {
 
 async function showJoinAddresses() {
   try {
-    const res = await fetch("/api/server/addresses");
+    const res = await api.request("/api/server/addresses");
     const { addresses, port } = await res.json();
     const suffix = port ? `:${port}` : "";
     $("join-urls").textContent = addresses.length
-      ? addresses.map((ip) => `http://${ip}${suffix}/node/`).join("  or  ")
-      : `http://${location.host}/node/`;
+      ? addresses.map((ip) => `http://${ip}${suffix}/`).join("  or  ")
+      : `http://${location.host}/`;
   } catch {
-    $("join-urls").textContent = `http://${location.host}/node/`;
+    $("join-urls").textContent = `http://${location.host}/`;
   }
 }
 
@@ -45,7 +46,8 @@ function connect() {
   const ws = new WebSocket(api.wsUrl("/ws/monitor"));
   ws.onopen = () => setConnection("online");
   ws.onmessage = (event) => render(JSON.parse(event.data));
-  ws.onclose = () => {
+  ws.onclose = (event) => {
+    if (event.code === api.CLOSE_NOT_LOGGED_IN) return api.toLogin();
     setConnection("offline");
     setTimeout(connect, RECONNECT_MS);
   };

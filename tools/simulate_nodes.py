@@ -4,6 +4,9 @@ Every node behaves like the real node app: it registers, opens its WebSocket
 (HELLO), sends its batches over HTTP (retrying on 503 backpressure), and waits
 for a STORED message for each batch. The script then checks that no record was lost.
 
+It logs in with the LOADTEST account, which may send reports for any barangay and do nothing else.
+The password is read from var/accounts.txt; from another computer, pass it with --password.
+
 Usage (with the RHU server running):
     python tools/simulate_nodes.py --nodes 40 --batches 5 --records 100
 """
@@ -13,12 +16,19 @@ import asyncio
 import json
 import random
 import string
+import sys
 import time
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 import httpx
 import websockets
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # so `rhu` can be imported
+
+from rhu import accounts, config  # noqa: E402
+from rhu.auth import COOKIE  # noqa: E402
 
 DISEASES = ["ARI", "SKN", "PNE", "WND", "HTN", "TB", "FEV", "DIA", "DEN", "TYP"]
 STORED_TIMEOUT_SECONDS = 30
@@ -71,7 +81,7 @@ async def run_node(client: httpx.AsyncClient, barangay_id: str, args, stats: dic
     res.raise_for_status()
 
     ws_url = args.url.replace("http", "ws", 1) + f"/ws/node/{node_id}"
-    async with websockets.connect(ws_url) as ws:
+    async with websockets.connect(ws_url, additional_headers={"Cookie": f"{COOKIE}={args.token}"}) as ws:
         await ws.send(json.dumps({"type": "HELLO", "node_id": node_id, "pending_batches": 0}))
         json.loads(await ws.recv())  # WELCOME
 
@@ -88,9 +98,20 @@ async def run_node(client: httpx.AsyncClient, barangay_id: str, args, stats: dic
         return accepted
 
 
+async def log_in(client: httpx.AsyncClient, args) -> str:
+    password = args.password or accounts.read_passwords(config.DB_PATH).get(accounts.LOADTEST)
+    if not password:
+        raise SystemExit(f"No LOADTEST password in {accounts.passwords_path(config.DB_PATH)}. Use --password.")
+    res = await client.post("/api/auth/login", json={"username": accounts.LOADTEST, "password": password})
+    if res.status_code != 200:
+        raise SystemExit(f"Login failed (HTTP {res.status_code}). Check the LOADTEST password.")
+    return res.cookies[COOKIE]
+
+
 async def main(args) -> None:
     limits = httpx.Limits(max_connections=args.nodes)
     async with httpx.AsyncClient(base_url=args.url, timeout=30, limits=limits) as client:
+        args.token = await log_in(client, args)
         barangays = [b["barangay_id"] for b in (await client.get("/api/barangays")).json()]
         node_barangays = [barangays[i % len(barangays)] for i in range(args.nodes)]
         stats = {"busy_retries": 0}
@@ -111,6 +132,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     # 127.0.0.1, not localhost: on Windows, localhost tries IPv6 first and waits ~2 s per new connection.
     parser.add_argument("--url", default="http://127.0.0.1:8000")
+    parser.add_argument("--password", help="LOADTEST password (default: read from var/accounts.txt)")
     parser.add_argument("--nodes", type=int, default=40)
     parser.add_argument("--batches", type=int, default=5, help="batches per node")
     parser.add_argument("--records", type=int, default=100, help="records per batch (max 100)")

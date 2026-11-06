@@ -1,7 +1,7 @@
 # Screen spec: BHU (Barangay Health Unit)
 
 **For:** UI designer · **Page:** `/node/` · **Code:** [`web/node/index.html`](../../web/node/index.html), [`web/js/node/clinic.js`](../../web/js/node/clinic.js), [`web/js/node/records.js`](../../web/js/node/records.js)
-**Status:** working app, ready to be refined. The *screens, data and actions* below are fixed; the *look* is yours to improve. Login is not designed yet.
+**Status:** working app, ready to be refined. The *screens, data and actions* below are fixed; the *look* is yours to improve.
 
 | Clients (phone) | Client profile (phone) | Checkup form (phone) |
 |---|---|---|
@@ -15,7 +15,7 @@
 - **Who:** BHU workers (midwife, nurse, barangay health worker).
 - **Job:** register clients, record checkups, keep their history, and see illness trends and alerts from the RHU.
 - **Device:** phone or laptop, on plain HTTP on the local Wi-Fi, possibly with no internet. No web fonts or libraries from the internet.
-- **Account:** each barangay is one account, with the same records on any device or address. There is no login yet: anyone can pick any barangay, so use made-up clients.
+- **Account:** each barangay is one account, with the same records on any device or address. Everyone at a BHU shares its login, and it opens only that barangay's records.
 - **Privacy:** full records stay in the **barangay's own store**. The RHU's database receives only disease, dates, age, sex, purok and status.
 
 ## Navigation
@@ -29,8 +29,8 @@ Screens have their own URLs (`/node/#/client/<id>`), so reload and the Back butt
 
 ## Screens
 
-### 1. Choose your Barangay Health Unit
-First use only: searchable barangay field and a Start button. Accents are ignored ("capinahan" finds *Capiñahan*). The choice is remembered on the device, and login will replace this step later.
+### 1. Log in
+See [login.md](login.md). This page opens for the barangay that logged in; **Log out** is at the bottom of the sidebar.
 
 ### 2. Clients
 Search by name or contact number, **+ New client**, and a list showing name, age, sex, purok and last checkup. States: empty, no search match. If a browser still holds records from before the accounts existed, a card offers **Move to this barangay's account**; nothing moves until the worker presses it.

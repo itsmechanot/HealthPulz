@@ -26,7 +26,7 @@
       <a class="nav-link" href="#/activity" data-nav="activity"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Sync &amp; Backup<span class="count pending-count" hidden></span></a>
       <a class="nav-link" href="#/tools" data-nav="tools"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Demo Tools</a>
       <div class="sidebar-footer">
-        <button id="change-btn" class="btn btn-ghost btn-small btn-block" type="button">Change barangay</button>
+        <button id="logout-btn" class="btn btn-ghost btn-small btn-block" type="button">Log out</button>
       </div>
     </aside>
     <div class="scrim"></div>
@@ -49,22 +49,9 @@
       </header>
 
       <main class="content" style="max-width: 1100px">
-        <!-- ===== Setup: choose a barangay ===== -->
-        <section class="screen" data-screen="setup" hidden>
-          <section id="setup" class="card" style="max-width: 520px; width: 100%; justify-self: center; margin-top: 4vh">
-            <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg></span>
-            <h2 style="font-size: 1.3rem">Choose your Barangay Health Unit</h2>
-            <p class="muted" style="margin: 0">Client records are kept in your barangay's account and are the same on any device. Only de-identified case reports go to RHU Naval.</p>
-            <label for="barangay-input">Barangay</label>
-            <div class="combobox">
-              <input id="barangay-input" type="text" role="combobox" autocomplete="off"
-                     aria-autocomplete="list" aria-expanded="false" aria-controls="barangay-list"
-                     placeholder="Type to search, e.g. Caraycaray">
-              <ul id="barangay-list" role="listbox" aria-label="Barangays" hidden></ul>
-            </div>
-            <button id="start-btn" class="btn btn-primary btn-large btn-block" disabled>Start as this BHU</button>
-            <p id="setup-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
-          </section>
+        <!-- ===== Shown only when the server can't be reached while the page starts ===== -->
+        <section class="screen" data-screen="unreachable" hidden>
+          <p id="unreachable-error" class="card small" role="alert" style="color: var(--danger)"></p>
         </section>
 
         <!-- ===== Clients ===== -->

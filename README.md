@@ -54,10 +54,8 @@ pip install -r requirements-dev.txt
 uvicorn rhu.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-- Home page: http://localhost:8000/
-- BHU page: http://localhost:8000/node/ (other devices use `http://<your-laptop-IP>:8000/node/`)
-- System Monitor: http://localhost:8000/monitor/ (shows the join address for classmates)
-- RHU Dashboard: http://localhost:8000/dashboard/
+- Log in at http://localhost:8000/ (other devices use `http://<your-laptop-IP>:8000/`). Each account goes to its own side: a barangay to its BHU page, RHU Naval to the dashboard and System Monitor.
+- **Passwords:** created on first start. See them with `python -m rhu.accounts` (they are in `var/accounts.txt`, which git ignores). New password: `python -m rhu.accounts reset BRGY-08`.
 - API docs: http://localhost:8000/docs
 - The RHU's database is created automatically at `var/healthpulz.db` (override with the `HEALTHPULZ_DB` environment variable). Each BHU's records go in `var/bhu/` beside it.
 - `--host 0.0.0.0` lets classmates' devices on the same network connect.

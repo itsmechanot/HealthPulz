@@ -1,5 +1,5 @@
-"""HTTP endpoints for a BHU's own records (one account per barangay). No login yet: anyone on the
-network can call these, so use only made-up clients until login exists."""
+"""HTTP endpoints for a BHU's own records (one account per barangay). Only that BHU's login can
+reach them; not another BHU, and not the RHU, which receives de-identified reports only."""
 
 import sqlite3
 from collections.abc import Callable
@@ -8,13 +8,13 @@ from functools import wraps
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
-from rhu import db, rules
+from rhu import auth, db, rules
 from rhu.bhu_store import BhuStores, InvalidRecord, OutboxRelay, RecordNotFound, station_id
 from rhu.models import ClientFields, ConsultationCorrection, ConsultationFields, VoidRequest
 
-router = APIRouter(prefix="/api/bhu/{barangay_id}")
+router = APIRouter(prefix="/api/bhu/{barangay_id}", dependencies=[Depends(auth.require_own_records)])
 
 
 def _guarded(handler: Callable) -> Callable:

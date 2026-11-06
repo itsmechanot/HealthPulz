@@ -12,9 +12,8 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
-from rhu import api, bhu_api, config, db, ws
+from rhu import accounts, api, auth, bhu_api, config, db, ws
 from rhu.alerts import AlertService
 from rhu.analytics import Analytics, run_when_cases_change
 from rhu.bhu_store import BhuStores, OutboxRelay
@@ -39,6 +38,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         db.init_db(db_path)
+        accounts.ensure_accounts(db_path)
         hub = Hub()
         hub.bind_loop(asyncio.get_running_loop())
         stores = BhuStores(db_path.parent / "bhu")
@@ -82,6 +82,9 @@ def create_app(
 
     app = FastAPI(title="HealthPulz RHU Server", version="0.1.0", lifespan=lifespan)
     app.state.db_path = db_path
+    app.state.login_throttle = auth.LoginThrottle()
+    app.include_router(auth.router)
+    app.include_router(api.public_router)
     app.include_router(api.router)
     app.include_router(bhu_api.router)
     app.include_router(ws.router)
@@ -91,8 +94,8 @@ def create_app(
     async def malformed_message(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(status_code=400, content=jsonable_encoder({"detail": exc.errors()}))
 
-    # Web pages (BHS Node, dashboards). Mounted last so /api and /ws routes take priority.
-    app.mount("/", StaticFiles(directory=config.WEB_DIR, html=True), name="web")
+    # Web pages (login, BHU, RHU). Mounted last so /api and /ws routes take priority.
+    app.mount("/", auth.GuardedPages(directory=config.WEB_DIR, html=True), name="web")
 
     return app
 

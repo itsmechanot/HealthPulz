@@ -6,7 +6,7 @@ import { lineChart } from "../common/chart.js";
 import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
 import { createNavalMap } from "../common/naval-map.js";
-import { createRouter, setupMenu } from "../common/shell.js";
+import { createRouter, setupLogout, setupMenu } from "../common/shell.js";
 
 const REFRESH_MS = 10_000;
 const SPARKLINE_WEEKS = 12;
@@ -53,6 +53,7 @@ async function start() {
   tracked = config.diseases.filter((d) => d.tracked);
   state.disease = tracked[0].disease_code;
   setupMenu();
+  setupLogout();
   buildControls();
   [overviewMap, bigMap] = await Promise.all([
     createNavalMap($("ov-map"), { labels: false, onSelect: (id) => selectBarangay(id, true) }),
@@ -99,7 +100,10 @@ function watchStations() {
     data.nodes = JSON.parse(event.data).nodes;
     renderStations();
   };
-  ws.onclose = () => setTimeout(watchStations, 3000);
+  ws.onclose = (event) => {
+    if (event.code === api.CLOSE_NOT_LOGGED_IN) return api.toLogin();
+    setTimeout(watchStations, 3000);
+  };
 }
 
 function setConnection(stateName, text) {

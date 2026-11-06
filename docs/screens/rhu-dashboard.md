@@ -100,5 +100,5 @@ Heatmap table: all 26 barangays, with a **Common / Urgent / Monitored** switch f
 | Map shapes | `/data/naval-map.json` (built by [`tools/build_map.py`](../../tools/build_map.py)) |
 
 ## Known limits
-- **No login:** anyone on the network can acknowledge or resolve alerts. That's fine for the class demo; real use would need RHU accounts.
+- **One shared RHU login:** the system can't tell which staff member acknowledged or resolved an alert.
 - **Synthetic populations:** they affect the "per 10,000" rates.

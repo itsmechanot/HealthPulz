@@ -2,16 +2,19 @@
 
 import asyncio
 import time
+from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, FastAPI, WebSocket, WebSocketDisconnect
 
-from rhu import db
+from rhu import auth, db
+from rhu.accounts import Session
 from rhu.bhu_store import station_id
 from rhu.config import MONITOR_INTERVAL_SECONDS, NODE_RECENT_HOURS
 from rhu.hub import Hub
+from rhu.models import barangay_of
 
 router = APIRouter()
 
@@ -20,11 +23,13 @@ CLOSE_UNKNOWN_NODE = 4404
 
 
 @router.websocket("/ws/node/{node_id}")
-async def node_socket(ws: WebSocket, node_id: str) -> None:
+async def node_socket(ws: WebSocket, node_id: str, session: Session | None = Depends(auth.optional_session)) -> None:
     hub: Hub = ws.app.state.hub
     db_path: Path = ws.app.state.db_path
     joined = False
-    await ws.accept()
+    await ws.accept()  # accepted first: a refused handshake can't tell the page why
+    if not await _allowed(ws, session, lambda s: s.may_send_for(barangay_of(node_id))):
+        return
     try:
         hello = await ws.receive_json()
         if _type(hello) != "HELLO" or hello.get("node_id") != node_id:
@@ -62,9 +67,11 @@ async def node_socket(ws: WebSocket, node_id: str) -> None:
 
 
 @router.websocket("/ws/monitor")
-async def monitor_socket(ws: WebSocket) -> None:
+async def monitor_socket(ws: WebSocket, session: Session | None = Depends(auth.optional_session)) -> None:
     hub: Hub = ws.app.state.hub
     await ws.accept()
+    if not await _allowed(ws, session, lambda s: s.is_rhu):
+        return
     hub.add_monitor(ws)
     try:
         # Send one snapshot right away so the page doesn't start empty.
@@ -116,6 +123,16 @@ async def build_snapshot(app: FastAPI, records_per_second: float) -> dict:
         "analytics": analytics.to_dict() if analytics else None,
         "nodes": nodes,
     }
+
+
+async def _allowed(ws: WebSocket, session: Session | None, rule: Callable[[Session], bool]) -> bool:
+    if session is None:
+        await ws.close(code=auth.CLOSE_NOT_LOGGED_IN, reason="Please log in")
+        return False
+    if not rule(session):
+        await ws.close(code=auth.CLOSE_NOT_ALLOWED, reason="Not allowed for this account")
+        return False
+    return True
 
 
 def _type(message) -> str | None:

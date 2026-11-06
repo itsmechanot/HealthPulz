@@ -18,10 +18,10 @@ export async function addBatches(batches) {
   await run("readwrite", (store) => batches.forEach((b) => store.put(b)));
 }
 
-/** All waiting batches, oldest first. */
-export async function allBatches() {
+/** This station's waiting batches, oldest first. A browser shared by two BHUs keeps each one's apart. */
+export async function allBatches(nodeId) {
   const batches = (await openDb()) ? await run("readonly", (store) => store.getAll()) : [...memory.values()];
-  return batches.sort((a, b) => a.sent_at.localeCompare(b.sent_at));
+  return batches.filter((b) => b.node_id === nodeId).sort((a, b) => a.sent_at.localeCompare(b.sent_at));
 }
 
 export async function removeBatch(batchId) {
@@ -35,8 +35,4 @@ export async function removeBatch(batchId) {
 export async function hasBatch(batchId) {
   if (!(await openDb())) return memory.has(batchId);
   return (await run("readonly", (store) => store.count(batchId))) > 0;
-}
-
-export async function countBatches() {
-  return (await openDb()) ? run("readonly", (store) => store.count()) : memory.size;
 }

@@ -1,13 +1,12 @@
-// BHU page: log in as a barangay (one account and station per barangay, on any device), keep client
+// BHU page, for the barangay that is logged in (one account and station per barangay): keep client
 // records (clinic.js), show delivery status, alerts and trends. Demo Tools generate test data and
 // the stress test; only those batches are sent from the browser, with their own offline outbox.
 
 import * as api from "../common/api.js";
 import { uuid4 } from "../common/ids.js";
 import { diseaseOptions } from "../common/diseases.js";
-import { createRouter, setupMenu, toast } from "../common/shell.js";
+import { createRouter, setupLogout, setupMenu, toast } from "../common/shell.js";
 import { createClinic } from "./clinic.js";
-import { createCombobox } from "./combobox.js";
 import { browserRecords, clearBrowserRecords } from "./db.js";
 import { NodeConnection } from "./connection.js";
 import { realisticWeek, stressRecords } from "./generator.js";
@@ -21,10 +20,10 @@ const MAX_RECORDS_PER_BATCH = 100;
 const MAX_STRESS_RECORDS = 5000;
 const MAX_LOG_ENTRIES = 100;
 const ALERT_GROUPING_MS = 500;
-const IDENTITY_KEY = "healthpulz.node";
 
 const $ = (id) => document.getElementById(id);
 const totals = { stored: 0, duplicates: 0, rejected: 0 };
+let stationId = null;
 let pendingBatches = 0;
 let router = null;
 let unseenAlerts = 0;
@@ -34,53 +33,20 @@ let announceTimer = null;
 main();
 
 async function main() {
-  let config;
+  let config, account;
   try {
-    config = await api.getConfig();
+    [config, account] = await Promise.all([api.getConfig(), api.getAccount()]);
   } catch (error) {
-    showSetupScreen();
-    $("setup-error").textContent = `Cannot reach the RHU server. Check the Wi-Fi and reload. (${error.message})`;
+    document.querySelector('[data-screen="unreachable"]').hidden = false;
+    $("unreachable-error").textContent = `Cannot reach the RHU server. Check the Wi-Fi and reload. (${error.message})`;
     return;
   }
-
-  const saved = loadIdentity();
-  const barangay = saved && config.barangays.find((b) => b.barangay_id === saved.barangay_id);
-  if (barangay) startStation(config, identityOf(barangay.barangay_id), barangay);
-  else showSetup(config);
+  const barangay = config.barangays.find((b) => b.barangay_id === account.barangay_id);
+  startStation(config, identityOf(barangay.barangay_id), barangay);
 }
-
-// ---- step 1: choose a barangay ---------------------------------------------
-
-function showSetupScreen() {
-  document.querySelector('[data-screen="setup"]').hidden = false;
-}
-
-function showSetup(config) {
-  showSetupScreen();
-  let chosen = null;
-
-  createCombobox({
-    input: $("barangay-input"),
-    listbox: $("barangay-list"),
-    options: [...config.barangays].sort((a, b) => a.name.localeCompare(b.name)),
-    labelOf: (b) => b.name,
-    onSelect: (b) => {
-      chosen = b;
-      $("start-btn").disabled = !b;
-    },
-  });
-
-  $("start-btn").addEventListener("click", () => {
-    const identity = identityOf(chosen.barangay_id);
-    saveIdentity(identity);
-    document.querySelector('[data-screen="setup"]').hidden = true;
-    startStation(config, identity, chosen);
-  });
-}
-
-// ---- step 2: the station ---------------------------------------------------
 
 async function startStation(config, identity, barangay) {
+  stationId = identity.node_id;
   document.querySelector(".app").classList.remove("setup-mode");
   document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
@@ -107,7 +73,7 @@ async function startStation(config, identity, barangay) {
     }
   };
 
-  const sender = new Sender(register);
+  const sender = new Sender(identity.node_id, register);
   const connection = new NodeConnection(identity.node_id, () => pendingBatches);
   const trends = startTrendsPanel(config, barangay);
   clinic = createClinic({ config, router });
@@ -169,15 +135,11 @@ async function startStation(config, identity, barangay) {
   sender.addEventListener("changed", refreshPending);
 
   setupGenerator(config, identity, barangay, sender);
-  $("change-btn").addEventListener("click", () => {
-    const warning = pendingBatches
-      ? `\n\n${pendingBatches} batch(es) are still waiting; they will still be delivered.`
-      : "";
-    // Records belong to the barangay, so switching back shows them again.
-    if (!confirm(`Switch to a different barangay?${warning}`)) return;
-    clearIdentity();
-    location.reload();
-  });
+  // Records are on the server, so only unsent Demo Tools batches are worth a warning.
+  setupLogout(() =>
+    !pendingBatches ||
+    confirm(`${pendingBatches} batch(es) are still waiting on this device. They will send the next time this BHU logs in here. Log out?`),
+  );
 
   if (await register()) log(`Connected as ${identity.node_id}`);
   await refreshPending();
@@ -319,7 +281,7 @@ function recordStored(message) {
 }
 
 async function refreshPending() {
-  pendingBatches = await outbox.countBatches();
+  pendingBatches = (await outbox.allBatches(stationId)).length;
   $("stat-pending").textContent = pendingBatches;
   document.querySelectorAll(".pending-count").forEach((badge) => {
     badge.hidden = pendingBatches === 0;
@@ -455,28 +417,4 @@ const shortId = (id) => id.slice(0, 8);
 /** Every device logged in as a barangay shares one station. */
 function identityOf(barangayId) {
   return { node_id: `${barangayId}-MAIN`, barangay_id: barangayId };
-}
-
-function loadIdentity() {
-  try {
-    return JSON.parse(localStorage.getItem(IDENTITY_KEY));
-  } catch {
-    return null;
-  }
-}
-
-function saveIdentity(identity) {
-  try {
-    localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
-  } catch {
-    // Without storage the barangay must be chosen again after a reload; it still works.
-  }
-}
-
-function clearIdentity() {
-  try {
-    localStorage.removeItem(IDENTITY_KEY);
-  } catch {
-    // nothing stored, nothing to clear
-  }
 }

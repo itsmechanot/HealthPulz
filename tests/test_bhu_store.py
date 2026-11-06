@@ -10,9 +10,10 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.factories import create_test_app
+
 from rhu.bhu_store import BhuStores, OutboxRelay, age_on, station_id
 from rhu.ingest import PipelineBusy
-from rhu.main import create_app
 
 BARANGAY = "BRGY-08"
 OTHER_BARANGAY = "BRGY-01"
@@ -245,7 +246,7 @@ def test_records_moved_from_a_browser_are_sent_to_the_rhu_once(client):
 
 def test_report_left_in_the_outbox_is_delivered_after_a_restart(tmp_path):
     db_path = tmp_path / "test.db"
-    with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as first:
+    with TestClient(create_test_app(db_path)) as first:
         client_id = add_client(first)
 
     # The server stops right after the commit, before the relay could send the report.
@@ -254,7 +255,7 @@ def test_report_left_in_the_outbox_is_delivered_after_a_restart(tmp_path):
     stores.save_consultation(BARANGAY, client_id, consultation_id, {**DENGUE, "temperature": 38.9, "bp_systolic": None})
     assert len(stores.pending_reports(BARANGAY)) == 1
 
-    with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as second:
+    with TestClient(create_test_app(db_path)) as second:
         second.post("/api/nodes/register", json={"type": "REGISTER", "node_id": "BRGY-08-MAIN", "barangay_id": BARANGAY})
         wait_for_sync(second, consultation_id)
         assert len(rhu_cases(second)) == 1

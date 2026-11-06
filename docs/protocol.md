@@ -14,9 +14,40 @@ Every message is JSON and carries a `type` field.
 
 ---
 
+## Login and access
+
+There is **one shared login per BHU, one for the RHU**, and one for the load-test tool. The username is the barangay ID (`BRGY-08`), `RHU` or `LOADTEST`. The server generates the passwords on first start and lists them in `var/accounts.txt`, which git ignores:
+
+```powershell
+python -m rhu.accounts                  # show them
+python -m rhu.accounts reset BRGY-08    # new password; logs that account's devices out
+```
+
+The database holds only salted scrypt hashes of the passwords, and SHA-256 hashes of the login tokens.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/auth/login` | `{"username": "BRGY-08", "password": "…"}`. Returns `{username, role, barangay_id, home}` and sets the `healthpulz_session` cookie (HttpOnly, SameSite=Lax, 12 hours). `401` if wrong; `429` with `Retry-After` for 60 seconds after 5 wrong tries from one device |
+| `POST` | `/api/auth/logout` | Ends the session on the server and clears the cookie |
+| `GET` | `/api/auth/me` | The logged-in account, or `401` |
+
+**Who can do what.** The server enforces this; hiding a link protects nothing.
+
+| | BHU | RHU | LOADTEST | Not logged in |
+|---|---|---|---|---|
+| `/api/bhu/{barangay_id}/…` (names, clinical details) | own barangay only | **no** | no | no |
+| `POST /api/nodes/register`, `POST /api/batches`, `WS /ws/node/{node_id}` | own barangay only | no | any barangay | no |
+| `GET /api/batches/{id}`, `/api/stats/…` (weekly totals) | yes | yes | yes | no |
+| `/api/alerts…`, `/api/analytics…`, `/api/monitor/stats`, `/api/server/addresses`, `WS /ws/monitor` | no | yes | no | no |
+| `/node/` page | yes | no | no | no |
+| `/dashboard/`, `/monitor/` pages | no | yes | no | no |
+| `/`, `/api/health`, `/api/config`, `/api/barangays` | yes | yes | yes | yes |
+
+Refusals are `401` (not logged in, so the page goes to the login page) or `403` (logged in, not allowed). A page opened by the wrong account redirects to that account's own side. WebSockets close with `4401` or `4403`.
+
 ## 1. BHU accounts and stations
 
-Each barangay is **one account with one fixed station**: `{barangay_id}-MAIN` (e.g. `BRGY-08-MAIN`). Choosing a barangay from the searchable dropdown logs the device in to that account, so its records are the same on any device or address. Every connected device shares the station, and the System Monitor counts the devices.
+Each barangay is **one account with one fixed station**: `{barangay_id}-MAIN` (e.g. `BRGY-08-MAIN`). Logging in with the barangay's password opens that account, so its records are the same on any device or address. Every connected device shares the station, and the System Monitor counts the devices.
 
 `POST /api/nodes/register` makes sure the station exists:
 ```json
@@ -27,7 +58,6 @@ Response:
 { "type": "REGISTERED", "node_id": "BRGY-08-MAIN", "barangay_id": "BRGY-08", "barangay": "Caraycaray" }
 ```
 
-> **Scope note:** there is no login yet, and the dropdown has no password. Anyone on the network can open any barangay's records, so **use only made-up clients until login exists**.
 
 ### BHU records and the transactional outbox
 

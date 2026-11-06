@@ -2,6 +2,7 @@
 // (rhu/bhu_store.py), so they are the same on any device or address. The server turns each
 // checkup into a de-identified report for the RHU; names and clinical details stay in the store.
 
+import { request as loggedInFetch } from "../common/api.js";
 import { uuid4 } from "../common/ids.js";
 
 export const SYNC = { WAITING: "WAITING", STORED: "STORED", REJECTED: "REJECTED" };
@@ -16,7 +17,7 @@ export function useBarangay(barangayId) {
 async function request(path, { method = "GET", body } = {}) {
   let res;
   try {
-    res = await fetch(base + path, {
+    res = await loggedInFetch(base + path, {
       method,
       ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     });

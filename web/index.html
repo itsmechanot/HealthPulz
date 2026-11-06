@@ -2,94 +2,49 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HealthPulz · RHU Naval</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e8c6e">
+  <title>HealthPulz · Log in</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/css/base.css">
 </head>
 <body>
-  <header class="app-header">
-    <a class="brand" href="/">
+  <main class="login">
+    <div class="login-brand">
       <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
-      <span class="brand-name">HealthPulz</span>
-    </a>
-    <nav class="app-nav" aria-label="Pages">
-      <a href="/node/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>BHU</a>
-      <a href="/dashboard/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>RHU Dashboard</a>
-      <a href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
-    </nav>
-    <span id="connection" class="pill" role="status">Checking…</span>
-  </header>
+      <h1>HealthPulz</h1>
+      <p class="muted">Disease monitoring for the Barangay Health Units of Naval, Biliran</p>
+    </div>
 
-  <main class="container wide">
-    <section class="hero">
-      <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
-      <h1>A Distributed Disease Monitoring System for Barangay Health Centers</h1>
-      <p>RHU Naval, Biliran gathers weekly case reports from its 26 Barangay Health Units, analyzes them in parallel
-        to find illness trends, and sends outbreak alerts back to the barangays.</p>
-    </section>
-
-    <!-- Live numbers -->
-    <section class="stats kpis" aria-label="System right now">
-      <div class="stat"><div id="home-nodes" class="stat-value">–</div><div class="stat-label">Stations online</div></div>
-      <div class="stat"><div id="home-cases" class="stat-value">–</div><div class="stat-label">Cases in Naval this week (so far)</div></div>
-      <div class="stat"><div id="home-alerts" class="stat-value">–</div><div class="stat-label">Open outbreak alerts</div></div>
-      <div class="stat"><div id="home-analytics" class="stat-value">–</div><div class="stat-label" id="home-analytics-label">Last analytics run</div></div>
-    </section>
-
-    <!-- Who uses what -->
-    <section class="role-cards" aria-label="Pages">
-      <a class="card role-card" href="/node/">
-        <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg></span>
-        <h2>BHU</h2>
-        <p><strong>For barangay health units.</strong> Keep client records and checkups, send case reports to the RHU, receive outbreak alerts, and see Naval's trends. Works on a phone.</p>
-        <span class="open">Open the station <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#arrow"/></svg></span>
-      </a>
-      <a class="card role-card" href="/dashboard/">
-        <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg></span>
-        <h2>RHU Dashboard</h2>
-        <p><strong>For RHU staff.</strong> Illness trends per barangay and disease, outbreak alerts to acknowledge and resolve.</p>
-        <span class="open">Open the dashboard <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#arrow"/></svg></span>
-      </a>
-      <a class="card role-card" href="/monitor/">
-        <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg></span>
-        <h2>System Monitor</h2>
-        <p><strong>For the live demo.</strong> Watch the queues, threads and worker processes handle many stations sending at once.</p>
-        <span class="open">Open the monitor <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#arrow"/></svg></span>
-      </a>
-    </section>
-
-    <!-- How it works -->
-    <section class="card" aria-labelledby="how-title">
-      <h2 id="how-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#layers"/></svg>How it works</h2>
-      <div class="steps">
-        <div class="step">
-          <h3>Stations send cases</h3>
-          <p>Each BHU is an independent node. Batches are kept on the device until the RHU confirms them, so nothing is lost offline.</p>
-          <div class="chips"><span class="chip">Distributed nodes</span><span class="chip">Message passing</span></div>
-        </div>
-        <div class="step">
-          <h3>RHU ingests in parallel</h3>
-          <p>A bounded queue absorbs bursts; validator threads check every record; one writer thread saves them in groups.</p>
-          <div class="chips"><span class="chip">Threads</span><span class="chip">Queues</span><span class="chip">Backpressure</span></div>
-        </div>
-        <div class="step">
-          <h3>Analytics find trends</h3>
-          <p>Worker processes compute weekly counts and outbreak thresholds per barangay, then the results are merged.</p>
-          <div class="chips"><span class="chip">Process pool</span><span class="chip">MapReduce</span></div>
-        </div>
-        <div class="step">
-          <h3>Alerts go back out</h3>
-          <p>Outbreaks are pushed live to the barangay and its neighbors; offline stations get them when they reconnect.</p>
-          <div class="chips"><span class="chip">WebSockets</span><span class="chip">Store-and-forward</span></div>
+    <form id="login-form" class="card login-card" novalidate>
+      <div class="field">
+        <label for="unit-input">Health unit</label>
+        <div class="combobox">
+          <input id="unit-input" type="text" role="combobox" autocomplete="off"
+                 aria-autocomplete="list" aria-expanded="false" aria-controls="unit-list"
+                 placeholder="Type your barangay, or RHU Naval">
+          <ul id="unit-list" role="listbox" aria-label="Health units" hidden></ul>
         </div>
       </div>
-      <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-        No names or addresses are collected, and barangays only see weekly totals, never individual cases (Data Privacy Act of 2012).</p>
-    </section>
-  </main>
 
-  <footer class="app-footer">HealthPulz · RHU Naval, Biliran · All data is synthetic · Parallel and Distributed Systems project</footer>
-  <script type="module" src="/js/home/main.js"></script>
+      <div class="field">
+        <label for="password-input">Password</label>
+        <div class="password-field">
+          <input id="password-input" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false">
+          <button id="show-password" class="link-btn small" type="button" aria-pressed="false" aria-label="Show password">Show</button>
+        </div>
+      </div>
+
+      <button id="login-btn" class="btn btn-primary btn-large btn-block" type="submit" disabled>Log in</button>
+      <p id="login-error" class="small login-error" role="alert"></p>
+    </form>
+
+    <p class="login-note muted small">
+      <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
+      Client records stay with their own health unit. RHU Naval receives de-identified reports only.
+      Forgot your password? Ask the RHU.
+    </p>
+  </main>
+  <script type="module" src="/js/login/main.js"></script>
 </body>
 </html>

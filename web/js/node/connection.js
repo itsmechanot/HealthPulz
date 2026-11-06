@@ -5,7 +5,7 @@
 //   message       any message from the RHU (STORED, ALERT, ERROR, ...)
 //   unregistered  the RHU doesn't know this node (close code 4404)
 
-import { wsUrl } from "../common/api.js";
+import { CLOSE_NOT_LOGGED_IN, toLogin, wsUrl } from "../common/api.js";
 
 const HEARTBEAT_MS = 10_000;
 const MAX_RECONNECT_MS = 15_000;
@@ -41,6 +41,7 @@ export class NodeConnection extends EventTarget {
     };
 
     ws.onclose = (event) => {
+      if (event.code === CLOSE_NOT_LOGGED_IN) return toLogin();
       this.stopHeartbeat();
       this.emit("status", "offline");
       if (event.code === CLOSE_UNKNOWN_NODE) this.emit("unregistered");

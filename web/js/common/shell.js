@@ -1,6 +1,7 @@
 // App shell behavior shared by the dashboard, node and monitor pages:
 // the slide-out menu on phones, hash-based screens, and toast notifications.
 
+import { logOut } from "./api.js";
 import { el } from "./dom.js";
 
 /** Opens/closes the sidebar on narrow screens. */
@@ -14,6 +15,21 @@ export function setupMenu() {
   document.querySelector(".scrim")?.addEventListener("click", () => toggle(false));
   document.querySelectorAll(".sidebar a").forEach((a) => a.addEventListener("click", () => toggle(false)));
   document.addEventListener("keydown", (e) => e.key === "Escape" && toggle(false));
+}
+
+/** The sidebar's Log out button. confirmFirst can return false to stay logged in. */
+export function setupLogout(confirmFirst = () => true) {
+  const button = document.getElementById("logout-btn");
+  button.addEventListener("click", async () => {
+    if (!confirmFirst()) return;
+    button.disabled = true;
+    try {
+      await logOut();
+    } catch {
+      toast({ title: "Could not log out", body: "Cannot reach the RHU server.", level: "ALERT" });
+      button.disabled = false;
+    }
+  });
 }
 
 /**

@@ -6,8 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from rhu.history import import_history
-from rhu.main import create_app
-from tests.factories import NODE, make_batch, make_record, wait_for_stored
+from tests.factories import NODE, make_batch, make_record, wait_for_stored, create_test_app
 
 
 @pytest.fixture(scope="module")
@@ -16,7 +15,7 @@ def analyzed(tmp_path_factory):
     4 live dengue cases this week, analytics run."""
     db_path = tmp_path_factory.mktemp("stats") / "test.db"
     import_history(db_path, years=3)
-    with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as client:
+    with TestClient(create_test_app(db_path)) as client:
         client.post("/api/nodes/register", json={"type": "REGISTER", "node_id": NODE, "barangay_id": "BRGY-08"})
         today = date.today().isoformat()
         batch = make_batch(NODE, records=[make_record(disease_code="DEN", onset_date=today, consult_date=today) for _ in range(4)])

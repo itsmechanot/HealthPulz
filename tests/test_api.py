@@ -10,31 +10,6 @@ def register(client, node_id="BRGY-08-K7QX", barangay_id="BRGY-08"):
     )
 
 
-def test_root_serves_landing_page(client):
-    res = client.get("/")
-    assert res.status_code == 200
-    assert "BHU" in res.text
-
-
-def test_node_page_is_served(client):
-    res = client.get("/node/")
-    assert res.status_code == 200
-    assert "/js/node/main.js" in res.text
-    assert "Trends from RHU Naval" in res.text
-
-
-def test_dashboard_page_is_served(client):
-    res = client.get("/dashboard/")
-    assert res.status_code == 200
-    assert "/js/dashboard/main.js" in res.text
-
-
-def test_monitor_page_is_served(client):
-    res = client.get("/monitor/")
-    assert res.status_code == 200
-    assert "/js/monitor/main.js" in res.text
-
-
 def test_server_addresses(client):
     body = client.get("/api/server/addresses").json()
     assert isinstance(body["addresses"], list)
@@ -53,21 +28,6 @@ def test_icon_sprite_is_served_as_svg(client):
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("image/svg+xml")
     assert 'id="logo"' in res.text
-
-
-def test_home_links_to_each_side(client):
-    html = client.get("/").text
-    assert all(f'href="{target}"' in html for target in ("/node/", "/dashboard/", "/monitor/"))
-
-
-def test_rhu_and_bhu_pages_do_not_link_to_each_other(client):
-    bhu = client.get("/node/").text
-    assert not any(f'href="{target}"' in bhu for target in ("/", "/dashboard/", "/monitor/"))
-
-    for page, other_rhu_page in (("/dashboard/", "/monitor/"), ("/monitor/", "/dashboard/")):
-        rhu = client.get(page).text
-        assert not any(f'href="{target}"' in rhu for target in ("/", "/node/")), page
-        assert f'href="{other_rhu_page}"' in rhu, page
 
 
 def test_map_matches_the_barangay_list(client):
