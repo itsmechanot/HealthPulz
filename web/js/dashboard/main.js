@@ -1,5 +1,5 @@
-// RHU Dashboard: five screens (Overview, Map, Alerts, Trends, Barangays) over the
-// /api/stats and /api/alerts endpoints, refreshed every 10 s (the analytics interval).
+// RHU Dashboard: Overview, Map, Alerts, Trends and Barangays over the /api/stats and /api/alerts
+// endpoints, refreshed every 10 s (the analytics interval), plus BHU Accounts (accounts.js).
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
@@ -7,6 +7,7 @@ import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
 import { createNavalMap } from "../common/naval-map.js";
 import { createRouter, setupLogout, setupMenu } from "../common/shell.js";
+import { createAccountsScreen } from "./accounts.js";
 
 const REFRESH_MS = 10_000;
 const SPARKLINE_WEEKS = 12;
@@ -18,6 +19,7 @@ const SCREENS = {
   alerts: ["Alerts", "Outbreaks detected by the parallel analytics"],
   trends: ["Trends", "Weekly cases compared with outbreak thresholds"],
   barangays: ["Barangays", "Every barangay and disease for one week"],
+  accounts: ["BHU Accounts", "Give each Barangay Health Unit its password"],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -60,7 +62,9 @@ async function start() {
     createNavalMap($("big-map"), { onSelect: (id) => selectBarangay(id, false) }),
   ]);
   watchStations();
+  const accounts = createAccountsScreen();
   router = createRouter("overview", (screen) => {
+    if (screen === "accounts") accounts.show();
     const [title, subtitle] = SCREENS[screen];
     $("screen-title").textContent = title;
     $("screen-subtitle").textContent = subtitle;
@@ -124,7 +128,7 @@ function renderChrome() {
 }
 
 function renderScreen(screen) {
-  ({ overview: renderOverview, map: renderMapScreen, alerts: renderAlertsScreen, trends: renderTrends, barangays: renderGrid })[screen]();
+  ({ overview: renderOverview, map: renderMapScreen, alerts: renderAlertsScreen, trends: renderTrends, barangays: renderGrid })[screen]?.();
 }
 
 // ---- Overview ------------------------------------------------------------------------

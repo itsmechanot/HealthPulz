@@ -16,20 +16,25 @@ Every message is JSON and carries a `type` field.
 
 ## Login and access
 
-There is **one shared login per BHU, one for the RHU**, and one for the load-test tool. The username is the barangay ID (`BRGY-08`), `RHU` or `LOADTEST`. The server generates the passwords on first start and lists them in `var/accounts.txt`, which git ignores:
+There is **one shared login per BHU, one for the RHU**, and one for the load-test tool. The username is the barangay ID (`BRGY-08`), `RHU` or `LOADTEST`.
+
+**Only the RHU gives a BHU its password**, on the dashboard's BHU Accounts screen. Until then the BHU can't log in. A password is shown once, when it is given, and never written to a file. The database holds only salted scrypt hashes of passwords and SHA-256 hashes of login tokens.
+
+The RHU's and LOADTEST's own passwords are generated on first start and listed in `var/accounts.txt`, which git ignores:
 
 ```powershell
-python -m rhu.accounts                  # show them
-python -m rhu.accounts reset BRGY-08    # new password; logs that account's devices out
+python -m rhu.accounts              # show them
+python -m rhu.accounts reset RHU    # new password; logs that account's devices out
 ```
-
-The database holds only salted scrypt hashes of the passwords, and SHA-256 hashes of the login tokens.
 
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/auth/login` | `{"username": "BRGY-08", "password": "…"}`. Returns `{username, role, barangay_id, home}` and sets the `healthpulz_session` cookie (HttpOnly, SameSite=Lax, 12 hours). `401` if wrong; `429` with `Retry-After` for 60 seconds after 5 wrong tries from one device |
 | `POST` | `/api/auth/logout` | Ends the session on the server and clears the cookie |
 | `GET` | `/api/auth/me` | The logged-in account, or `401` |
+| `GET` | `/api/accounts` | RHU: every BHU with `assigned` and `password_set_at`, never the password |
+| `POST` | `/api/accounts/{barangay_id}/password` | RHU: `{"password": "…"}` (8+ characters), or `{}` to generate one. Returns it once and logs out that BHU's devices |
+| `POST` | `/api/accounts/assign-missing` | RHU: generates a password for every BHU without one and returns the list once |
 
 **Who can do what.** The server enforces this; hiding a link protects nothing.
 
@@ -38,6 +43,7 @@ The database holds only salted scrypt hashes of the passwords, and SHA-256 hashe
 | `/api/bhu/{barangay_id}/…` (names, clinical details) | own barangay only | **no** | no | no |
 | `POST /api/nodes/register`, `POST /api/batches`, `WS /ws/node/{node_id}` | own barangay only | no | any barangay | no |
 | `GET /api/batches/{id}`, `/api/stats/…` (weekly totals) | yes | yes | yes | no |
+| `/api/accounts…` (give passwords) | no | yes | no | no |
 | `/api/alerts…`, `/api/analytics…`, `/api/monitor/stats`, `/api/server/addresses`, `WS /ws/monitor` | no | yes | no | no |
 | `/node/` page | yes | no | no | no |
 | `/dashboard/`, `/monitor/` pages | no | yes | no | no |

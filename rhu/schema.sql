@@ -110,7 +110,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   username      TEXT PRIMARY KEY,                 -- RHU | LOADTEST | a barangay_id
   role          TEXT NOT NULL,                    -- RHU | BHU | LOADTEST
   barangay_id   TEXT REFERENCES barangays(barangay_id),  -- BHU accounts only
-  password_hash TEXT NOT NULL
+  password_hash TEXT NOT NULL,                    -- '' = the RHU hasn't given this BHU a password yet
+  password_set_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sessions (

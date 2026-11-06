@@ -10,11 +10,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from rhu import auth, db, rules, stats
+from rhu import accounts, auth, db, rules, stats
 from rhu.accounts import Session
 from rhu.config import PROTOCOL_VERSION, RETRY_AFTER_SECONDS
 from rhu.ingest import IngestPipeline, PipelineBusy
-from rhu.models import AlertStatusUpdate, RegisterRequest, RegisterResponse, SubmitBatch, barangay_of
+from rhu.models import AlertStatusUpdate, GivePassword, RegisterRequest, RegisterResponse, SubmitBatch, barangay_of
 
 # Every route needs a login unless it is on public_router, so a new route can't be left open by accident.
 public_router = APIRouter(prefix="/api")
@@ -118,6 +118,27 @@ def batch_status(batch_id: UUID, conn: sqlite3.Connection = Depends(get_conn)) -
     if row is None:
         return {"type": "BATCH_STATUS", "batch_id": str(batch_id), "status": "PENDING"}
     return {"type": "BATCH_STATUS", "batch_id": str(batch_id), "status": "STORED", **dict(row)}
+
+
+@router.get("/accounts", dependencies=[Depends(auth.require_rhu)])
+def list_accounts(request: Request) -> list[dict]:
+    return accounts.bhu_accounts(request.app.state.db_path)
+
+
+@router.post("/accounts/assign-missing", dependencies=[Depends(auth.require_rhu)])
+def assign_missing_passwords(request: Request) -> list[dict]:
+    """Generates a password for every BHU without one. This is the only time they can be read."""
+    return accounts.assign_missing(request.app.state.db_path)
+
+
+@router.post("/accounts/{barangay_id}/password", dependencies=[Depends(auth.require_rhu)])
+def give_password(barangay_id: str, give: GivePassword, request: Request) -> dict:
+    """Gives one BHU a password (generated if none is sent) and logs out its devices."""
+    barangay = rules.barangays_by_id().get(barangay_id)
+    if barangay is None:  # also keeps this away from the RHU's own account and LOADTEST
+        raise HTTPException(status_code=404, detail="Unknown barangay")
+    password = accounts.set_password(request.app.state.db_path, barangay_id, give.password)
+    return {"barangay_id": barangay_id, "name": barangay["name"], "password": password}
 
 
 @router.get("/analytics", dependencies=[Depends(auth.require_rhu)])

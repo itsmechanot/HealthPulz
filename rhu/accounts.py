@@ -1,11 +1,14 @@
 """Who can log in: one shared account per BHU, one for the RHU, one for the load-test tool.
 
-Passwords are generated here, never kept in the code (the repository is public). The database
-holds only salted scrypt hashes; the readable list is var/accounts.txt, which git ignores, so the
-RHU administrator can hand each BHU its password.
+Only the RHU gives a BHU its password, on the dashboard's BHU Accounts screen. A BHU account has
+none until then, so it can't log in. The password is shown once; the database holds only a salted
+scrypt hash.
 
-Show the passwords:     python -m rhu.accounts
-Change a password:      python -m rhu.accounts reset BRGY-08
+The RHU's own password and the load-test tool's are generated on first start and listed in
+var/accounts.txt, which git ignores. BHU passwords are never written there.
+
+Show those two:         python -m rhu.accounts
+Change a password:      python -m rhu.accounts reset RHU
 """
 
 import argparse
@@ -30,6 +33,8 @@ SCRYPT_N = 2**14  # memory and time cost; stored with each hash, so it can be ra
 SCRYPT_R = 8
 SCRYPT_P = 1
 SALT_BYTES = 16
+MIN_PASSWORD_LENGTH = 8
+NO_PASSWORD = ""  # the stored hash of a BHU account the RHU hasn't given a password yet
 
 # No look-alikes (l/1, o/0), because passwords are copied from paper onto phones.
 _PASSWORD_LETTERS = "abcdefghjkmnpqrstuvwxyz23456789"
@@ -78,6 +83,8 @@ def hash_password(password: str) -> str:
 
 
 def password_matches(password: str, stored: str) -> bool:
+    if stored == NO_PASSWORD:
+        return False
     _, n, r, p, salt, digest = stored.split("$")
     actual = _scrypt(password, base64.b64decode(salt), int(n), int(r), int(p))
     return hmac.compare_digest(actual, base64.b64decode(digest))
@@ -107,12 +114,13 @@ def read_passwords(db_path: Path) -> dict[str, str]:
 
 
 def _save_passwords(db_path: Path, changed: dict[str, str]) -> None:
-    """A password can't be read back from its hash, so other accounts' lines are kept as they are."""
+    """A password can't be read back from its hash, so other accounts' lines are kept as they are.
+    BHU lines are left out, which also clears them from a list written by an older version."""
     passwords = {**read_passwords(db_path), **changed}
     lines = [
         f"{username}\t{name}\t{passwords[username]}"
-        for username, _, _, name in _all_accounts()
-        if username in passwords
+        for username, role, _, name in _all_accounts()
+        if username in passwords and role != BHU
     ]
     passwords_path(db_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -123,30 +131,66 @@ def ensure_accounts(db_path: Path) -> None:
         existing = {row[0] for row in conn.execute("SELECT username FROM accounts")}
         created = {}
         for username, role, barangay_id, _ in _all_accounts():
-            if username not in existing:
+            if username in existing:
+                continue
+            stored = NO_PASSWORD
+            if role != BHU:
                 created[username] = new_password()
-                conn.execute(
-                    "INSERT INTO accounts (username, role, barangay_id, password_hash) VALUES (?, ?, ?, ?)",
-                    (username, role, barangay_id, hash_password(created[username])),
-                )
+                stored = hash_password(created[username])
+            conn.execute(
+                "INSERT INTO accounts (username, role, barangay_id, password_hash) VALUES (?, ?, ?, ?)",
+                (username, role, barangay_id, stored),
+            )
         # Inside the transaction: if the list can't be saved, the accounts aren't created either,
         # so no account ends up with a password nobody can read.
-        if created:
-            _save_passwords(db_path, created)
+        _save_passwords(db_path, created)
 
 
-def reset_password(db_path: Path, username: str) -> str:
-    """Give the account a new password and log out every device using it."""
-    password = new_password()
+def set_password(db_path: Path, username: str, password: str | None = None) -> str:
+    """Give the account a password (a generated one if None) and log out every device using it."""
+    password = password or new_password()
     with closing(db.connect(db_path)) as conn, conn:
         changed = conn.execute(
-            "UPDATE accounts SET password_hash = ? WHERE username = ?", (hash_password(password), username)
+            "UPDATE accounts SET password_hash = ?, password_set_at = ? WHERE username = ?",
+            (hash_password(password), db.utc_now(), username),
         )
         if changed.rowcount == 0:
             raise KeyError(username)
         conn.execute("DELETE FROM sessions WHERE username = ?", (username,))
         _save_passwords(db_path, {username: password})
     return password
+
+
+def bhu_accounts(db_path: Path) -> list[dict]:
+    """For the RHU's BHU Accounts screen. Says whether a password exists, never what it is."""
+    names = {barangay_id: name for _, _, barangay_id, name in _all_accounts() if barangay_id}
+    with closing(db.connect(db_path)) as conn:
+        rows = conn.execute(
+            "SELECT barangay_id, password_hash, password_set_at FROM accounts WHERE role = ?", (BHU,)
+        ).fetchall()
+    accounts = [
+        {
+            "barangay_id": row["barangay_id"],
+            "name": names[row["barangay_id"]],
+            "assigned": row["password_hash"] != NO_PASSWORD,
+            "password_set_at": row["password_set_at"],
+        }
+        for row in rows
+    ]
+    return sorted(accounts, key=lambda account: account["name"])
+
+
+def assign_missing(db_path: Path) -> list[dict]:
+    """Generate a password for every BHU without one. BHUs that have one keep it."""
+    return [
+        {
+            "barangay_id": account["barangay_id"],
+            "name": account["name"],
+            "password": set_password(db_path, account["barangay_id"]),
+        }
+        for account in bhu_accounts(db_path)
+        if not account["assigned"]
+    ]
 
 
 # ---- sessions -------------------------------------------------------------------------
@@ -195,7 +239,7 @@ def log_out(conn: sqlite3.Connection, token: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Show or change the HealthPulz login passwords.")
     parser.add_argument("action", nargs="?", choices=["list", "reset"], default="list")
-    parser.add_argument("username", nargs="?", help="for reset: RHU, LOADTEST or a barangay ID such as BRGY-08")
+    parser.add_argument("username", nargs="?", help="for reset: RHU or LOADTEST (a BHU's password is given on the dashboard)")
     args = parser.parse_args()
 
     db.init_db(config.DB_PATH)
@@ -204,7 +248,7 @@ def main() -> None:
         if not args.username:
             parser.error("reset needs a username")
         try:
-            print(f"New password for {args.username}: {reset_password(config.DB_PATH, args.username)}")
+            print(f"New password for {args.username}: {set_password(config.DB_PATH, args.username)}")
         except KeyError:
             parser.error(f"no account named {args.username}")
         return

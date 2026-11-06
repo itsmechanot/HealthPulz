@@ -7,7 +7,7 @@
 The way into the system. Each BHU has one shared login and the RHU has one; each goes straight to its own side.
 
 - **Where it's seen:** mostly on phones in a BHU, and on classmates' phones during the demo, so it must work one-handed at phone width.
-- **There is no "Forgot password" flow:** the RHU gives out the passwords, so the page just says to ask the RHU.
+- **There is no sign-up or "Forgot password" flow:** only the RHU gives out passwords ([BHU Accounts](rhu-dashboard.md#screen-6--bhu-accounts)), so the page just says to ask the RHU. A BHU that has no password yet sees the same "wrong" message.
 
 ## Components
 | Component | Details |

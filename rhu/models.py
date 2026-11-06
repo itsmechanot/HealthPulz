@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from rhu.accounts import MIN_PASSWORD_LENGTH
 from rhu.config import MAX_RECORDS_PER_BATCH, PROTOCOL_VERSION
 
 BARANGAY_ID_PATTERN = r"^BRGY-\d{2}$"
@@ -60,6 +61,10 @@ class SubmitBatch(BaseModel):
     sent_at: datetime
     records: list[CaseRecord] = Field(min_length=1, max_length=MAX_RECORDS_PER_BATCH)
     drill: bool = False  # stress-test data: stored and counted, but left out of analytics and alerts
+
+
+class GivePassword(BaseModel):
+    password: str | None = Field(default=None, min_length=MIN_PASSWORD_LENGTH, max_length=200)  # None = generate one
 
 
 class AlertStatusUpdate(BaseModel):

@@ -27,7 +27,15 @@ def server(tmp_path):
 
 
 def password_of(client, username):
-    return accounts.read_passwords(client.app.state.db_path)[username]
+    """The RHU's and LOADTEST's are in the list. A BHU's is given the first time a test needs it."""
+    db_path = client.app.state.db_path
+    listed = accounts.read_passwords(db_path)
+    if username in listed:
+        return listed[username]
+    given = client.__dict__.setdefault("given", {})
+    if username not in given:
+        given[username] = accounts.set_password(db_path, username)
+    return given[username]
 
 
 def log_in(client, username):
@@ -54,10 +62,14 @@ def closed_with(client, url):
 
 # ---- accounts and passwords ------------------------------------------------------------
 
-def test_every_barangay_has_an_account_plus_rhu_and_load_test(server):
-    usernames = accounts.read_passwords(server.app.state.db_path).keys()
-    assert len(usernames) == 28
-    assert {"RHU", "LOADTEST", OWN} <= usernames
+def test_only_the_rhu_and_load_test_passwords_are_listed(server):
+    assert accounts.read_passwords(server.app.state.db_path).keys() == {"RHU", "LOADTEST"}
+
+
+def test_a_bhu_cannot_log_in_until_the_rhu_gives_a_password(server):
+    for password in ("", "anything-at-all"):
+        res = server.post("/api/auth/login", json={"username": OWN, "password": password})
+        assert res.status_code == 401
 
 
 def test_passwords_are_not_in_the_database(server):
@@ -69,40 +81,143 @@ def test_passwords_are_not_in_the_database(server):
     assert server.cookies[auth.COOKIE] not in dump  # nor the login token
 
 
-def test_each_account_gets_its_own_password(server):
-    passwords = list(accounts.read_passwords(server.app.state.db_path).values())
-    assert len(set(passwords)) == len(passwords)
+def test_a_given_bhu_password_is_never_written_down(server):
+    db_path = server.app.state.db_path
+    given = accounts.set_password(db_path, OWN)
+    assert given not in accounts.passwords_path(db_path).read_text(encoding="utf-8")
+
+
+def test_upgrading_from_the_first_login_version(tmp_path):
+    """That version listed BHU passwords in the file and had no password_set_at column."""
+    db_path = tmp_path / "test.db"
+    with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as first:
+        old_password = password_of(first, OWN)
+    path = accounts.passwords_path(db_path)
+    rhu_line = path.read_text(encoding="utf-8")
+    old_bhu_line = chr(9).join([OWN, "Caraycaray", old_password])
+    path.write_text(f"{rhu_line}{old_bhu_line}{chr(10)}", encoding="utf-8")
+    with closing(sqlite3.connect(db_path)) as conn, conn:
+        conn.execute("ALTER TABLE accounts DROP COLUMN password_set_at")
+
+    with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as second:
+        assert old_password not in path.read_text(encoding="utf-8")
+        assert path.read_text(encoding="utf-8") == rhu_line  # the RHU's own password is kept
+        assert second.post("/api/auth/login", json={"username": OWN, "password": old_password}).status_code == 200
 
 
 def test_restarting_keeps_passwords_and_logins(tmp_path):
     db_path = tmp_path / "test.db"
     with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as first:
         before = accounts.read_passwords(db_path)
+        given = password_of(first, OWN)
         log_in(first, OWN)
         token = first.cookies[auth.COOKIE]
     with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as second:
         assert accounts.read_passwords(db_path) == before
         second.cookies.set(auth.COOKIE, token)
         assert second.get("/api/auth/me").json()["username"] == OWN
+        assert second.post("/api/auth/login", json={"username": OWN, "password": given}).status_code == 200
 
 
-def test_reset_changes_the_password_and_logs_out_devices(server):
+def test_a_new_password_replaces_the_old_and_logs_out_devices(server):
     old = password_of(server, OWN)
-    other_before = password_of(server, OTHER)
     log_in(server, OWN)
 
-    new = accounts.reset_password(server.app.state.db_path, OWN)
+    new = accounts.set_password(server.app.state.db_path, OWN)
 
     assert server.get("/api/auth/me").status_code == 401
     assert server.post("/api/auth/login", json={"username": OWN, "password": old}).status_code == 401
     assert server.post("/api/auth/login", json={"username": OWN, "password": new}).status_code == 200
-    assert password_of(server, OWN) == new
-    assert password_of(server, OTHER) == other_before
 
 
-def test_resetting_an_unknown_account_fails(server):
+def test_changing_an_unknown_account_fails(server):
     with pytest.raises(KeyError):
-        accounts.reset_password(server.app.state.db_path, "NOBODY")
+        accounts.set_password(server.app.state.db_path, "NOBODY")
+
+
+# ---- the RHU gives BHU passwords ---------------------------------------------------------
+
+def account_of(client, barangay_id):
+    return next(a for a in client.get("/api/accounts").json() if a["barangay_id"] == barangay_id)
+
+
+def test_rhu_sees_every_bhu_but_no_passwords(server):
+    log_in(server, "RHU")
+    listed = server.get("/api/accounts").json()
+    assert len(listed) == 26
+    assert listed == sorted(listed, key=lambda a: a["name"])
+    assert all(not a["assigned"] for a in listed)
+    assert set(listed[0]) == {"barangay_id", "name", "assigned", "password_set_at"}
+
+
+def test_rhu_generates_a_password_and_the_bhu_logs_in_with_it(server):
+    log_in(server, "RHU")
+    given = server.post(f"/api/accounts/{OWN}/password", json={}).json()
+    assert given["barangay_id"] == OWN
+    assert account_of(server, OWN)["assigned"] is True
+    assert account_of(server, OWN)["password_set_at"]
+    assert account_of(server, OTHER)["assigned"] is False
+
+    server.cookies.clear()
+    res = server.post("/api/auth/login", json={"username": OWN, "password": given["password"]})
+    assert res.status_code == 200
+
+
+def test_rhu_can_choose_the_password(server):
+    log_in(server, "RHU")
+    res = server.post(f"/api/accounts/{OWN}/password", json={"password": "naval-2026"})
+    assert res.json()["password"] == "naval-2026"
+    server.cookies.clear()
+    assert server.post("/api/auth/login", json={"username": OWN, "password": "naval-2026"}).status_code == 200
+
+
+def test_changing_a_bhu_password_logs_out_its_devices(server):
+    log_in(server, OWN)
+    bhu_cookie = server.cookies[auth.COOKIE]
+    log_in(server, "RHU")
+    assert server.post(f"/api/accounts/{OWN}/password", json={}).status_code == 200
+    assert server.get("/api/auth/me").json()["username"] == "RHU"  # the RHU itself stays logged in
+
+    server.cookies.clear()
+    server.cookies.set(auth.COOKIE, bhu_cookie)
+    assert server.get("/api/auth/me").status_code == 401
+
+
+def test_too_short_a_password_is_refused(server):
+    log_in(server, "RHU")
+    assert server.post(f"/api/accounts/{OWN}/password", json={"password": "short"}).status_code == 400
+    assert account_of(server, OWN)["assigned"] is False
+
+
+@pytest.mark.parametrize("username", ["RHU", "LOADTEST", "NOBODY"])
+def test_this_screen_only_gives_bhu_passwords(server, username):
+    log_in(server, "RHU")
+    before = password_of(server, "RHU")
+    assert server.post(f"/api/accounts/{username}/password", json={}).status_code == 404
+    assert server.post("/api/auth/login", json={"username": "RHU", "password": before}).status_code == 200
+
+
+def test_generating_the_rest_leaves_given_passwords_alone(server):
+    log_in(server, "RHU")
+    kept = server.post(f"/api/accounts/{OWN}/password", json={"password": "kept-password"}).json()
+
+    given = server.post("/api/accounts/assign-missing").json()
+
+    assert len(given) == 25
+    assert OWN not in {g["barangay_id"] for g in given}
+    assert len({g["password"] for g in given}) == 25
+    assert server.post("/api/accounts/assign-missing").json() == []
+    server.cookies.clear()
+    assert server.post("/api/auth/login", json={"username": OWN, "password": kept["password"]}).status_code == 200
+
+
+@pytest.mark.parametrize("username", [OWN, "LOADTEST"])
+def test_nobody_else_can_give_passwords(server, username):
+    log_in(server, username)
+    assert server.get("/api/accounts").status_code == 403
+    assert server.post(f"/api/accounts/{OWN}/password", json={"password": "my-own-pass"}).status_code == 403
+    assert server.post(f"/api/accounts/{OTHER}/password", json={}).status_code == 403
+    assert server.post("/api/accounts/assign-missing").status_code == 403
 
 
 # ---- logging in and out ----------------------------------------------------------------

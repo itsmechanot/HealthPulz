@@ -90,6 +90,17 @@ Heatmap table: all 26 barangays, with a **Common / Urgent / Monitored** switch f
 - **Click a row:** opens the barangay on the Map.
 - **Phones:** the table scrolls sideways inside its card.
 
+## Screen 6 · BHU Accounts
+Only the RHU gives a BHU its password, so this screen is the way a BHU gets access.
+
+1. **Summary line:** "12 of 26 BHUs have a password. A BHU without one cannot log in."
+2. **Generate for the other N** button: only while some BHUs have no password.
+3. **One row per BHU, A–Z:** name, status (**Has password** / **No password yet**), date given, and a **Give password** or **Change password** button.
+4. **Password dialog:** one field, blank to generate. Typed passwords need 8+ characters. When changing, it warns that the old password stops working and the BHU's devices are logged out.
+5. **"Give these to the BHU" dialog:** the passwords just given, with **Print** and **Done**. It's the only time they can be seen, so it stays open until **Done**. The printout shows only the list.
+
+Passwords are never stored in readable form, so there is deliberately no "show password" action: a lost password means giving a new one.
+
 ## Data sources
 | Component | Endpoint |
 |---|---|
@@ -97,6 +108,7 @@ Heatmap table: all 26 barangays, with a **Common / Urgent / Monitored** switch f
 | Map, Barangays | `GET /api/stats/barangays?week=…` (this week and last week) |
 | Alerts | `GET /api/alerts`, `POST /api/alerts/{id}/status` |
 | Trends | `GET /api/stats/trend?disease=…&barangay_id=…&weeks=…` |
+| BHU Accounts | `GET /api/accounts`, `POST /api/accounts/{barangay_id}/password`, `POST /api/accounts/assign-missing` |
 | Map shapes | `/data/naval-map.json` (built by [`tools/build_map.py`](../../tools/build_map.py)) |
 
 ## Known limits

@@ -22,6 +22,7 @@
       <a class="nav-link" href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
       <a class="nav-link" href="#/barangays" data-nav="barangays"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#table"/></svg>Barangays</a>
       <span class="nav-label">System</span>
+      <a class="nav-link" href="#/accounts" data-nav="accounts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>BHU Accounts</a>
       <a class="nav-link" href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
       <div class="sidebar-footer">
         <button id="logout-btn" class="btn btn-ghost btn-small btn-block" type="button">Log out</button>
@@ -197,10 +198,54 @@
             </div>
           </section>
         </section>
+
+        <!-- ===== BHU Accounts ===== -->
+        <section class="screen" data-screen="accounts" hidden>
+          <section class="card" aria-labelledby="accounts-title">
+            <div class="card-header">
+              <h2 id="accounts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>BHU accounts</h2>
+              <button id="assign-missing-btn" class="btn btn-primary btn-small" type="button" hidden></button>
+            </div>
+            <p id="accounts-summary" class="muted small" style="margin: 0"></p>
+            <p id="accounts-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
+            <ul id="accounts-list" class="account-list"></ul>
+            <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
+              Only the RHU gives BHU passwords. Each one is shown once, when it is given. If a BHU loses it, give a new one.</p>
+          </section>
+
+          <dialog id="password-dialog" class="dialog" aria-labelledby="password-title">
+            <form id="password-form" class="stack" novalidate>
+              <h2 id="password-title">Password</h2>
+              <div class="field">
+                <label for="password-value">Password</label>
+                <input id="password-value" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Leave blank to generate one">
+              </div>
+              <p id="password-warning" class="muted small" style="margin: 0" hidden>The old password will stop working, and this BHU's devices will be logged out.</p>
+              <p id="password-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
+              <div class="form-actions">
+                <button id="password-cancel" class="btn btn-ghost" type="button">Cancel</button>
+                <button id="password-save" class="btn btn-primary" type="submit">Save password</button>
+              </div>
+            </form>
+          </dialog>
+        </section>
       </main>
     </div>
   </div>
 
+  <!-- Outside .app so that printing shows only this list. -->
+  <dialog id="given-dialog" class="dialog given-sheet" aria-labelledby="given-title">
+    <div class="stack">
+      <h2 id="given-title">Give these to the BHU</h2>
+      <p class="muted small no-print" style="margin: 0"><strong>This is the only time you can see them.</strong> Write them down or print them before pressing Done.</p>
+      <ul id="given-list" class="given-list"></ul>
+      <p class="small print-only">Log in at the RHU's HealthPulz address. Keep this password private.</p>
+      <div class="form-actions no-print">
+        <button id="given-print" class="btn btn-ghost" type="button">Print</button>
+        <button id="given-done" class="btn btn-primary" type="button">Done</button>
+      </div>
+    </div>
+  </dialog>
   <script type="module" src="/js/dashboard/main.js"></script>
 </body>
 </html>

@@ -41,6 +41,7 @@ def init_db(db_path: Path) -> None:
 # Columns added after the first schema version. CREATE TABLE IF NOT EXISTS
 # doesn't change existing tables, so older databases get them here.
 _ADDED_COLUMNS = [
+    ("accounts", "password_set_at", "TEXT"),
     ("nodes", "kind", "TEXT NOT NULL DEFAULT 'LIVE'"),
     ("batches", "drill", "INTEGER NOT NULL DEFAULT 0"),
     ("batches", "updated", "INTEGER"),

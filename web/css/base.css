@@ -809,6 +809,34 @@ table.heat td.zero { color: var(--text-muted); }
 .kv dt { color: var(--text-muted); }
 .kv dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; }
 
+/* ---- BHU Accounts ---- */
+
+.account-list, .given-list { list-style: none; margin: 0; padding: 0; }
+.account-row {
+  display: grid; gap: 4px 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border);
+  grid-template-columns: minmax(0, 1fr) 120px 130px auto;
+}
+.account-row .badge { justify-self: start; }
+@media (max-width: 640px) {
+  .account-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .account-row strong { grid-column: 1 / -1; }
+  .account-row .small { grid-row: 3; grid-column: 1 / -1; }
+  .account-row .small:empty { display: none; }
+}
+.given-sheet { max-height: 85vh; }
+.given-row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.given-row code { font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+.print-only { display: none; }
+
+@media print {
+  .app, .no-print { display: none !important; }
+  .print-only { display: block; }
+  body { background: #fff; }
+  .given-sheet { position: static; width: 100%; max-height: none; overflow: visible; border: 0; padding: 0; background: #fff; color: #000; }
+  .given-sheet::backdrop { background: none; }
+  .given-row { border-color: #999; break-inside: avoid; }
+}
+
 /* ---- Login ---- */
 
 .login {
