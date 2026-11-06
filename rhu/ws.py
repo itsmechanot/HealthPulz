@@ -122,6 +122,7 @@ async def build_snapshot(app: FastAPI, records_per_second: float) -> dict:
         "pipeline": {**app.state.pipeline.snapshot(), "records_per_second": round(records_per_second, 1)},
         "analytics": analytics.to_dict() if analytics else None,
         "nodes": nodes,
+        "latest_reports": app.state.pipeline.latest_reports.snapshot(),
     }
 
 

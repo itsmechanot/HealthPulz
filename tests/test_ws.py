@@ -7,7 +7,7 @@ from fastapi import WebSocketDisconnect
 
 from rhu import db
 from rhu.history import import_history
-from tests.factories import NODE, make_batch
+from tests.factories import NODE, make_batch, wait_for_stored
 
 
 STATION = "BRGY-08-MAIN"
@@ -158,4 +158,15 @@ def test_burst_is_not_kept_for_a_device_that_connects_later(registered):
 @pytest.mark.parametrize("size", [0, -1, 5001, "many"])
 def test_burst_size_must_be_sensible(client, size):
     assert client.post("/api/burst", json={"records_per_device": size}).status_code == 400
+
+
+# ---- latest reports --------------------------------------------------------------------
+
+def test_monitor_feed_carries_the_latest_reports(registered):
+    batch = make_batch(NODE, count=2)
+    registered.post("/api/batches", json=batch)
+    wait_for_stored(registered, batch["batch_id"])
+    with registered.websocket_connect("/ws/monitor") as monitor:
+        reports = monitor.receive_json()["latest_reports"]
+    assert {r["record_id"] for r in reports} == {r["record_id"] for r in batch["records"]}
 

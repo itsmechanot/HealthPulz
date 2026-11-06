@@ -33,8 +33,9 @@
    - **BHS stations online** (registered stations, barangays covered)
 2. **Map card**: small map of Naval, all diseases, with **This week / Last week** (shared with the Map screen) and a line saying which week is shown and its total. Past data ends last week, so "This week" holds only real entries and can look nearly empty. Clicking a barangay opens it on the Map screen. Link: "Open map →".
 3. **Latest alerts**: the 4 newest active alerts, compact (level, disease, barangay, week, cases vs threshold), with **Acknowledge / Resolve / Show trend**. Link: "View all →".
-4. **Common illnesses** (the RHU's 10 + dengue, leptospirosis and typhoid, tagged "Also monitored"): ranked by cases this week, with last week, a 12-week sparkline and "N barangays on alert". Clicking one opens Trends.
-5. **Urgent diseases** (6): count this week and last week. A row with a case turns the urgent color. A single case raises an alert.
+4. **Latest reports**: the 20 newest reports from the BHUs, newest first, live over the WebSocket feed. Each row: time received, disease, barangay, age, sex, purok, status (Suspected, Confirmed, **Corrected** or **Voided**), when the illness started and which week it counts in. New rows flash. No client names. Stress-test data and imported history aren't listed. Empty state: "No reports yet…". A case counts in the week the illness started, so a report can appear here without changing this week's numbers.
+5. **Common illnesses** (the RHU's 10 + dengue, leptospirosis and typhoid, tagged "Also monitored"): ranked by cases this week, with last week, a 12-week sparkline and "N barangays on alert". Clicking one opens Trends.
+6. **Urgent diseases** (6): count this week and last week. A row with a case turns the urgent color. A single case raises an alert.
 
 ## Screen 2 · Map
 The **municipality of Naval is the focus**:
@@ -105,6 +106,7 @@ Passwords are never stored in readable form, so there is deliberately no "show p
 | Component | Endpoint |
 |---|---|
 | Top bar, KPIs, disease cards | `GET /api/stats/summary`, `GET /api/stats/trend` (sparklines), `WS /ws/monitor` (stations online) |
+| Latest reports | `latest_reports` in `WS /ws/monitor` |
 | Map, Barangays | `GET /api/stats/barangays?week=…` (this week and last week) |
 | Alerts | `GET /api/alerts`, `POST /api/alerts/{id}/status` |
 | Trends | `GET /api/stats/trend?disease=…&barangay_id=…&weeks=…` |

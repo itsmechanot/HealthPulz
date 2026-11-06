@@ -36,7 +36,7 @@ const state = {
   mapWeek: "current",
   selected: null, // barangay selected on the map
 };
-const data = { summary: null, grids: {}, alerts: [], nodes: [] };
+const data = { summary: null, grids: {}, alerts: [], nodes: [], reports: [] };
 let config;
 let tracked; // diseases under outbreak surveillance (config.diseases also has "Other consultations")
 let router;
@@ -72,6 +72,7 @@ async function start() {
     if (data.summary) renderScreen(screen);
   });
   await refresh();
+  renderReports(); // again, now that "this week" and "last week" are known
   router.start();
   setInterval(refresh, REFRESH_MS);
 }
@@ -101,8 +102,10 @@ async function refresh() {
 function watchStations() {
   const ws = new WebSocket(api.wsUrl("/ws/monitor"));
   ws.onmessage = (event) => {
-    data.nodes = JSON.parse(event.data).nodes;
+    const snapshot = JSON.parse(event.data);
+    data.nodes = snapshot.nodes;
     renderStations();
+    updateReports(snapshot.latest_reports);
   };
   ws.onclose = (event) => {
     if (event.code === api.CLOSE_NOT_LOGGED_IN) return api.toLogin();
@@ -129,6 +132,61 @@ function renderChrome() {
 
 function renderScreen(screen) {
   ({ overview: renderOverview, map: renderMapScreen, alerts: renderAlertsScreen, trends: renderTrends, barangays: renderGrid })[screen]?.();
+}
+
+// ---- Latest reports --------------------------------------------------------------------
+
+const seenReports = new Set(); // `${record_id}.${revision}`, so only what just arrived flashes
+let reportsKey = null;
+
+/** The feed sends the list every second; redraw only when it changed. */
+function updateReports(reports) {
+  const key = reports.map(reportId).join();
+  if (key === reportsKey) return;
+  const isFirstDraw = reportsKey === null;
+  reportsKey = key;
+  data.reports = reports;
+  renderReports({ flashNew: !isFirstDraw });
+}
+
+const reportId = (report) => `${report.record_id}.${report.revision}`;
+
+function renderReports({ flashNew = false } = {}) {
+  const rows = data.reports.map((report) => {
+    const isNew = !seenReports.has(reportId(report));
+    seenReports.add(reportId(report));
+    return reportRow(report, flashNew && isNew);
+  });
+  $("latest-reports").replaceChildren(
+    ...(rows.length ? rows : [el("li", { className: "empty", textContent: "No reports yet. They appear here the moment a BHU saves a checkup." })]),
+  );
+}
+
+function reportRow(report, flash) {
+  const barangay = config.barangays.find((b) => b.barangay_id === report.barangay_id)?.name ?? report.barangay_id;
+  const disease = config.diseases.find((d) => d.disease_code === report.disease_code)?.name ?? report.disease_code;
+  const change = report.voided ? "Voided" : report.revision ? "Corrected" : null;
+  return el(
+    "li",
+    { className: `report-row${flash ? " is-new" : ""}${report.voided ? " is-voided" : ""}` },
+    el("time", { className: "muted small", textContent: receivedTime(report.received_at) }),
+    el("div", {}, el("strong", { textContent: disease }), el("div", { className: "muted small", textContent: `Brgy. ${barangay}` })),
+    el("span", { className: "small", textContent: `${report.age_years} ${report.sex} · Purok ${report.purok}` }),
+    el("span", { className: "badge", textContent: change ?? (report.case_status === "CONFIRMED" ? "Confirmed" : "Suspected"), dataset: change ? { level: "ALERT" } : {} }),
+    el("span", { className: "muted small", textContent: `Illness started ${formatDate(report.onset_date)} · counts in ${weekName(report.counted_in_week)}` }),
+  );
+}
+
+function receivedTime(timestamp) {
+  const when = new Date(timestamp);
+  const time = when.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return when.toDateString() === new Date().toDateString() ? time : `${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${time}`;
+}
+
+function weekName(label) {
+  if (label === data.summary?.week.label) return "this week";
+  if (label === data.summary?.previous_week.label) return "last week";
+  return `week ${label}`;
 }
 
 // ---- Overview ------------------------------------------------------------------------

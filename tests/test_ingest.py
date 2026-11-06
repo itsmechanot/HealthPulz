@@ -6,7 +6,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from rhu import db
+from rhu import db, reports
+from rhu.history import import_history
 from rhu.ingest import IngestPipeline, PipelineBusy
 from rhu.models import SubmitBatch
 from tests.factories import NODE, make_batch, make_record
@@ -207,3 +208,77 @@ def test_resent_correction_batch_keeps_the_accounting_balanced(db_path):
     s = pipeline.stats.snapshot()
     assert s["records_received"] == 3
     assert s["records_received"] == s["records_accepted"] + s["records_updated"] + s["records_duplicate"] + s["records_rejected"]
+
+
+# ---- latest reports --------------------------------------------------------------------
+
+def run_batches(db_path, *batches):
+    """Send the batches through the threads, in order, and wait until all are stored."""
+    pipeline = IngestPipeline(db_path)
+    pipeline.start()
+    for batch in batches:
+        pipeline.submit(SubmitBatch(**batch))
+    pipeline.stop()
+    return pipeline
+
+
+def listed_ids(pipeline):
+    return [r["record_id"] for r in pipeline.latest_reports.snapshot()]
+
+
+def test_a_stored_report_is_listed_without_private_details(db_path):
+    record = make_record(disease_code="FEV", onset_date="2026-11-01", consult_date="2026-11-06", age_years=22, sex="M", purok=1)
+    [report] = run_batches(db_path, make_batch(NODE, records=[record])).latest_reports.snapshot()
+
+    assert report["barangay_id"] == "BRGY-08"
+    assert report["disease_code"] == "FEV"
+    assert report["counted_in_week"] == "2026-W44"
+    assert (report["age_years"], report["sex"], report["purok"]) == (22, "M", 1)
+    assert report["received_at"]
+    assert not {"name", "last_name", "first_name", "address", "contact", "findings"} & report.keys()
+
+
+def test_newest_reports_come_first_and_the_list_stays_short(db_path):
+    records = [make_record() for _ in range(reports.MAX_REPORTS + 5)]
+    pipeline = run_batches(db_path, make_batch(NODE, records=records))
+    assert listed_ids(pipeline) == [r["record_id"] for r in reversed(records[5:])]
+
+
+def test_test_data_is_not_listed(db_path):
+    assert listed_ids(run_batches(db_path, {**make_batch(NODE, count=3), "drill": True})) == []
+
+
+def test_rejected_records_are_not_listed(db_path):
+    bad = make_record(disease_code="NOPE")
+    good = make_record()
+    assert listed_ids(run_batches(db_path, make_batch(NODE, records=[bad, good]))) == [good["record_id"]]
+
+
+def test_a_resent_batch_is_listed_once(db_path):
+    batch = make_batch(NODE, count=2)
+    assert len(listed_ids(run_batches(db_path, batch, batch))) == 2
+
+
+def test_a_correction_replaces_the_earlier_entry(db_path):
+    record = make_record(disease_code="DEN")
+    corrected = {**record, "disease_code": "TYP", "revision": 1}
+    [report] = run_batches(
+        db_path, make_batch(NODE, records=[record]), make_batch(NODE, records=[corrected]),
+    ).latest_reports.snapshot()
+    assert (report["disease_code"], report["revision"]) == ("TYP", 1)
+
+
+def test_a_void_shows_on_the_entry(db_path):
+    record = make_record()
+    voided = {**record, "revision": 1, "voided": True}
+    [report] = run_batches(db_path, make_batch(NODE, records=[record]), make_batch(NODE, records=[voided])).latest_reports.snapshot()
+    assert report["voided"] is True
+
+
+def test_the_list_survives_a_restart_without_test_data_or_history(db_path):
+    real = make_record()
+    run_batches(db_path, make_batch(NODE, records=[real]), {**make_batch(NODE, count=3), "drill": True})
+    import_history(db_path, years=1)
+
+    assert listed_ids(run_batches(db_path)) == [real["record_id"]]
+

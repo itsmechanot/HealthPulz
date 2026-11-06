@@ -17,7 +17,7 @@ from dataclasses import dataclass, field, fields
 from datetime import date, timedelta
 from pathlib import Path
 
-from rhu import config, db, rules
+from rhu import config, db, reports, rules
 from rhu.models import CaseRecord, SubmitBatch, barangay_of
 
 log = logging.getLogger(__name__)
@@ -96,10 +96,12 @@ class IngestPipeline:
         self._writer: threading.Thread | None = None
         self._disease_codes = {d["disease_code"] for d in rules.diseases()}
         self.stats = PipelineStats()
+        self.latest_reports = reports.LatestReports()
 
     # ---- lifecycle -------------------------------------------------------
 
     def start(self) -> None:
+        self.latest_reports.load(self._db_path)
         self._validators = [
             threading.Thread(target=self._validate_loop, name=f"validator-{i + 1}", daemon=True)
             for i in range(self._worker_count)
@@ -204,7 +206,7 @@ class IngestPipeline:
     def _write_group(self, conn: sqlite3.Connection, group: list[_ValidatedBatch]) -> None:
         try:
             with conn:
-                messages = [self._write_batch(conn, item) for item in group]
+                messages = [(item, *self._write_batch(conn, item)) for item in group]
         except sqlite3.Error:
             # One bad batch must not lose the others: retry them one at a time.
             log.exception("Group commit of %d batches failed; retrying individually", len(group))
@@ -212,12 +214,12 @@ class IngestPipeline:
             for item in group:
                 try:
                     with conn:
-                        messages.append(self._write_batch(conn, item))
+                        messages.append((item, *self._write_batch(conn, item)))
                 except sqlite3.Error:
                     log.exception("Could not store batch %s", item.batch.batch_id)
 
         # Count and notify only after the commit, so STORED always means the data is safe on disk.
-        for node_id, message, resent in messages:
+        for item, node_id, message, resent in messages:
             if resent:
                 # Every record of a resent batch is already stored, so all of them count as duplicates.
                 batch_size = message["accepted"] + message["updated"] + message["duplicates"] + len(message["rejected"])
@@ -230,6 +232,8 @@ class IngestPipeline:
                     records_duplicate=message["duplicates"],
                     records_rejected=len(message["rejected"]),
                 )
+                if not item.batch.drill and message["accepted"] + message["updated"]:
+                    self.latest_reports.add(reports.from_records(item.valid, barangay_of(node_id), item.received_at))
             self._notify(node_id, message)
 
     def _write_batch(self, conn: sqlite3.Connection, item: _ValidatedBatch) -> tuple[str, dict, bool]:

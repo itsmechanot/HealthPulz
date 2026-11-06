@@ -297,3 +297,5 @@ The RHU sends one `MONITOR` message on connect, then one every second. The monit
   ]
 }
 ```
+
+`latest_reports` is also in each message: the 20 newest de-identified reports, newest first, for the RHU dashboard (`record_id`, `barangay_id`, `disease_code`, `onset_date`, `consult_date`, `age_years`, `sex`, `purok`, `case_status`, `received_at`, `revision`, `voided`, `counted_in_week`). Stress-test data (`drill`) and imported history are left out.
