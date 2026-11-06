@@ -51,14 +51,14 @@ pip install -r requirements-dev.txt
 ## Run the RHU server
 
 ```powershell
-uvicorn rhu.main:app --host 0.0.0.0 --port 8000 --reload
+python -m rhu
 ```
 
 - Log in at http://localhost:8000/ (other devices use `http://<your-laptop-IP>:8000/`). Each account goes to its own side: a barangay to its BHU page, RHU Naval to the dashboard and System Monitor.
 - **Passwords:** see the RHU's with `python -m rhu.accounts` (created on first start, kept in `var/accounts.txt`, which git ignores). Then log in as RHU Naval and give each BHU its password on the **BHU Accounts** screen. A BHU can't log in until it has one.
 - API docs: http://localhost:8000/docs
 - The RHU's database is created automatically at `var/healthpulz.db` (override with the `HEALTHPULZ_DB` environment variable). Each BHU's records go in `var/bhu/` beside it.
-- `--host 0.0.0.0` lets classmates' devices on the same network connect.
+- This lets devices on the same Wi-Fi connect, and it prints the address for them. Add `--reload` to restart when the code changes. If you start it with `uvicorn` instead, you must add `--host 0.0.0.0`, or phones time out; the System Monitor warns you if that happens.
 
 ## Load past (synthetic) data
 

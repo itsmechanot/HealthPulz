@@ -245,7 +245,7 @@ Hypertension, arthritis, kidney diseases, wounds and `OTH` are counted but never
 |---|---|---|
 | `GET` | `/api/config` | Disease rules + barangay list (shared by both generators and the dropdown) |
 | `GET` | `/api/barangays` | Barangay list for the dropdown |
-| `GET` | `/api/server/addresses` | This server's LAN IPv4 addresses and port, shown on the System Monitor as the join address |
+| `GET` | `/api/server/addresses` | This server's LAN IPv4 addresses and port, shown on the System Monitor as the join address, and `reachable`: `false` if the server only accepts connections from its own laptop |
 | `GET` | `/api/batches/{batch_id}` | Batch status: `PENDING` (not stored yet) or `STORED` with counts |
 | `GET` | `/api/monitor/stats` | Pipeline counters and queue depths (polling version of `/ws/monitor`) |
 | `GET` | `/api/analytics` | Last analytics run: workers, cases read, map/reduce time |

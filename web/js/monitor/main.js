@@ -36,7 +36,8 @@ async function start() {
 async function showJoinAddresses() {
   try {
     const res = await api.request("/api/server/addresses");
-    const { addresses, port } = await res.json();
+    const { addresses, port, reachable } = await res.json();
+    $("join-warning").hidden = reachable;
     const suffix = port ? `:${port}` : "";
     $("join-urls").textContent = addresses.length
       ? addresses.map((ip) => `http://${ip}${suffix}/`).join("  or  ")

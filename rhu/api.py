@@ -1,7 +1,6 @@
 """HTTP endpoints used by the BHS nodes and the RHU dashboard."""
 
 import asyncio
-import socket
 import sqlite3
 from collections.abc import Iterator
 from datetime import date
@@ -10,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from rhu import accounts, auth, db, rules, stats
+from rhu import accounts, auth, db, network, rules, stats
 from rhu.accounts import Session
 from rhu.config import PROTOCOL_VERSION, RETRY_AFTER_SECONDS
 from rhu.ingest import IngestPipeline, PipelineBusy
@@ -40,13 +39,13 @@ def health() -> dict:
 
 @router.get("/server/addresses", dependencies=[Depends(auth.require_rhu)])
 def server_addresses(request: Request) -> dict:
-    """This server's LAN addresses, so the System Monitor can show classmates where to connect."""
-    try:
-        infos = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
-    except OSError:
-        infos = []
-    addresses = sorted({info[4][0] for info in infos if not info[4][0].startswith("127.")})
-    return {"addresses": addresses, "port": request.url.port}
+    """This server's LAN addresses, so the System Monitor can show classmates where to connect,
+    and whether phones can use them at all."""
+    addresses = network.lan_addresses()
+    port = request.url.port
+    # Only known to be closed if it can be checked; without a port or address, don't raise a false alarm.
+    reachable = not (port and addresses) or any(network.accepts_connections(a, port) for a in addresses)
+    return {"addresses": addresses, "port": port, "reachable": reachable}
 
 
 @public_router.get("/config")

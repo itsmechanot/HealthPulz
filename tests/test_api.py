@@ -1,6 +1,7 @@
+import socket
 import sqlite3
 
-from rhu import db
+from rhu import db, network
 
 
 def register(client, node_id="BRGY-08-K7QX", barangay_id="BRGY-08"):
@@ -14,6 +15,31 @@ def test_server_addresses(client):
     body = client.get("/api/server/addresses").json()
     assert isinstance(body["addresses"], list)
     assert not any(ip.startswith("127.") for ip in body["addresses"])
+
+
+def test_a_port_with_a_server_counts_as_reachable():
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        assert network.accepts_connections("127.0.0.1", server.getsockname()[1])
+
+
+def test_a_closed_port_is_not_reachable():
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        port = server.getsockname()[1]
+    assert not network.accepts_connections("127.0.0.1", port)
+
+
+def test_server_reports_when_phones_cannot_connect(client, monkeypatch):
+    monkeypatch.setattr(network, "lan_addresses", lambda: ["192.168.1.5"])
+    monkeypatch.setattr(network, "accepts_connections", lambda address, port: False)
+    assert client.get("http://testserver:8000/api/server/addresses").json()["reachable"] is False
+
+    monkeypatch.setattr(network, "accepts_connections", lambda address, port: True)
+    assert client.get("http://testserver:8000/api/server/addresses").json()["reachable"] is True
+
+
+def test_no_false_alarm_when_it_cannot_be_checked(client, monkeypatch):
+    monkeypatch.setattr(network, "lan_addresses", lambda: [])
+    assert client.get("http://testserver:8000/api/server/addresses").json()["reachable"] is True
 
 
 def test_scripts_are_served_as_javascript(client):
