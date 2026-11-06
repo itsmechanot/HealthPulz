@@ -3,6 +3,7 @@
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
+import { weekStart } from "../common/dates.js";
 import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
 import { createNavalMap } from "../common/naval-map.js";
@@ -153,7 +154,7 @@ const activeAlerts = () => data.alerts.filter((a) => a.status !== "RESOLVED");
 
 function renderChrome() {
   const { week } = data.summary;
-  $("week-chip").textContent = `Week ${week.label} · from ${formatDate(week.start)} (so far)`;
+  $("week-chip").textContent = `This week: ${week.dates} (so far)`;
   const open = activeAlerts().filter((a) => a.status === "OPEN").length;
   $("nav-alert-count").hidden = open === 0;
   $("nav-alert-count").textContent = open;
@@ -202,7 +203,7 @@ function reportRow(report, flash) {
     el("div", {}, el("strong", { textContent: disease }), el("div", { className: "muted small", textContent: `Brgy. ${barangay}` })),
     el("span", { className: "small", textContent: `${report.age_years} ${report.sex} · Purok ${report.purok}` }),
     el("span", { className: "badge", textContent: change ?? (report.case_status === "CONFIRMED" ? "Confirmed" : "Suspected"), dataset: change ? { level: "ALERT" } : {} }),
-    el("span", { className: "muted small", textContent: `Checkup ${formatDate(report.consult_date)} · illness started ${formatDate(report.onset_date)} · counts in ${weekName(report.counted_in_week)}` }),
+    el("span", { className: "muted small", textContent: `Checkup ${formatDate(report.consult_date)} · illness started ${formatDate(report.onset_date)} · counts in ${weekName(report)}` }),
   );
 }
 
@@ -212,10 +213,10 @@ function receivedTime(timestamp) {
   return when.toDateString() === new Date().toDateString() ? time : `${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${time}`;
 }
 
-function weekName(label) {
-  if (label === data.summary?.week.label) return "this week";
-  if (label === data.summary?.previous_week.label) return "last week";
-  return `week ${label}`;
+function weekName(report) {
+  if (report.counted_in_week === data.summary?.week.label) return "this week";
+  if (report.counted_in_week === data.summary?.previous_week.label) return "last week";
+  return `the week of ${report.counted_week_dates}`;
 }
 
 // ---- Overview ------------------------------------------------------------------------
@@ -315,8 +316,8 @@ function renderMapScreen() {
 function mapHint() {
   const { week, previous_week: previous, totals } = data.summary;
   return state.mapWeek === "current"
-    ? `Showing ${week.label}, still in progress: ${fmt(totals.this_week)} case(s) so far across all diseases. Last week (${previous.label}) had ${fmt(totals.last_week)}.`
-    : `Showing last week, ${previous.label}: ${fmt(totals.last_week)} case(s) across all diseases.`;
+    ? `Showing this week, ${week.dates}, still in progress: ${fmt(totals.this_week)} case(s) so far across all diseases. Last week (${previous.dates}) had ${fmt(totals.last_week)}.`
+    : `Showing last week, ${previous.dates}: ${fmt(totals.last_week)} case(s) across all diseases.`;
 }
 
 function selectBarangay(id, fromOverview) {
@@ -332,7 +333,7 @@ function renderDetail() {
   if (!state.selected) return;
   const b = data.grids[state.mapWeek].barangays.find((x) => x.barangay_id === state.selected);
   const meta = config.barangays.find((x) => x.barangay_id === state.selected);
-  const week = state.mapWeek === "current" ? `${data.summary.week.label} (so far)` : data.summary.previous_week.label;
+  const week = state.mapWeek === "current" ? `${data.summary.week.dates} (so far)` : data.summary.previous_week.dates;
   const worst = Object.values(b.diseases).reduce((w, c) => (LEVEL_RANK[c.level] > LEVEL_RANK[w] ? c.level : w), "NORMAL");
 
   const withCases = tracked.filter((d) => b.diseases[d.disease_code]?.cases > 0);
@@ -409,14 +410,13 @@ function alertRow(alert, { compact = false } = {}) {
   actions.append(showTrend);
 
   const statusText = { OPEN: "Open", ACKNOWLEDGED: "Acknowledged by RHU", RESOLVED: "Resolved" }[alert.status];
-  const week = `${alert.iso_year}-W${String(alert.iso_week).padStart(2, "0")}`;
   return el(
     "article",
     { className: "alert-row", dataset: { level: alert.level, status: alert.status } },
     el("div", {},
       el("span", { className: "badge", dataset: { level: alert.level }, textContent: alert.level }), " ",
       el("strong", { textContent: `${diseaseName(alert.disease_code)} · Brgy. ${barangayName(alert.barangay_id)}` }),
-      el("span", { className: "muted small", textContent: ` · week ${week}` }),
+      el("span", { className: "muted small", textContent: ` · ${alert.week_dates}` }),
     ),
     compact ? null : el("div", { className: "small", textContent: alert.message }),
     // BHU corrections can lower the count after the alert was raised; staff decide if it still applies.
@@ -463,14 +463,14 @@ async function renderTrends() {
     ? "Counted for trends. It isn't contagious, or isn't under outbreak surveillance, so it has no thresholds and raises no alerts. The last week is still in progress."
     : "Choose a barangay to compare with its alert and epidemic thresholds. The last week is still in progress.";
   const labels = weeks.length ? [weeks[0], weeks[Math.floor(weeks.length / 2)], weeks.at(-1)] : [];
-  $("trend-axis").replaceChildren(...labels.map((w, i) => el("span", { textContent: i === 2 ? `${w.label} (so far)` : w.label })));
+  $("trend-axis").replaceChildren(...labels.map((w, i) => el("span", { textContent: i === 2 ? `${weekStart(w)} (so far)` : weekStart(w) })));
 }
 
 // ---- Barangays -----------------------------------------------------------------------------
 
 function renderGrid() {
   const week = state.gridWeek === "current" ? data.summary.week : data.summary.previous_week;
-  $("grid-title").textContent = `Barangays · ${week.label}${state.gridWeek === "current" ? " (so far)" : ""}`;
+  $("grid-title").textContent = `Barangays · ${week.dates}${state.gridWeek === "current" ? " (so far)" : ""}`;
   const columns = tracked.filter((d) => d.group === state.gridGroup);
   $("grid-head").replaceChildren(
     el("th", { scope: "col", textContent: "Barangay" }),

@@ -216,7 +216,7 @@ Example `ALERT`:
   "iso_week": 43,
   "observed": 9,
   "threshold": 8.58,
-  "message": "Dengue cases in Brgy. Caraycaray in week 2026-W43: 9, above the alert threshold of 8.6.",
+  "message": "Dengue cases in Brgy. Caraycaray in the week of Oct 19 – 25, 2026: 9, above the alert threshold of 8.6.",
   "created_at": "2026-10-30T08:04:12.511+00:00"
 }
 ```
@@ -268,8 +268,8 @@ These read `weekly_stats`, the output of the parallel analytics, so they return 
 Example `GET /api/stats/summary` (shortened):
 ```json
 {
-  "week": { "iso_year": 2026, "iso_week": 44, "label": "2026-W44", "start": "2026-10-26" },
-  "previous_week": { "iso_year": 2026, "iso_week": 43, "label": "2026-W43", "start": "2026-10-19" },
+  "week": { "iso_year": 2026, "iso_week": 44, "label": "2026-W44", "dates": "Oct 26 – Nov 1, 2026", "start": "2026-10-26" },
+  "previous_week": { "iso_year": 2026, "iso_week": 43, "label": "2026-W43", "dates": "Oct 19 – 25, 2026", "start": "2026-10-19" },
   "diseases": [
     { "disease_code": "DEN", "name": "Dengue", "this_week": 4, "last_week": 26, "change_pct": -84.6, "barangays_on_alert": 0 }
   ],
@@ -300,4 +300,4 @@ The RHU sends one `MONITOR` message on connect, then one every second. The monit
 
 When an analytics run finishes, the same socket also gets `{"type": "ANALYTICS_DONE", "finished_at": "…"}` right away, so dashboards can redraw without waiting for the next snapshot.
 
-`latest_reports` is also in each `MONITOR` message: the 20 newest de-identified reports, newest first, for the RHU dashboard (`record_id`, `barangay_id`, `disease_code`, `onset_date`, `consult_date`, `age_years`, `sex`, `purok`, `case_status`, `received_at`, `revision`, `voided`, `counted_in_week`). Stress-test data (`drill`) and imported history are left out.
+`latest_reports` is also in each `MONITOR` message: the 20 newest de-identified reports, newest first, for the RHU dashboard (`record_id`, `barangay_id`, `disease_code`, `onset_date`, `consult_date`, `age_years`, `sex`, `purok`, `case_status`, `received_at`, `revision`, `voided`, `counted_in_week`, `counted_week_dates`). Stress-test data (`drill`) and imported history are left out.

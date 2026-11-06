@@ -6,7 +6,7 @@ from datetime import date
 import pytest
 
 from rhu import db, rules
-from rhu.alerts import acknowledge, classify, detect_alerts, recipients, weeks_to_check
+from rhu.alerts import _describe, reword_old_messages, acknowledge, classify, detect_alerts, recipients, weeks_to_check
 from tests.factories import NODE, make_batch, make_record, wait_for_stored
 
 TODAY = date(2026, 10, 30)  # ISO week 2026-W44
@@ -264,3 +264,48 @@ def test_non_communicable_illnesses_never_alert(registered, disease):
     summary = registered.get("/api/stats/summary").json()
     assert next(d for d in summary["diseases"] if d["disease_code"] == disease)["this_week"] == 30
     assert summary["totals"]["this_week"] == 30  # counted like any tracked illness
+
+
+# ---- real dates, not week codes ----------------------------------------------------------
+
+def old_alert(conn, message):
+    conn.execute(
+        """INSERT INTO alerts (alert_id, disease_code, barangay_id, level, iso_year, iso_week, observed, threshold, message, status, created_at)
+           VALUES ('old-1', 'DEN', 'BRGY-08', 'ALERT', 2026, 44, 9, 8.6, ?, 'ACKNOWLEDGED', '2026-10-30T00:00:00.000+00:00')""",
+        (message,),
+    )
+
+
+def test_a_new_alert_message_gives_the_dates():
+    disease = next(d for d in rules.diseases() if d["disease_code"] == "DEN")
+    message = _describe(disease, "BRGY-08", 2026, 44, 9, "ALERT", 8.6)
+    assert message == "Dengue cases in Brgy. Caraycaray in the week of Oct 26 – Nov 1, 2026: 9, above the alert threshold of 8.6."
+
+
+def test_an_urgent_alert_message_gives_the_dates():
+    disease = next(d for d in rules.diseases() if d["single_case_alert"])
+    message = _describe(disease, "BRGY-08", 2026, 45, 1, "URGENT", 0)
+    assert "in the week of Nov 2 – 8, 2026." in message
+    assert "-W" not in message
+
+
+def test_old_alert_messages_are_reworded_and_nothing_else_changes(tmp_path):
+    db_path = tmp_path / "old.db"
+    db.init_db(db_path)
+    with closing(db.connect(db_path)) as conn, conn:
+        old_alert(conn, "Dengue cases in Brgy. Caraycaray in week 2026-W44: 9, above the alert threshold of 8.6.")
+
+    assert reword_old_messages(db_path) == 1
+    assert reword_old_messages(db_path) == 0  # nothing left to do on the next start
+
+    with closing(db.connect(db_path)) as conn:
+        row = dict(conn.execute("SELECT * FROM alerts").fetchone())
+    assert row["message"] == "Dengue cases in Brgy. Caraycaray in the week of Oct 26 – Nov 1, 2026: 9, above the alert threshold of 8.6."
+    assert (row["status"], row["observed"], row["iso_week"]) == ("ACKNOWLEDGED", 9, 44)
+
+
+def test_the_alert_list_gives_the_dates(client):
+    with closing(db.connect(client.app.state.db_path)) as conn, conn:
+        old_alert(conn, "Some message")
+    assert client.get("/api/alerts").json()[0]["week_dates"] == "Oct 26 – Nov 1, 2026"
+

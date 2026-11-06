@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from rhu.history import import_history
+from rhu.weeks import week_dates
 from tests.factories import NODE, make_batch, make_record, wait_for_stored, create_test_app
 
 
@@ -37,6 +38,7 @@ def test_summary_compares_this_week_with_last_week(analyzed):
 
     assert (body["week"]["iso_year"], body["week"]["iso_week"]) == (year, week)
     assert body["previous_week"]["label"] == f"{last_year}-W{last_week:02d}"
+    assert body["week"]["dates"] == week_dates(year, week)
     assert len(body["diseases"]) == 19  # tracked diseases only
     assert body["other_consultations"]["this_week"] == 0
     dengue = next(d for d in body["diseases"] if d["disease_code"] == "DEN")

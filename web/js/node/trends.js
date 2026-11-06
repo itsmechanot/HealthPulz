@@ -2,6 +2,7 @@
 // Reads only aggregated statistics from the RHU (never individual cases).
 
 import * as api from "../common/api.js";
+import { weekStart } from "../common/dates.js";
 import { lineChart } from "../common/chart.js";
 import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
@@ -35,7 +36,7 @@ export function startTrendsPanel(config, barangay) {
       renderTable(summary, grid);
       (await map).update(grid.barangays);
       await renderChart();
-      $("trends-week").textContent = `${summary.week.label} (so far) vs ${summary.previous_week.label}`;
+      $("trends-week").textContent = `${summary.week.dates} (so far) vs ${summary.previous_week.dates}`;
       $("trends-note").textContent = "";
     } catch {
       $("trends-note").textContent = "Trends will update when the RHU can be reached again.";
@@ -96,7 +97,7 @@ export function startTrendsPanel(config, barangay) {
     $("trend-chart-title").textContent = `Brgy. ${barangay.name} · ${name} · last ${weeks.length} weeks`;
     $("trend-chart").setAttribute("aria-label", `${name} cases per week in Brgy. ${barangay.name}, with alert and epidemic thresholds`);
     $("trend-scale").textContent = `max ${fmt(Math.round(max))} cases`;
-    const ends = weeks.length ? [weeks[0].label, `${weeks[weeks.length - 1].label} (so far)`] : [];
+    const ends = weeks.length ? [weekStart(weeks[0]), `${weekStart(weeks[weeks.length - 1])} (so far)`] : [];
     $("trend-axis").replaceChildren(...ends.map((label) => el("span", { textContent: label })));
   }
 

@@ -10,13 +10,15 @@ from datetime import date
 
 from rhu import rules
 from rhu.alerts import classify, weeks_to_check
+from rhu.weeks import week_dates
 
 
 def week_info(year: int, week: int) -> dict:
     return {
         "iso_year": year,
         "iso_week": week,
-        "label": f"{year}-W{week:02d}",
+        "label": f"{year}-W{week:02d}",  # for API parameters; pages show `dates`
+        "dates": week_dates(year, week),
         "start": date.fromisocalendar(year, week, 1).isoformat(),
     }
 

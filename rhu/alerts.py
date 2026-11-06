@@ -19,6 +19,7 @@ alert_deliveries.
 """
 
 import asyncio
+import re
 import sqlite3
 import uuid
 from contextlib import closing
@@ -28,6 +29,7 @@ from pathlib import Path
 from rhu import db, rules
 from rhu.config import MIN_ALERT_CASES
 from rhu.hub import Hub
+from rhu.weeks import week_dates
 
 LEVEL_RANK = {"ALERT": 1, "EPIDEMIC": 2, "URGENT": 3}
 
@@ -122,11 +124,23 @@ def _save(conn, row, year, week, level, threshold, message) -> str | None:
 def _describe(disease: dict, barangay_id: str, year: int, week: int, count: int, level: str, threshold: float) -> str:
     place = f"Brgy. {rules.barangays_by_id()[barangay_id]['name']}"
     if disease["single_case_alert"]:
-        return f"{count} {disease['name'].lower()} case(s) in {place} in week {year}-W{week:02d}. Any single case needs immediate investigation."
+        return f"{count} {disease['name'].lower()} case(s) in {place} in the week of {week_dates(year, week)}. Any single case needs immediate investigation."
     return (
-        f"{disease['name']} cases in {place} in week {year}-W{week:02d}: {count}, "
+        f"{disease['name']} cases in {place} in the week of {week_dates(year, week)}: {count}, "
         f"above the {level.lower()} threshold of {threshold:.1f}."
     )
+
+
+def reword_old_messages(db_path: Path) -> int:
+    """Alerts saved before the pages showed real dates say "in week 2026-W44". Their counts and
+    status don't change, only that wording. Returns how many were reworded."""
+    code = re.compile(r"in week (\d{4})-W(\d{2})")
+    with closing(db.connect(db_path)) as conn, conn:
+        old = conn.execute("SELECT alert_id, message FROM alerts WHERE message LIKE '%in week %-W%'").fetchall()
+        for alert_id, message in old:
+            reworded = code.sub(lambda m: f"in the week of {week_dates(int(m[1]), int(m[2]))}", message)
+            conn.execute("UPDATE alerts SET message = ? WHERE alert_id = ?", (reworded, alert_id))
+    return len(old)
 
 
 def get_alert(conn: sqlite3.Connection, alert_id: str) -> dict:

@@ -11,6 +11,8 @@
 |---|---|---|
 | ![Alerts](rhu-dashboard-alerts.png) | ![Phone](rhu-dashboard-phone.png) | ![Phone menu](rhu-dashboard-phone-menu.png) |
 
+**Weeks are always shown as real dates** ("Nov 2 – 8, 2026"), or as "this week" and "last week". Never show a week code such as 2026-W44, which means nothing to health workers.
+
 ## Users and context
 - **Who:** RHU Naval staff (Municipal Health Officer, nurses, surveillance officer).
 - **Job:** see where and which illnesses are rising, and act on outbreak alerts.
@@ -22,7 +24,7 @@
 | Part | Content |
 |---|---|
 | **Sidebar** | Logo + "RHU Naval"; *Surveillance*: **Overview, Map, Alerts** (red count of open alerts), **Trends, Barangays**; *System*: System Monitor (no links to the BHU's page); footer "All data is synthetic". On phones it slides in from a ☰ button over a dimmed page. |
-| **Top bar** | Screen title + one-line description · **week chip** ("Week 2026-W44 · from Oct 26 (so far)") · live pill (**Live** / **Reconnecting…**) · user chip "RHU Staff" |
+| **Top bar** | Screen title + one-line description · **week chip** ("This week: Nov 2 – 8, 2026 (so far)") · live pill (**Live** / **Reconnecting…**) · user chip "RHU Staff" |
 | **Screens** | One at a time. The URL remembers it (`/dashboard/#/map`), so reload and the Back button work. |
 
 ## Screen 1 · Overview (default)
@@ -61,7 +63,7 @@ The **municipality of Naval is the focus**:
 ## Screen 3 · Alerts
 Filter: **Active** (open + acknowledged) · **Resolved** · **All**. Newest first. Each alert:
 - **Level badge and heading:** URGENT, EPIDEMIC or ALERT; disease · barangay · week.
-- **Message:** e.g. "Dengue cases in Brgy. Cabungaan in week 2026-W44: 9, above the epidemic threshold of 3.2."
+- **Message:** e.g. "Dengue cases in Brgy. Cabungaan in the week of Oct 26 – Nov 1, 2026: 9, above the epidemic threshold of 3.2."
 - **Status line:** Open / Acknowledged by RHU / Resolved · when it was raised · **sent to N stations, M acknowledged** (the distributed delivery, made visible).
 - **Corrected note:** if BHU corrections lowered the count after the alert was raised, a note shows the new count and asks staff to review it. The alert isn't closed automatically.
 - **Actions:**

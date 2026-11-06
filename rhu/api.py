@@ -13,6 +13,7 @@ from rhu import accounts, auth, db, network, rules, stats
 from rhu.accounts import Session
 from rhu.config import PROTOCOL_VERSION, RETRY_AFTER_SECONDS
 from rhu.ingest import IngestPipeline, PipelineBusy
+from rhu.weeks import week_dates
 from rhu.models import AlertStatusUpdate, BurstRequest, GivePassword, RegisterRequest, RegisterResponse, SubmitBatch, barangay_of
 
 # Every route needs a login unless it is on public_router, so a new route can't be left open by accident.
@@ -190,7 +191,7 @@ def list_alerts(
         """,
         (status, status, limit),
     ).fetchall()
-    return [dict(r) for r in rows]
+    return [{**dict(r), "week_dates": week_dates(r["iso_year"], r["iso_week"])} for r in rows]
 
 
 @router.post("/alerts/{alert_id}/status", dependencies=[Depends(auth.require_rhu)])

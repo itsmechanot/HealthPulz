@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from rhu import accounts, api, auth, bhu_api, config, db, ws
-from rhu.alerts import AlertService
+from rhu.alerts import AlertService, reword_old_messages
 from rhu.analytics import Analytics, run_when_cases_change
 from rhu.bhu_store import BhuStores, OutboxRelay
 from rhu.hub import Hub
@@ -40,6 +40,7 @@ def create_app(
     async def lifespan(app: FastAPI):
         db.init_db(db_path)
         accounts.ensure_accounts(db_path)
+        reword_old_messages(db_path)
         hub = Hub()
         hub.bind_loop(asyncio.get_running_loop())
         stores = BhuStores(db_path.parent / "bhu")

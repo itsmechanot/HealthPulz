@@ -14,6 +14,7 @@ from datetime import date
 from pathlib import Path
 
 from rhu import db
+from rhu.weeks import week_dates
 
 MAX_REPORTS = 20
 
@@ -28,6 +29,7 @@ def _report(
         "onset_date": onset_date, "consult_date": consult_date, "age_years": age_years, "sex": sex, "purok": purok,
         "case_status": case_status, "received_at": received_at, "revision": revision, "voided": bool(voided),
         "counted_in_week": f"{year}-W{week:02d}",  # cases count in the week of the checkup
+        "counted_week_dates": week_dates(year, week),
     }
 
 
