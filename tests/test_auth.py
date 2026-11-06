@@ -91,7 +91,9 @@ def test_upgrading_from_the_first_login_version(tmp_path):
     """That version listed BHU passwords in the file and had no password_set_at column."""
     db_path = tmp_path / "test.db"
     with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as first:
-        old_password = password_of(first, OWN)
+        old_password = accounts.new_password()
+        with closing(sqlite3.connect(db_path)) as conn, conn:
+            conn.execute("UPDATE accounts SET password_hash = ? WHERE username = ?", (accounts.hash_password(old_password), OWN))
     path = accounts.passwords_path(db_path)
     rhu_line = path.read_text(encoding="utf-8")
     old_bhu_line = chr(9).join([OWN, "Caraycaray", old_password])
@@ -102,7 +104,17 @@ def test_upgrading_from_the_first_login_version(tmp_path):
     with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as second:
         assert old_password not in path.read_text(encoding="utf-8")
         assert path.read_text(encoding="utf-8") == rhu_line  # the RHU's own password is kept
-        assert second.post("/api/auth/login", json={"username": OWN, "password": old_password}).status_code == 200
+        assert second.post("/api/auth/login", json={"username": OWN, "password": old_password}).status_code == 401
+        log_in(second, "RHU")
+        assert all(not a["assigned"] for a in second.get("/api/accounts").json())
+
+
+def test_passwords_the_rhu_gave_survive_a_restart(tmp_path):
+    db_path = tmp_path / "test.db"
+    with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as first:
+        given = password_of(first, OWN)
+    with TestClient(create_app(db_path, analytics_workers=1, analytics_interval=3600)) as second:
+        assert second.post("/api/auth/login", json={"username": OWN, "password": given}).status_code == 200
 
 
 def test_restarting_keeps_passwords_and_logins(tmp_path):

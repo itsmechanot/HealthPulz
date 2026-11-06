@@ -141,6 +141,16 @@ def ensure_accounts(db_path: Path) -> None:
                 "INSERT INTO accounts (username, role, barangay_id, password_hash) VALUES (?, ?, ?, ?)",
                 (username, role, barangay_id, stored),
             )
+        # The first login version generated BHU passwords by itself. Those were never given by the
+        # RHU (every given password has a date), so they stop working.
+        conn.execute(
+            "DELETE FROM sessions WHERE username IN "
+            "(SELECT username FROM accounts WHERE role = ? AND password_set_at IS NULL)",
+            (BHU,),
+        )
+        conn.execute(
+            "UPDATE accounts SET password_hash = ? WHERE role = ? AND password_set_at IS NULL", (NO_PASSWORD, BHU)
+        )
         # Inside the transaction: if the list can't be saved, the accounts aren't created either,
         # so no account ends up with a password nobody can read.
         _save_passwords(db_path, created)
