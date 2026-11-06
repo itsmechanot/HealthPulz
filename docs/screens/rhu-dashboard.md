@@ -15,7 +15,7 @@
 - **Who:** RHU Naval staff (Municipal Health Officer, nurses, surveillance officer).
 - **Job:** see where and which illnesses are rising, and act on outbreak alerts.
 - **Device:** laptop or desktop at the RHU; must still work on a phone.
-- **Live data:** refreshes by itself **every 10 s** (the analytics interval). The number of stations online updates every second.
+- **Live data:** the numbers, map and lists redraw **as soon as the analytics finish a run**, which starts moments after a BHU's report is stored (and at least every 10 s otherwise). The number of stations online updates every second.
 - **"So far":** the current week isn't over, so its numbers are usually lower than last week's. This must always be clear; the top bar says "(so far)".
 
 ## Layout (app shell)

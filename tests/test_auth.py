@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from rhu import accounts, auth
 from rhu.main import create_app
-from tests.factories import make_batch, wait_for_stored
+from tests.factories import make_batch, next_snapshot, wait_for_stored
 
 OWN = "BRGY-08"
 OTHER = "BRGY-01"
@@ -422,7 +422,7 @@ def test_monitor_feed_is_for_the_rhu(server):
     assert closed_with(server, "/ws/monitor") == auth.CLOSE_NOT_ALLOWED
     log_in(server, "RHU")
     with server.websocket_connect("/ws/monitor") as ws:
-        assert ws.receive_json()["type"] == "MONITOR"
+        assert next_snapshot(ws)["type"] == "MONITOR"
 
 
 # ---- pages -----------------------------------------------------------------------------

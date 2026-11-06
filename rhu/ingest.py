@@ -86,10 +86,12 @@ class IngestPipeline:
         workers: int = config.INGEST_WORKERS,
         queue_size: int = config.INGEST_QUEUE_SIZE,
         on_stored: StoredCallback | None = None,
+        on_reports: Callable[[], None] | None = None,
     ) -> None:
         self._db_path = db_path
         self._worker_count = workers
         self._on_stored = on_stored
+        self._on_reports = on_reports  # called after real reports are committed (not test data)
         self._ingest_queue: queue.Queue = queue.Queue(maxsize=queue_size)
         self._write_queue: queue.Queue = queue.Queue(maxsize=queue_size)
         self._validators: list[threading.Thread] = []
@@ -234,6 +236,7 @@ class IngestPipeline:
                 )
                 if not item.batch.drill and message["accepted"] + message["updated"]:
                     self.latest_reports.add(reports.from_records(item.valid, barangay_of(node_id), item.received_at))
+                    self._announce_reports()
             self._notify(node_id, message)
 
     def _write_batch(self, conn: sqlite3.Connection, item: _ValidatedBatch) -> tuple[str, dict, bool]:
@@ -294,6 +297,15 @@ class IngestPipeline:
             (accepted, updated, duplicates, len(item.rejected), db.utc_now(), batch_id),
         )
         return batch.node_id, _stored_message(batch_id, accepted, updated, duplicates, item.rejected), False
+
+    def _announce_reports(self) -> None:
+        if self._on_reports is None:
+            return
+        try:
+            self._on_reports()
+        except Exception:
+            # Like a failed notification, this must never stop the writer thread.
+            log.exception("Could not announce new reports")
 
     def _notify(self, node_id: str, message: dict) -> None:
         if self._on_stored is None:

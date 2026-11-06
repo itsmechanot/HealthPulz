@@ -10,7 +10,7 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.factories import create_test_app
+from tests.factories import create_test_app, next_snapshot
 
 from rhu.bhu_store import BhuStores, OutboxRelay, age_on, station_id
 from rhu.ingest import PipelineBusy
@@ -296,7 +296,7 @@ def test_monitor_counts_devices_on_one_station(registered):
             device.send_json(hello)
             device.receive_json()
         with registered.websocket_connect("/ws/monitor") as monitor:
-            nodes = {n["node_id"]: n for n in monitor.receive_json()["nodes"]}
+            nodes = {n["node_id"]: n for n in next_snapshot(monitor)["nodes"]}
     assert nodes["BRGY-01-MAIN"]["connections"] == 2
 
 

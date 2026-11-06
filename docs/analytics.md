@@ -36,7 +36,7 @@ cases table ──►  ├─ worker process 2: Brgy. Anislagan  ─┤ ──�
 - **The pool is created once** when the server starts and reused, because starting processes is slow (about a second on Windows).
 
 ### When it runs
-The server re-runs the analytics automatically every 10 s **if cases changed** (new batches stored, or history re-imported), then checks for outbreak alerts (see [protocol.md](protocol.md#alerts)). It can also be triggered with `POST /api/analytics/run`. `GET /api/analytics` and the System Monitor feed show the last run: worker count, cases read, map time and reduce time.
+The server re-runs the analytics **as soon as real reports are stored**: the DB writer thread signals the scheduler on the event loop, and the scheduler waits 0.2 s so reports arriving together share one run. When the run finishes, dashboards are told over the WebSocket and redraw. Test data (`drill`) doesn't trigger a run, because it isn't analyzed and shouldn't take CPU from the pipeline during a burst. Every 10 s it also checks whether anything else changed, such as a history re-import.
 
 ## Benchmark results
 
@@ -54,7 +54,7 @@ A second pass gave 2.02×, 3.73× and 4.66×.
 > **How far to trust these:** the laptop was running other programs, and the 1-worker time varied a lot. Comparing the *fastest* runs instead gives about 3× at 8 workers, so read this as **about 3–4.5×**, not an exact figure. **Before quoting numbers in the paper, re-run the benchmark with other apps closed.**
 
 **Why efficiency drops as workers increase** (talking points for the defense):
-1. **Amdahl's law:** the reduce step (writing ~104,000 rows) is sequential and takes about 1 s no matter how many workers there are. As the map step gets faster, this fixed part becomes a larger share of the total.
+1. **Amdahl's law:** the benchmark writes all ~104,000 rows on every run, the worst case. That reduce step is sequential and takes about 1 s no matter how many workers there are. (While the server is running, it writes only the rows that changed, which is much faster, so the benchmark's numbers are the conservative ones.) As the map step gets faster, this fixed part becomes a larger share of the total.
 2. **Load imbalance:** with 26 uneven barangays and 8 workers, the run can't finish before the largest barangay is done, so some workers sit idle at the end.
 3. **Overhead:** sending tasks and results between processes, and all workers reading the same database file at once.
 

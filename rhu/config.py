@@ -22,7 +22,8 @@ RETRY_AFTER_SECONDS = 2  # sent to nodes with 503 when the ingest queue is full
 
 # Analytics process pool
 ANALYTICS_WORKERS = int(os.environ.get("HEALTHPULZ_ANALYTICS_WORKERS", min(4, os.cpu_count() or 1)))
-ANALYTICS_INTERVAL_SECONDS = 10  # how often the server checks for new cases to analyze
+ANALYTICS_INTERVAL_SECONDS = 10  # safety net: how often the server checks for changes no report announced
+ANALYTICS_GATHER_SECONDS = 0.2  # after a report, wait this long so reports arriving together share one run
 
 # Alerts
 MIN_ALERT_CASES = 3  # fewer cases never raise a threshold alert (cuts false alarms; see docs/analytics.md)

@@ -1,18 +1,22 @@
 """Tests for the parallel analytics (weekly counts and thresholds)."""
 
 import sqlite3
+import time
 from collections import Counter
 from contextlib import closing
 from datetime import date, timedelta
 
 import pytest
 
-from rhu import db, rules
-from rhu.analytics import ANALYTICS_QUERY, Analytics, _cases_signature, baseline_values
+from fastapi.testclient import TestClient
+
+from rhu import auth, config, db, rules
+from rhu.analytics import ANALYTICS_QUERY, Analytics, _cases_signature, _stored_rows, _write_changed_rows, baseline_values
 from rhu.history import import_history
 from rhu.ingest import IngestPipeline
 from rhu.models import SubmitBatch
-from tests.factories import NODE, make_batch, make_record, wait_for_stored
+from rhu.main import create_app
+from tests.factories import NODE, AllAccess, make_batch, make_record, wait_for_stored
 
 TODAY = date(2026, 10, 30)
 FIRST_WEEK = date.fromisocalendar(2023, 1, 1)
@@ -205,3 +209,161 @@ def test_upgrading_replaces_the_index_on_the_old_date(tmp_path):
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'")}
     assert "idx_cases_weekly" in names
     assert "idx_cases_analytics" not in names
+
+
+# ---- analytics run when reports arrive ---------------------------------------------------
+
+@pytest.fixture
+def live_server(tmp_path):
+    """As it really runs, except that the safety-net interval can't be what starts a run."""
+    live = create_app(tmp_path / "live.db", analytics_workers=1, analytics_interval=3600)
+    live.dependency_overrides[auth.optional_session] = lambda: AllAccess("test", "TEST")
+    with TestClient(live) as client:
+        client.post("/api/nodes/register", json={"type": "REGISTER", "node_id": NODE, "barangay_id": "BRGY-08"})
+        yield client
+
+
+def weekly_total(client):
+    return client.get("/api/stats/summary").json()["totals"]["this_week"]
+
+
+def wait_until(condition, seconds=5):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def test_a_report_starts_the_analytics_without_waiting_for_the_interval(live_server):
+    today = date.today().isoformat()
+    batch = make_batch(NODE, records=[make_record(disease_code="DEN", onset_date=today, consult_date=today)])
+    live_server.post("/api/batches", json=batch)
+    assert wait_until(lambda: weekly_total(live_server) == 1)
+
+
+def test_test_data_does_not_start_the_analytics(live_server):
+    assert wait_until(lambda: live_server.get("/api/analytics").json()["last_run"] is not None)
+    before = live_server.get("/api/analytics").json()["last_run"]["finished_at"]
+
+    batch = {**make_batch(NODE, count=5), "drill": True}
+    live_server.post("/api/batches", json=batch)
+    wait_for_stored(live_server, batch["batch_id"])
+    time.sleep(config.ANALYTICS_GATHER_SECONDS + 1)
+
+    assert live_server.get("/api/analytics").json()["last_run"]["finished_at"] == before
+
+
+def test_reports_arriving_together_share_one_run(live_server):
+    assert wait_until(lambda: live_server.get("/api/analytics").json()["last_run"] is not None)
+    before = live_server.get("/api/analytics").json()["last_run"]["finished_at"]
+    today = date.today().isoformat()
+    for _ in range(5):
+        live_server.post("/api/batches", json=make_batch(NODE, records=[make_record(disease_code="DEN", onset_date=today, consult_date=today)]))
+
+    assert wait_until(lambda: weekly_total(live_server) == 5)
+    # One run gathered them all, or at most a second caught the last ones.
+    runs = []
+    original = live_server.app.state.analytics.run
+    live_server.app.state.analytics.run = lambda *a, **k: runs.append(1) or original(*a, **k)
+    time.sleep(config.ANALYTICS_GATHER_SECONDS + 0.5)
+    assert len(runs) <= 1
+    assert live_server.get("/api/analytics").json()["last_run"]["finished_at"] != before
+
+
+# ---- reduce writes only what changed -----------------------------------------------------
+
+ROW = ("BRGY-01", "DEN", 2026, 45, 1, 2.5, 3.5)
+
+
+@pytest.fixture
+def stats_conn(tmp_path):
+    db.init_db(tmp_path / "stats.db")
+    with closing(db.connect(tmp_path / "stats.db")) as conn:
+        yield conn
+
+
+def write(conn, *rows):
+    return _write_changed_rows(conn, set(rows), _stored_rows(conn))
+
+
+def test_unchanged_rows_are_not_written_again(stats_conn):
+    assert write(stats_conn, ROW) == 1
+    assert write(stats_conn, ROW) == 0
+    assert _stored_rows(stats_conn) == {ROW}
+
+
+def test_a_changed_count_replaces_its_row(stats_conn):
+    write(stats_conn, ROW)
+    other_week = (*ROW[:3], 44, 7, None, None)
+    higher = (*ROW[:4], 2, 2.5, 3.5)
+    assert write(stats_conn, other_week, higher) == 2
+    assert _stored_rows(stats_conn) == {other_week, higher}
+    assert write(stats_conn, other_week, higher) == 0  # NULL thresholds compare as equal
+
+
+def test_rows_that_no_longer_exist_are_removed(stats_conn):
+    other_week = (*ROW[:3], 44, 7, None, None)
+    write(stats_conn, other_week, ROW)
+    assert write(stats_conn, ROW) == 1
+    assert _stored_rows(stats_conn) == {ROW}
+
+
+def test_a_new_server_picks_up_from_what_is_stored(tmp_path):
+    """The memory of the last run is empty after a restart, so it compares with the table instead."""
+    db_path = tmp_path / "restart.db"
+    import_history(db_path, years=1)
+    Analytics(db_path, workers=1).run()
+    with closing(db.connect(db_path)) as conn:
+        before = _stored_rows(conn)
+        conn.execute("UPDATE weekly_stats SET case_count = case_count + 100 WHERE barangay_id = 'BRGY-01' AND disease_code = 'DEN'")
+        conn.commit()
+
+    Analytics(db_path, workers=1).run()
+
+    with closing(db.connect(db_path)) as conn:
+        assert _stored_rows(conn) == before
+
+
+def test_writing_only_changes_gives_the_same_table_as_rewriting_everything(tmp_path):
+    db_path = tmp_path / "same.db"
+    import_history(db_path, years=1)
+    analytics = Analytics(db_path, workers=1)
+    analytics.run()
+    with closing(db.connect(db_path)) as conn, conn:
+        conn.execute("DELETE FROM cases WHERE rowid IN (SELECT rowid FROM cases LIMIT 50)")
+    analytics.run()
+    with closing(db.connect(db_path)) as conn:
+        incremental = _stored_rows(conn)
+
+    Analytics(db_path, workers=1, rewrite_all=True).run()
+
+    with closing(db.connect(db_path)) as conn:
+        assert _stored_rows(conn) == incremental
+
+
+def test_a_voided_case_leaves_the_weekly_numbers(tmp_path):
+    db_path = tmp_path / "void.db"
+    db.init_db(db_path)
+    with closing(db.connect(db_path)) as conn, conn:
+        conn.execute("INSERT INTO nodes (node_id, barangay_id, registered_at) VALUES ('BRGY-01-MAIN', 'BRGY-01', ?)", (db.utc_now(),))
+    today = date.today()
+    record = make_record(disease_code="DEN", onset_date=today.isoformat(), consult_date=today.isoformat())
+    year, week, _ = today.isocalendar()
+    analytics = Analytics(db_path, workers=1)
+
+    pipeline = IngestPipeline(db_path)
+    pipeline.start()
+    pipeline.submit(SubmitBatch(**make_batch("BRGY-01-MAIN", records=[record])))
+    pipeline.stop()
+    analytics.run(today)
+    assert query_count(db_path, year, week) == 1
+
+    pipeline = IngestPipeline(db_path)
+    pipeline.start()
+    pipeline.submit(SubmitBatch(**make_batch("BRGY-01-MAIN", records=[{**record, "revision": 1, "voided": True}])))
+    pipeline.stop()
+    analytics.run(today)
+    assert query_count(db_path, year, week) == 0
+

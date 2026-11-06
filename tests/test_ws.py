@@ -4,10 +4,12 @@ from contextlib import closing
 
 import pytest
 from fastapi import WebSocketDisconnect
+from fastapi.testclient import TestClient
 
-from rhu import db
+from rhu import auth, db
 from rhu.history import import_history
-from tests.factories import NODE, make_batch, wait_for_stored
+from rhu.main import create_app
+from tests.factories import NODE, AllAccess, make_batch, next_snapshot, wait_for_stored
 
 
 STATION = "BRGY-08-MAIN"
@@ -69,7 +71,7 @@ def test_monitor_shows_connected_node_online(registered):
         node.receive_json()
 
         with registered.websocket_connect("/ws/monitor") as monitor:
-            snapshot = monitor.receive_json()
+            snapshot = next_snapshot(monitor)
 
     assert snapshot["type"] == "MONITOR"
     assert node_entry(snapshot) == {
@@ -86,7 +88,7 @@ def test_monitor_lists_only_live_nodes(registered):
     register_station(registered)
     import_history(registered.app.state.db_path, years=1)
     with registered.websocket_connect("/ws/monitor") as monitor:
-        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [STATION]
+        assert [n["node_id"] for n in next_snapshot(monitor)["nodes"]] == [STATION]
 
 
 def test_monitor_hides_old_ids_of_a_barangay_once_disconnected(registered):
@@ -95,15 +97,15 @@ def test_monitor_hides_old_ids_of_a_barangay_once_disconnected(registered):
     with registered.websocket_connect(f"/ws/node/{NODE}") as node:
         hello(node)
         with registered.websocket_connect("/ws/monitor") as monitor:
-            assert {n["node_id"] for n in monitor.receive_json()["nodes"]} == {STATION, NODE}
+            assert {n["node_id"] for n in next_snapshot(monitor)["nodes"]} == {STATION, NODE}
     with registered.websocket_connect("/ws/monitor") as monitor:
-        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [STATION]
+        assert [n["node_id"] for n in next_snapshot(monitor)["nodes"]] == [STATION]
 
 
 def test_monitor_shows_a_registered_but_unconnected_station_offline(registered):
     register_station(registered)
     with registered.websocket_connect("/ws/monitor") as monitor:
-        assert node_entry(monitor.receive_json(), STATION)["status"] == "OFFLINE"
+        assert node_entry(next_snapshot(monitor), STATION)["status"] == "OFFLINE"
 
 
 def test_monitor_hides_stations_not_seen_recently(registered):
@@ -112,7 +114,7 @@ def test_monitor_hides_stations_not_seen_recently(registered):
         conn.execute("INSERT INTO nodes (node_id, barangay_id, registered_at) VALUES ('BRGY-01-MAIN', 'BRGY-01', '2020-01-01T00:00:00.000+00:00')")
 
     with registered.websocket_connect("/ws/monitor") as monitor:
-        assert [n["node_id"] for n in monitor.receive_json()["nodes"]] == [STATION]
+        assert [n["node_id"] for n in next_snapshot(monitor)["nodes"]] == [STATION]
 
 
 def test_monitor_always_shows_a_connected_station(registered):
@@ -122,7 +124,7 @@ def test_monitor_always_shows_a_connected_station(registered):
     with registered.websocket_connect("/ws/node/BRGY-01-OLD1") as node:
         hello(node, "BRGY-01-OLD1")
         with registered.websocket_connect("/ws/monitor") as monitor:
-            entry = node_entry(monitor.receive_json(), "BRGY-01-OLD1")
+            entry = node_entry(next_snapshot(monitor), "BRGY-01-OLD1")
     assert entry["status"] == "ONLINE"
 
 
@@ -167,6 +169,22 @@ def test_monitor_feed_carries_the_latest_reports(registered):
     registered.post("/api/batches", json=batch)
     wait_for_stored(registered, batch["batch_id"])
     with registered.websocket_connect("/ws/monitor") as monitor:
-        reports = monitor.receive_json()["latest_reports"]
+        reports = next_snapshot(monitor)["latest_reports"]
     assert {r["record_id"] for r in reports} == {r["record_id"] for r in batch["records"]}
+
+
+def test_dashboards_are_told_when_the_analytics_finish(tmp_path):
+    """Without waiting for the next once-a-second snapshot."""
+    live = create_app(tmp_path / "live.db", analytics_workers=1, analytics_interval=3600)
+    live.dependency_overrides[auth.optional_session] = lambda: AllAccess("test", "TEST")
+    with TestClient(live) as client:
+        client.post("/api/nodes/register", json={"type": "REGISTER", "node_id": NODE, "barangay_id": "BRGY-08"})
+        with client.websocket_connect("/ws/monitor") as monitor:
+            client.post("/api/batches", json=make_batch(NODE, count=1))
+            for _ in range(20):
+                message = monitor.receive_json()
+                if message["type"] == "ANALYTICS_DONE":
+                    break
+    assert message["type"] == "ANALYTICS_DONE"
+    assert message["finished_at"]
 

@@ -65,9 +65,12 @@ class AnalyticsResult:
 
 
 class Analytics:
-    def __init__(self, db_path: Path, workers: int = config.ANALYTICS_WORKERS) -> None:
+    def __init__(self, db_path: Path, workers: int = config.ANALYTICS_WORKERS, *, rewrite_all: bool = False) -> None:
+        """rewrite_all: write every row on every run. The benchmark uses it to measure the full job."""
         self.db_path = db_path
         self.workers = workers
+        self._rewrite_all = rewrite_all
+        self._written: set[tuple] | None = None  # what the last run left in weekly_stats
         # Created once and reused: starting processes is slow (especially on Windows).
         self._executor = ProcessPoolExecutor(max_workers=workers) if workers > 1 else None
         self._lock = threading.Lock()  # the scheduler and a manual run must not overlap
@@ -102,16 +105,15 @@ class Analytics:
         mapped = time.perf_counter()
 
         rows = [row for _, part_rows in parts for row in part_rows]
+        new_rows = set(rows)
         with closing(db.connect(self.db_path)) as conn, conn:
-            conn.execute("DELETE FROM weekly_stats")
-            conn.executemany(
-                """
-                INSERT INTO weekly_stats (
-                  barangay_id, disease_code, iso_year, iso_week, case_count, alert_threshold, epidemic_threshold
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                rows,
-            )
+            if self._rewrite_all:
+                conn.execute("DELETE FROM weekly_stats")
+                _write_changed_rows(conn, new_rows, set())
+            else:
+                stored = self._written if self._written is not None else _stored_rows(conn)
+                _write_changed_rows(conn, new_rows, stored)
+        self._written = new_rows  # only after the commit: a failed write is compared again next time
         reduced = time.perf_counter()
 
         return AnalyticsResult(
@@ -128,6 +130,35 @@ class Analytics:
         with closing(db.connect(self.db_path)) as conn:
             first = conn.execute("SELECT MIN(consult_date) FROM cases").fetchone()[0]
         return date.fromisoformat(first) if first else None
+
+
+def _stored_rows(conn: sqlite3.Connection) -> set[tuple]:
+    rows = conn.execute(
+        """SELECT barangay_id, disease_code, iso_year, iso_week, case_count, alert_threshold, epidemic_threshold
+           FROM weekly_stats"""
+    )
+    return {tuple(row) for row in rows}
+
+
+def _write_changed_rows(conn: sqlite3.Connection, rows: set[tuple], stored: set[tuple]) -> int:
+    """Reduce: a new report changes only a few of the ~100,000 rows, so writing just those keeps the
+    numbers close to real time and holds the write lock (shared with the DB writer) only briefly.
+    Comparing sets is what makes this fast; comparing row by row took as long as writing them all.
+    Returns how many rows were written or removed."""
+    changed = rows - stored
+    gone = {row[:4] for row in stored - rows} - {row[:4] for row in changed}
+    conn.executemany(
+        "DELETE FROM weekly_stats WHERE barangay_id = ? AND disease_code = ? AND iso_year = ? AND iso_week = ?", gone
+    )
+    conn.executemany(
+        """
+        INSERT OR REPLACE INTO weekly_stats (
+          barangay_id, disease_code, iso_year, iso_week, case_count, alert_threshold, epidemic_threshold
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        changed,
+    )
+    return len(changed) + len(gone)
 
 
 # ---- map step (runs inside the worker processes) ------------------------------
@@ -190,11 +221,16 @@ async def run_when_cases_change(
     analytics: Analytics,
     interval: float,
     after_run: Callable[[AnalyticsResult], Awaitable[object]] | None = None,
+    new_reports: asyncio.Event | None = None,
 ) -> None:
-    """Background task: re-run the analytics whenever cases were added or replaced,
-    then call `after_run` (used to check for outbreak alerts)."""
+    """Background task: re-run the analytics whenever cases were added or replaced, then call
+    `after_run` (used to check for outbreak alerts). `new_reports` starts a run right away, so
+    the dashboard's numbers follow what the BHUs send; `interval` is the safety net for changes
+    nobody announced, such as a history import."""
+    new_reports = new_reports or asyncio.Event()
     last_signature = None
     while True:
+        new_reports.clear()  # before reading the data: a report after this point starts the next run
         try:
             signature = await asyncio.to_thread(_cases_signature, analytics.db_path)
             if signature != last_signature:
@@ -205,7 +241,11 @@ async def run_when_cases_change(
                     await after_run(result)
         except Exception:
             log.exception("Analytics run failed; will retry")
-        await asyncio.sleep(interval)
+        try:
+            await asyncio.wait_for(new_reports.wait(), timeout=interval)
+            await asyncio.sleep(config.ANALYTICS_GATHER_SECONDS)
+        except TimeoutError:
+            pass
 
 
 def _cases_signature(db_path: Path) -> tuple:

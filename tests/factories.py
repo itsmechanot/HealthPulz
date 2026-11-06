@@ -25,10 +25,18 @@ class AllAccess(Session):
 
 def create_test_app(db_path):
     # One analytics worker: starting worker processes is slow on Windows (test_analytics covers the pool).
-    # A long interval keeps the scheduler to its startup run; tests trigger runs via POST /api/analytics/run.
-    app = create_app(db_path, analytics_workers=1, analytics_interval=3600)
+    # No automatic runs after the one at startup; tests trigger runs via POST /api/analytics/run.
+    app = create_app(db_path, analytics_workers=1, analytics_interval=3600, analytics_on_reports=False)
     app.dependency_overrides[auth.optional_session] = lambda: AllAccess("test", "TEST")
     return app
+
+
+def next_snapshot(monitor) -> dict:
+    """The next MONITOR message; the socket also carries the analytics' ANALYTICS_DONE signal."""
+    while True:
+        message = monitor.receive_json()
+        if message["type"] == "MONITOR":
+            return message
 
 
 def make_record(**overrides) -> dict:

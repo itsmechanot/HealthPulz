@@ -32,6 +32,7 @@ def create_app(
     *,
     analytics_workers: int = config.ANALYTICS_WORKERS,
     analytics_interval: float = config.ANALYTICS_INTERVAL_SECONDS,
+    analytics_on_reports: bool = True,
 ) -> FastAPI:
     db_path = db_path or config.DB_PATH
 
@@ -47,7 +48,14 @@ def create_app(
             relay.on_stored(message)  # first, so a device told STORED reads the updated record
             hub.send_to_node_threadsafe(node_id, message)
 
-        pipeline = IngestPipeline(db_path, on_stored=on_stored)
+        # Set from the DB writer thread, so it has to go through the event loop.
+        loop = asyncio.get_running_loop()
+        new_reports = asyncio.Event()
+
+        def announce_reports() -> None:
+            loop.call_soon_threadsafe(new_reports.set)
+
+        pipeline = IngestPipeline(db_path, on_stored=on_stored, on_reports=announce_reports if analytics_on_reports else None)
         relay = OutboxRelay(stores, pipeline)
         pipeline.start()
         relay.start()
@@ -60,12 +68,14 @@ def create_app(
         app.state.analytics = analytics
         app.state.alerts = alerts
 
-        async def check_alerts(_result) -> None:
+        async def after_analytics(result) -> None:
+            # Tell the dashboards right away, before the alert check, so their numbers don't wait.
+            await hub.broadcast_to_monitors({"type": "ANALYTICS_DONE", "finished_at": result.finished_at})
             await alerts.check_and_publish()
 
         background = [
             asyncio.create_task(ws.monitor_feed(app)),
-            asyncio.create_task(run_when_cases_change(analytics, analytics_interval, after_run=check_alerts)),
+            asyncio.create_task(run_when_cases_change(analytics, analytics_interval, after_run=after_analytics, new_reports=new_reports)),
         ]
 
         yield

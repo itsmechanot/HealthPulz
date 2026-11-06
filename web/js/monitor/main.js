@@ -51,7 +51,10 @@ function connect() {
   setConnection("connecting");
   const ws = new WebSocket(api.wsUrl("/ws/monitor"));
   ws.onopen = () => setConnection("online");
-  ws.onmessage = (event) => render(JSON.parse(event.data));
+  ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === "MONITOR") render(message); // the analytics' "done" signal is for the dashboard
+  };
   ws.onclose = (event) => {
     if (event.code === api.CLOSE_NOT_LOGGED_IN) return api.toLogin();
     setConnection("offline");

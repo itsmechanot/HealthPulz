@@ -25,7 +25,7 @@ from rhu.analytics import Analytics  # noqa: E402
 def benchmark(db_path: Path, worker_counts: list[int], repeat: int) -> list[dict]:
     """Takes turns between the worker counts, so a busy moment on the machine affects
     all of them alike instead of skewing whichever happened to be running."""
-    pools = {n: Analytics(db_path, workers=n) for n in worker_counts}
+    pools = {n: Analytics(db_path, workers=n, rewrite_all=True) for n in worker_counts}
     try:
         for analytics in pools.values():
             analytics.run()  # warm-up: starts the worker processes and fills the OS file cache

@@ -1,5 +1,5 @@
 // RHU Dashboard: Overview, Map, Alerts, Trends and Barangays over the /api/stats and /api/alerts
-// endpoints, refreshed every 10 s (the analytics interval), plus BHU Accounts (accounts.js).
+// endpoints, refreshed when the analytics finish a run, plus BHU Accounts (accounts.js).
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
@@ -79,7 +79,16 @@ async function start() {
 
 // ---- data -----------------------------------------------------------------------
 
+let refreshing = false;
+let refreshAgain = false;
+
+/** One at a time, so a slower, older answer can't be drawn over a newer one. */
 async function refresh() {
+  if (refreshing) {
+    refreshAgain = true;
+    return;
+  }
+  refreshing = true;
   try {
     data.summary = await api.fetchJson("/api/stats/summary");
     const [current, previous, alerts] = await Promise.all([
@@ -95,6 +104,12 @@ async function refresh() {
   } catch (error) {
     setConnection("offline", "Reconnecting…");
     console.warn("Dashboard refresh failed", error);
+  } finally {
+    refreshing = false;
+    if (refreshAgain) {
+      refreshAgain = false;
+      refresh();
+    }
   }
 }
 
@@ -102,11 +117,15 @@ async function refresh() {
 function watchStations() {
   const ws = new WebSocket(api.wsUrl("/ws/monitor"));
   ws.onmessage = (event) => {
-    const snapshot = JSON.parse(event.data);
-    data.nodes = snapshot.nodes;
+    const message = JSON.parse(event.data);
+    if (message.type === "ANALYTICS_DONE") {
+      refreshAfterAnalytics(message.finished_at);
+      return;
+    }
+    data.nodes = message.nodes;
     renderStations();
-    updateReports(snapshot.latest_reports);
-    refreshAfterAnalytics(snapshot.analytics?.finished_at);
+    updateReports(message.latest_reports);
+    refreshAfterAnalytics(message.analytics?.finished_at); // in case the message above was missed
   };
   ws.onclose = (event) => {
     if (event.code === api.CLOSE_NOT_LOGGED_IN) return api.toLogin();
@@ -116,7 +135,7 @@ function watchStations() {
 
 let lastAnalyticsRun = null;
 
-/** New numbers are ready as soon as a run finishes, so don't wait for the 10-second refresh. */
+/** New numbers are ready as soon as a run finishes, so show them right away. */
 function refreshAfterAnalytics(finishedAt) {
   if (!finishedAt) return;
   if (lastAnalyticsRun && finishedAt !== lastAnalyticsRun) refresh();
@@ -201,6 +220,8 @@ function weekName(label) {
 
 // ---- Overview ------------------------------------------------------------------------
 
+let commonListDrawing = 0;
+
 function renderOverview() {
   const { totals, diseases } = data.summary;
   const grid = data.grids.current.barangays;
@@ -241,7 +262,9 @@ async function renderIllnesses(diseases) {
   const listed = diseases
     .filter((d) => d.group !== "urgent")
     .sort((a, b) => b.this_week - a.this_week || b.last_week - a.last_week);
+  const drawing = ++commonListDrawing;
   const trends = await Promise.all(listed.map((d) => api.fetchJson(api.trendUrl(d.disease_code, "", SPARKLINE_WEEKS))));
+  if (drawing !== commonListDrawing) return; // a newer refresh started while these were loading
   $("common-list").replaceChildren(
     ...listed.map((d, i) => {
       const spark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
