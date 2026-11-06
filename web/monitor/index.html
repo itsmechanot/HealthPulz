@@ -46,7 +46,20 @@
     <section class="card join" aria-label="How to join">
       <span class="section-title muted small"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#nodes"/></svg>Join as a Barangay Health Unit: open this on your phone</span>
       <div id="join-urls" class="join-url">…</div>
-      <div class="muted small">Same Wi-Fi as this RHU server. Log in with your barangay and its password, open Demo Tools, then press Generate &amp; Send.</div>
+      <div class="muted small">Same Wi-Fi as this RHU server. Log in with your barangay and its password, then keep the page open.</div>
+    </section>
+
+    <!-- Synchronized burst: the RHU tells every connected BHU to send at the same moment -->
+    <section class="card" aria-labelledby="burst-title">
+      <div class="card-header">
+        <h2 id="burst-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Synchronized burst</h2>
+        <form id="burst-form" class="burst-controls" novalidate>
+          <label for="burst-size">Records per device</label>
+          <input id="burst-size" type="number" min="1" max="5000" value="500">
+          <button id="burst-btn" class="btn btn-primary" type="submit">Start burst</button>
+        </form>
+      </div>
+      <p id="burst-status" class="burst-status" role="status">Sends one message to every connected BHU, and they all start sending at once.</p>
     </section>
 
     <!-- 2. Key numbers -->

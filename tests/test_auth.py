@@ -365,6 +365,14 @@ def test_bhu_sends_for_its_own_barangay_only(server):
 
 # ---- RHU -------------------------------------------------------------------------------
 
+@pytest.mark.parametrize("username", [OWN, "LOADTEST"])
+def test_only_the_rhu_can_start_a_burst(server, username):
+    log_in(server, username)
+    assert server.post("/api/burst", json={"records_per_device": 10}).status_code == 403
+    log_in(server, "RHU")
+    assert server.post("/api/burst", json={"records_per_device": 10}).status_code == 200
+
+
 def test_rhu_cannot_open_client_records(server):
     log_in(server, "RHU")
     assert server.get(f"/api/bhu/{OWN}/clients").status_code == 403

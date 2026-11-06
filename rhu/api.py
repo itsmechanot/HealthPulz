@@ -14,7 +14,7 @@ from rhu import accounts, auth, db, rules, stats
 from rhu.accounts import Session
 from rhu.config import PROTOCOL_VERSION, RETRY_AFTER_SECONDS
 from rhu.ingest import IngestPipeline, PipelineBusy
-from rhu.models import AlertStatusUpdate, GivePassword, RegisterRequest, RegisterResponse, SubmitBatch, barangay_of
+from rhu.models import AlertStatusUpdate, BurstRequest, GivePassword, RegisterRequest, RegisterResponse, SubmitBatch, barangay_of
 
 # Every route needs a login unless it is on public_router, so a new route can't be left open by accident.
 public_router = APIRouter(prefix="/api")
@@ -118,6 +118,16 @@ def batch_status(batch_id: UUID, conn: sqlite3.Connection = Depends(get_conn)) -
     if row is None:
         return {"type": "BATCH_STATUS", "batch_id": str(batch_id), "status": "PENDING"}
     return {"type": "BATCH_STATUS", "batch_id": str(batch_id), "status": "STORED", **dict(row)}
+
+
+@router.post("/burst", dependencies=[Depends(auth.require_rhu)])
+async def start_burst(burst: BurstRequest, request: Request) -> dict:
+    """Tell every connected BHU device to send test records now. They reply over HTTP like any
+    other batch, so this exercises the whole pipeline at one moment."""
+    devices = await request.app.state.hub.broadcast_to_nodes(
+        {"type": "BURST", "records_per_device": burst.records_per_device}
+    )
+    return {"devices": devices, "records_per_device": burst.records_per_device}
 
 
 @router.get("/accounts", dependencies=[Depends(auth.require_rhu)])

@@ -43,7 +43,7 @@ python -m rhu.accounts reset RHU    # new password; logs that account's devices 
 | `/api/bhu/{barangay_id}/…` (names, clinical details) | own barangay only | **no** | no | no |
 | `POST /api/nodes/register`, `POST /api/batches`, `WS /ws/node/{node_id}` | own barangay only | no | any barangay | no |
 | `GET /api/batches/{id}`, `/api/stats/…` (weekly totals) | yes | yes | yes | no |
-| `/api/accounts…` (give passwords) | no | yes | no | no |
+| `/api/accounts…` (give passwords), `POST /api/burst` | no | yes | no | no |
 | `/api/alerts…`, `/api/analytics…`, `/api/monitor/stats`, `/api/server/addresses`, `WS /ws/monitor` | no | yes | no | no |
 | `/node/` page | yes | no | no | no |
 | `/dashboard/`, `/monitor/` pages | no | yes | no | no |
@@ -189,6 +189,7 @@ The bounded queue and the `503` response are **backpressure**: the server protec
 | RHU → Node | `STORED` | see above |
 | RHU → Node | `ALERT` | `alert_id`, `scope`, `acknowledged`, `level`, `disease_code`, `barangay_id`, `iso_year`, `iso_week`, `observed`, `threshold`, `message`, `created_at` |
 | Node → RHU | `ALERT_ACK` | `alert_id` |
+| RHU → Node | `BURST` | `records_per_device`. Every connected device sends that many test records (`drill: true`) right away, using the normal `POST /api/batches`. Not kept for devices that connect later |
 | RHU → Node | `ERROR` | `reason` (e.g. `UNKNOWN_TYPE`) |
 
 **Handshake:** the node connects, sends `HELLO`, and waits for `WELCOME`. The RHU closes the connection with:
@@ -251,6 +252,7 @@ Hypertension, arthritis, kidney diseases, wounds and `OTH` are counted but never
 | `POST` | `/api/analytics/run` | Run analytics + alert detection now; returns the run and `alerts_sent` |
 | `GET` | `/api/alerts?status=OPEN&limit=100` | Alerts, newest first, with `nodes_delivered` and `nodes_acknowledged` |
 | `POST` | `/api/alerts/{alert_id}/status` | RHU staff: `{"status": "ACKNOWLEDGED" \| "RESOLVED" \| "OPEN"}` |
+| `POST` | `/api/burst` | RHU: `{"records_per_device": 500}` (1–5000) sends `BURST` to every connected device. Returns `{devices, records_per_device}` |
 | `WS` | `/ws/monitor` | Live stats for the System Monitor (see below) |
 
 ### Statistics (RHU dashboard and BHS nodes)

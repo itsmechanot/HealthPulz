@@ -124,3 +124,38 @@ def test_monitor_always_shows_a_connected_station(registered):
         with registered.websocket_connect("/ws/monitor") as monitor:
             entry = node_entry(monitor.receive_json(), "BRGY-01-OLD1")
     assert entry["status"] == "ONLINE"
+
+
+# ---- synchronized burst ----------------------------------------------------------------
+
+def test_burst_reaches_every_connected_device(registered):
+    register_station(registered)
+    with registered.websocket_connect(f"/ws/node/{STATION}") as phone, registered.websocket_connect(f"/ws/node/{STATION}") as laptop:
+        hello(phone, STATION)
+        hello(laptop, STATION)
+        with registered.websocket_connect(f"/ws/node/{NODE}") as other:
+            hello(other)
+
+            res = registered.post("/api/burst", json={"records_per_device": 500})
+
+            assert res.json() == {"devices": 3, "records_per_device": 500}
+            for ws in (phone, laptop, other):
+                assert ws.receive_json() == {"type": "BURST", "records_per_device": 500}
+
+
+def test_burst_with_nobody_connected_reaches_no_one(client):
+    assert client.post("/api/burst", json={"records_per_device": 500}).json()["devices"] == 0
+
+
+def test_burst_is_not_kept_for_a_device_that_connects_later(registered):
+    registered.post("/api/burst", json={"records_per_device": 500})
+    with registered.websocket_connect(f"/ws/node/{NODE}") as late:
+        hello(late)
+        late.send_json({"type": "DANCE"})
+        assert late.receive_json() == {"type": "ERROR", "reason": "UNKNOWN_TYPE"}  # the next message, not BURST
+
+
+@pytest.mark.parametrize("size", [0, -1, 5001, "many"])
+def test_burst_size_must_be_sensible(client, size):
+    assert client.post("/api/burst", json={"records_per_device": size}).status_code == 400
+

@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from rhu.accounts import MIN_PASSWORD_LENGTH
+from rhu.config import MAX_BURST_RECORDS_PER_DEVICE
 from rhu.config import MAX_RECORDS_PER_BATCH, PROTOCOL_VERSION
 
 BARANGAY_ID_PATTERN = r"^BRGY-\d{2}$"
@@ -65,6 +66,10 @@ class SubmitBatch(BaseModel):
 
 class GivePassword(BaseModel):
     password: str | None = Field(default=None, min_length=MIN_PASSWORD_LENGTH, max_length=200)  # None = generate one
+
+
+class BurstRequest(BaseModel):
+    records_per_device: int = Field(ge=1, le=MAX_BURST_RECORDS_PER_DEVICE)
 
 
 class AlertStatusUpdate(BaseModel):

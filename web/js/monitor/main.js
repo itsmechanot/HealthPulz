@@ -6,18 +6,23 @@ import { setupLogout, setupMenu } from "../common/shell.js";
 
 const HISTORY_SECONDS = 120;
 const RECONNECT_MS = 2000;
+const MAX_BURST_RECORDS = 5000;
+const BURST_GIVE_UP_MS = 60_000; // a device that left mid-burst would otherwise keep the button disabled
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString();
 const history = { rate: [], ingest: [], write: [] };
 let peakRate = 0;
 let barangayNames = {};
+let storedNow = 0; // records stored so far, from the latest snapshot
+let burst = null; // the burst in progress: { startedAt, storedBefore, expected, devices }
 
 start();
 
 async function start() {
   setupMenu();
   setupLogout();
+  $("burst-form").addEventListener("submit", startBurst);
   try {
     const config = await api.getConfig();
     barangayNames = Object.fromEntries(config.barangays.map((b) => [b.barangay_id, b.name]));
@@ -63,10 +68,61 @@ function render(snapshot) {
   const p = snapshot.pipeline;
   remember(p);
   renderKpis(p, snapshot.nodes);
+  storedNow = p.records_accepted;
+  renderBurst();
   renderCharts();
   renderPipeline(p);
   renderAnalytics(snapshot.analytics);
   renderNodes(snapshot.nodes);
+}
+
+async function startBurst(event) {
+  event.preventDefault();
+  const size = Number($("burst-size").value);
+  if (!Number.isInteger(size) || size < 1 || size > MAX_BURST_RECORDS) {
+    $("burst-status").textContent = `Enter a whole number from 1 to ${fmt(MAX_BURST_RECORDS)}.`;
+    return;
+  }
+
+  $("burst-btn").disabled = true;
+  const storedBefore = storedNow; // before the message goes out, so no record is missed
+  const startedAt = Date.now();
+  try {
+    const { devices } = await api.fetchJson("/api/burst", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ records_per_device: size }),
+    });
+    if (devices === 0) {
+      $("burst-status").textContent = "No BHU devices are connected yet.";
+      $("burst-btn").disabled = false;
+      return;
+    }
+    burst = { startedAt, storedBefore, expected: devices * size, devices };
+    renderBurst();
+  } catch (error) {
+    $("burst-status").textContent = `Could not start the burst. (${error.message})`;
+    $("burst-btn").disabled = false;
+  }
+}
+
+function renderBurst() {
+  if (!burst) return;
+  const stored = Math.min(storedNow - burst.storedBefore, burst.expected);
+  const progress = `${fmt(stored)} of ${fmt(burst.expected)} records stored`;
+  const devices = `${fmt(burst.devices)} device${burst.devices === 1 ? "" : "s"}`;
+  const elapsed = Date.now() - burst.startedAt;
+
+  if (stored >= burst.expected) {
+    $("burst-status").textContent = `${devices}: ${progress} in about ${Math.max(1, Math.round(elapsed / 1000))} s. Nothing lost.`;
+  } else if (elapsed > BURST_GIVE_UP_MS) {
+    $("burst-status").textContent = `${devices}: ${progress} so far. A device may have left; it sends the rest when it reconnects.`;
+  } else {
+    $("burst-status").textContent = `${devices}: ${progress}…`;
+    return;
+  }
+  burst = null;
+  $("burst-btn").disabled = false;
 }
 
 function remember(p) {

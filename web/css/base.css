@@ -809,6 +809,13 @@ table.heat td.zero { color: var(--text-muted); }
 .kv dt { color: var(--text-muted); }
 .kv dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; }
 
+/* ---- Synchronized burst (System Monitor) ---- */
+
+.burst-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.burst-controls label { margin: 0; }
+.burst-controls input { width: 100px; }
+.burst-status { margin: 0; font-size: 1.05rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+
 /* ---- BHU Accounts ---- */
 
 .account-list, .given-list { list-style: none; margin: 0; padding: 0; }

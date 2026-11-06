@@ -109,6 +109,9 @@ async function startStation(config, identity, barangay) {
         connection.send({ type: "ALERT_ACK", alert_id: message.alert_id });
         trends.refreshSoon();
         break;
+      case "BURST":
+        runBurst(message, config, identity, sender);
+        break;
       case "ERROR":
         log(`RHU error: ${message.reason}`, "error");
         break;
@@ -241,21 +244,34 @@ function setupGenerator(config, identity, barangay, sender) {
       return;
     }
 
-    const batches = chunk(generated, MAX_RECORDS_PER_BATCH).map((part) => ({
-      type: "SUBMIT_BATCH",
-      protocol_version: PROTOCOL_VERSION,
-      node_id: identity.node_id,
-      batch_id: uuid4(),
-      sent_at: new Date().toISOString(),
-      records: part,
-      drill: mode === "stress", // stress-test data is stored but not analyzed, so it can't trigger alerts
-    }));
+    const batches = toBatches(generated, identity, mode === "stress");
     await sender.enqueue(batches);
 
     $("generate-result").textContent =
       `Generated ${generated.length} cases in ${batches.length} batch(es): ${summarize(generated, tracked)}`;
     log(`Generated ${generated.length} cases, ${batches.length} batch(es) queued`);
   });
+}
+
+/** The RHU told every connected device to send test records now (the System Monitor's Start burst). */
+async function runBurst(message, config, identity, sender) {
+  const count = Math.min(MAX_STRESS_RECORDS, message.records_per_device);
+  const batches = toBatches(stressRecords(config.diseases.filter((d) => d.tracked), count), identity, true);
+  log(`RHU started a burst: sending ${count} test cases in ${batches.length} batch(es)`, "ok");
+  await sender.enqueue(batches);
+}
+
+/** drill: test data, stored but not analyzed, so it can't trigger alerts. */
+function toBatches(records, identity, drill) {
+  return chunk(records, MAX_RECORDS_PER_BATCH).map((part) => ({
+    type: "SUBMIT_BATCH",
+    protocol_version: PROTOCOL_VERSION,
+    node_id: identity.node_id,
+    batch_id: uuid4(),
+    sent_at: new Date().toISOString(),
+    records: part,
+    drill,
+  }));
 }
 
 // ---- rendering -------------------------------------------------------------

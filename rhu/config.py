@@ -27,6 +27,9 @@ ANALYTICS_INTERVAL_SECONDS = 10  # how often the server checks for new cases to 
 # Alerts
 MIN_ALERT_CASES = 3  # fewer cases never raise a threshold alert (cuts false alarms; see docs/analytics.md)
 
+# Synchronized burst (System Monitor)
+MAX_BURST_RECORDS_PER_DEVICE = 5000
+
 # WebSockets
 HEARTBEAT_TIMEOUT_SECONDS = 30  # a node with no heartbeat for this long is OFFLINE
 NODE_RECENT_HOURS = 12  # the System Monitor hides nodes that haven't been seen for this long

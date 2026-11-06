@@ -12,10 +12,10 @@
 - **What it's for:** shows that the system handles many nodes sending data at the same time, with nothing lost. It's the main screen of the live demo.
 - **Where it's seen:** **on the projector** during the defense, so the key numbers must be readable from the back of the room. It's also opened on laptops, and should still work on a phone.
 - **Who uses it:** the panel and classmates during the demo; RHU staff checking that the system is healthy.
-- **Interaction:** none. It's read-only and updates itself **every second** over a live connection. There are no buttons, filters or inputs.
+- **Interaction:** one control, the **Start burst** button. Everything else is read-only and updates itself **every second** over a live connection.
 - **Demo story it must tell, in order:**
   1. Classmates join, and the node tiles turn green one by one.
-  2. Everyone presses Send at once: records/second spikes, and the queue rises.
+  2. The presenter presses **Start burst** and every device sends at once: records/second spikes, and the queue rises.
   3. The queue drains back to 0.
   4. "Records accounted for" reaches **100% · nothing lost**.
 
@@ -28,6 +28,14 @@
 | Data | `GET /api/server/addresses` (once, on load). There can be **more than one address** if the laptop has several network adapters. |
 | States | Loading (`…`); one address; several addresses |
 | Notes | Must be **very large and easy to copy by eye** from the projector. A QR code of the address would be a good addition. |
+
+### Synchronized burst
+| | |
+|---|---|
+| Shows | **Records per device** field (1–5000, default 500), **Start burst** button, and one large status line that the panel reads from the projector |
+| Data | `POST /api/burst` returns how many devices got the message; progress comes from `records_accepted` in the feed |
+| Status line | Idle: what the button does. Running: `35 devices: 12,000 of 17,500 records stored…`. Done: `35 devices: 17,500 of 17,500 records stored in about 4 s. Nothing lost.` Nobody there: `No BHU devices are connected yet.` After 60 s without finishing: says a device may have left |
+| Notes | The button is disabled while a burst runs. Time is approximate because the feed updates once a second |
 
 ### 2. Key numbers (5 tiles)
 | Tile | Big number | Small line under it | Field(s) in the feed |

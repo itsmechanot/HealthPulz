@@ -76,6 +76,16 @@ class Hub:
         if self._loop is not None:
             asyncio.run_coroutine_threadsafe(self.send_to_node(node_id, message), self._loop)
 
+    async def broadcast_to_nodes(self, message: dict) -> int:
+        """Send to every connected device at the same time, so a slow phone doesn't hold up the
+        rest. Returns how many received it. Nothing is kept for devices that connect later."""
+        connections = [(node_id, ws) for node_id, sockets in self._nodes.items() for ws in sockets]
+        results = await asyncio.gather(*(_send(ws, message) for _, ws in connections))
+        for (node_id, ws), delivered in zip(connections, results):
+            if not delivered:
+                self.remove_node(node_id, ws)
+        return sum(results)
+
     # ---- monitors --------------------------------------------------------
 
     def add_monitor(self, ws: WebSocket) -> None:
