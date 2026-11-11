@@ -1,9 +1,4 @@
-"""Read-only statistics for the RHU dashboard and the BHS nodes.
-
-Everything here reads weekly_stats (the output of the parallel analytics) and
-alerts. Only aggregated weekly counts are returned, never individual cases,
-which is why barangays may see municipal data (Data Privacy Act).
-"""
+"""Read-only statistics from weekly_stats and alerts: weekly totals only, never individual cases."""
 
 import sqlite3
 from datetime import date
@@ -88,12 +83,7 @@ def summary(conn: sqlite3.Connection, today: date) -> dict:
 
 
 def trend(conn: sqlite3.Connection, weeks: int, disease_code: str | None = None, barangay_id: str | None = None) -> list[dict]:
-    """Weekly case counts, oldest first, up to the current week. Without a disease it
-    sums the surveillance diseases ("Other consultations" must be asked for by code).
-
-    Thresholds are included only for a single barangay and disease; summing
-    thresholds across barangays or diseases would not be statistically valid.
-    """
+    """Weekly counts, oldest first. Thresholds only for one barangay and disease (sums aren't valid)."""
     single_cell = disease_code is not None and barangay_id is not None
     codes = [disease_code] if disease_code else [d["disease_code"] for d in rules.tracked_diseases()]
     rows = conn.execute(

@@ -1,5 +1,4 @@
-// RHU Dashboard: Overview, Map, Alerts, Trends and Barangays over the /api/stats and /api/alerts
-// endpoints, refreshed when the analytics finish a run, plus BHU Accounts (accounts.js).
+// RHU Dashboard: redraws when the analytics finish a run.
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";

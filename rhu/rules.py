@@ -1,8 +1,4 @@
-"""Shared rules files (diseases, barangays).
-
-The same files are served to the BHS nodes through GET /api/config, so the
-Python and JavaScript data generators always use identical rules.
-"""
+"""Rules files (diseases, barangays), also served to the browsers through GET /api/config."""
 
 import json
 from functools import lru_cache
@@ -21,8 +17,7 @@ def diseases() -> list[dict]:
 
 
 def tracked_diseases() -> list[dict]:
-    """Diseases under outbreak surveillance. "Other consultations" (tracked: false) are
-    stored and counted, but have no thresholds or alerts and stay out of the case totals."""
+    """Diseases under outbreak surveillance ("Other consultations" are counted but never alert)."""
     return [d for d in diseases() if d["tracked"]]
 
 

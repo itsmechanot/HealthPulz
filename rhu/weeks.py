@@ -1,5 +1,4 @@
-"""How a week is shown to people. Inside the system a week is an ISO year and week number, because
-those sort and match reliably, but nobody at a health center knows which days "W44" means."""
+"""Shows a week as real dates; inside the system a week stays an ISO year and week number."""
 
 from datetime import date, timedelta
 

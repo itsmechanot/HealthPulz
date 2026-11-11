@@ -1,13 +1,8 @@
-"""Measures the speedup of the analytics process pool (evidence for the paper).
-
-Runs the full analytics with 1, 2, 4, ... worker processes on the same data and
-reports the median time, speedup (T1 / Tn) and efficiency (speedup / n). The
-map step runs in parallel; the reduce step (writing weekly_stats) is sequential,
-so it limits the overall speedup (Amdahl's law).
+"""Measures the analytics speedup with 1, 2, 4, ... worker processes (evidence for the paper).
 
 Usage:
-    python -m rhu.history --db var/bench.db --scale 16     # once: ~900,000 cases
-    python tools/benchmark_analytics.py --db var/bench.db --workers 1 2 4 8 --csv var/bench.csv
+    python -m rhu.history --db var/bench.db --scale 16
+    python tools/benchmark_analytics.py --db var/bench.db --workers 1 2 4 8
 """
 
 import argparse
@@ -17,14 +12,13 @@ import statistics
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # allow `python tools/...` from the project root
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # run from the project root
 
 from rhu.analytics import Analytics  # noqa: E402
 
 
 def benchmark(db_path: Path, worker_counts: list[int], repeat: int) -> list[dict]:
-    """Takes turns between the worker counts, so a busy moment on the machine affects
-    all of them alike instead of skewing whichever happened to be running."""
+    """Takes turns between worker counts, so a busy moment affects all of them alike."""
     pools = {n: Analytics(db_path, workers=n, rewrite_all=True) for n in worker_counts}
     try:
         for analytics in pools.values():

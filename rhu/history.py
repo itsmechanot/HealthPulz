@@ -1,12 +1,6 @@
-"""Imports synthetic past data so the outbreak thresholds have a baseline.
+"""Imports synthetic past data so the outbreak thresholds have a baseline. Live data is never touched.
 
-Usage:
-    python -m rhu.history                  # 3 past years + this year up to last week
-    python -m rhu.history --years 5 --seed 7
-    python -m rhu.history --scale 50       # large dataset for the speedup benchmark
-
-History is stored under one HISTORY node per barangay (e.g. 'BRGY-08-HIST').
-Running it again replaces the previous history; live data from nodes is never touched.
+Usage:  python -m rhu.history  [--years 5] [--seed 7] [--scale 50]
 """
 
 import argparse
@@ -73,8 +67,7 @@ def import_history(
             )
 
         total = 0
-        # Checkups end with last week too, because a case counts in the week of its checkup:
-        # this week's numbers must show only what the BHUs send.
+        # History ends last week, so this week shows only what the BHUs send.
         last_sunday = today - timedelta(days=today.isoweekday())
         cases = generate_cases(rng, barangays, diseases, weeks, outbreaks, latest=last_sunday, scale=scale)
         for chunk in batched(cases, INSERT_CHUNK):

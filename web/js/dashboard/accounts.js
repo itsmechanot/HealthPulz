@@ -1,5 +1,4 @@
-// BHU Accounts screen: the RHU is the only one who gives a BHU its password. A password is shown
-// once, when it is given. After that the server only has its hash, so losing it means giving a new one.
+// BHU Accounts: only the RHU gives passwords, and each is shown once.
 
 import * as api from "../common/api.js";
 import { el } from "../common/dom.js";

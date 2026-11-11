@@ -1,5 +1,4 @@
-// Small DOM helper. Text always goes through textContent, so data from the
-// server can never be interpreted as HTML.
+// Text always goes through textContent, so server data is never parsed as HTML.
 
 /** el("div", { className: "x", textContent: "hi" }, child1, child2) */
 export function el(tag, props = {}, ...children) {

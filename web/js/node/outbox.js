@@ -1,8 +1,4 @@
-// The node's outbox: batches waiting for a STORED confirmation from the RHU.
-//
-// Stored in IndexedDB so unsent batches survive a page reload or a dropped
-// connection. If IndexedDB is unavailable (e.g. some private windows), it
-// falls back to memory so the page still works.
+// Demo Tools outbox: batches waiting for STORED, in IndexedDB (or memory) so they survive a reload.
 
 import { openDb, transaction } from "./db.js";
 

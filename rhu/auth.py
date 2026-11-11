@@ -1,8 +1,4 @@
-"""Login: the /api/auth endpoints, and the checks that enforce each account's access.
-
-The server decides every access. Hiding a link on a page protects nothing, because anyone can
-type an address. docs/protocol.md has the table of who can do what.
-"""
+"""Login endpoints and access checks. The server decides every access; hiding a link protects nothing."""
 
 import asyncio
 import threading
@@ -40,8 +36,7 @@ class LoginRequest(BaseModel):
 
 
 class LoginThrottle:
-    """Slows down password guessing. Counted per account and device, so one classmate's typos
-    don't lock out everyone else sharing that BHU's account."""
+    """Limits password guessing, per account and device."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()

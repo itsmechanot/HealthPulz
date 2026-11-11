@@ -40,8 +40,7 @@ def health() -> dict:
 
 @router.get("/server/addresses", dependencies=[Depends(auth.require_rhu)])
 def server_addresses(request: Request) -> dict:
-    """This server's LAN addresses, so the System Monitor can show classmates where to connect,
-    and whether phones can use them at all."""
+    """LAN addresses for the join banner, and whether phones can reach them."""
     addresses = network.lan_addresses()
     port = request.url.port
     # Only known to be closed if it can be checked; without a port or address, don't raise a false alarm.
@@ -74,8 +73,7 @@ def register_node(
     if barangay is None:
         raise HTTPException(status_code=404, detail="Unknown barangay_id")
 
-    # INSERT OR IGNORE makes registration idempotent: a node that reloads its
-    # page (or two simultaneous requests) never causes an error.
+    # INSERT OR IGNORE: registering again is harmless.
     with conn:
         conn.execute(
             "INSERT OR IGNORE INTO nodes (node_id, barangay_id, registered_at) VALUES (?, ?, ?)",
@@ -91,8 +89,7 @@ def submit_batch(
     pipeline: IngestPipeline = Depends(get_pipeline),
     session: Session = Depends(auth.current_session),
 ) -> dict:
-    """Stage 1 of the acknowledgement: queue the batch and reply RECEIVED right away.
-    STORED follows once the DB writer thread has committed it."""
+    """Stage 1: queue the batch and reply RECEIVED; STORED follows over the WebSocket once committed."""
     auth.require_may_send_for(session, barangay_of(batch.node_id))
     if conn.execute("SELECT 1 FROM nodes WHERE node_id = ?", (batch.node_id,)).fetchone() is None:
         raise HTTPException(status_code=404, detail="Unknown node_id; register first")
@@ -110,8 +107,7 @@ def submit_batch(
 
 @router.get("/batches/{batch_id}")
 def batch_status(batch_id: UUID, conn: sqlite3.Connection = Depends(get_conn)) -> dict:
-    """Lets a node check a batch when it missed the STORED message.
-    PENDING means not stored yet: still queued, or lost, so resend after the timeout."""
+    """For a node that missed STORED. PENDING means resend after the timeout."""
     row = conn.execute(
         "SELECT accepted, updated, duplicates, rejected, stored_at FROM batches WHERE batch_id = ?", (str(batch_id),)
     ).fetchone()
@@ -122,8 +118,7 @@ def batch_status(batch_id: UUID, conn: sqlite3.Connection = Depends(get_conn)) -
 
 @router.post("/burst", dependencies=[Depends(auth.require_rhu)])
 async def start_burst(burst: BurstRequest, request: Request) -> dict:
-    """Tell every connected BHU device to send test records now. They reply over HTTP like any
-    other batch, so this exercises the whole pipeline at one moment."""
+    """Tell every connected BHU device to send test records at the same moment."""
     devices = await request.app.state.hub.broadcast_to_nodes(
         {"type": "BURST", "records_per_device": burst.records_per_device}
     )
@@ -172,8 +167,7 @@ def list_alerts(
     limit: int = Query(default=100, ge=1, le=1000),
     conn: sqlite3.Connection = Depends(get_conn),
 ) -> list[dict]:
-    """Newest first, with how many nodes received and acknowledged each alert, and the
-    cell's current count (corrections can lower it after the alert was raised)."""
+    """Newest first, with delivery counts and the current count (corrections can lower it)."""
     rows = conn.execute(
         """
         SELECT a.*,

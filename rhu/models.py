@@ -39,8 +39,7 @@ class RegisterResponse(BaseModel):
 
 
 class CaseRecord(BaseModel):
-    """One de-identified case. Structure is checked here; rules that need
-    reference data (e.g. known disease codes) are checked by the validator threads."""
+    """One de-identified case. Rules that need reference data are checked by the validator threads."""
 
     record_id: UUID
     disease_code: str = Field(min_length=1, max_length=8)

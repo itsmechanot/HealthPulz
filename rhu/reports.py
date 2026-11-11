@@ -1,9 +1,4 @@
-"""The newest de-identified reports the RHU received, for the dashboard's Latest reports card.
-
-Kept in memory because the dashboard asks every second, and searching the cases table that often
-would compete with the ingestion pipeline. The DB writer thread adds to the list while the
-WebSocket feed reads it, so a lock protects it. The weekly numbers still come from the analytics.
-"""
+"""Newest de-identified reports for the dashboard, kept in memory (with a lock) for its 1 s feed."""
 
 import sqlite3
 import threading
@@ -39,8 +34,7 @@ class LatestReports:
         self._reports: deque[dict] = deque(maxlen=MAX_REPORTS)  # newest first
 
     def load(self, db_path: Path) -> None:
-        """Called once at startup, so a restart doesn't empty the card. Test data and imported
-        history are left out, as they are when reports arrive."""
+        """Fills the list at startup, so a restart doesn't empty it."""
         with closing(db.connect(db_path)) as conn:
             rows = _newest_rows(conn)
         with self._lock:

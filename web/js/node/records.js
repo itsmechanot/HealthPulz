@@ -1,6 +1,4 @@
-// This BHU's client and checkup records, kept on the server in the barangay's own store
-// (rhu/bhu_store.py), so they are the same on any device or address. The server turns each
-// checkup into a de-identified report for the RHU; names and clinical details stay in the store.
+// This BHU's records, kept on the server; names and clinical details never go to the RHU.
 
 import { request as loggedInFetch } from "../common/api.js";
 import { uuid4 } from "../common/ids.js";

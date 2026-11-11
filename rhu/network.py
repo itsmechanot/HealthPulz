@@ -14,8 +14,7 @@ def lan_addresses() -> list[str]:
 
 
 def accepts_connections(address: str, port: int) -> bool:
-    """False when the server was started for this laptop only (127.0.0.1), so phones would time
-    out. This can't see the firewall, because a connection to yourself doesn't pass through it."""
+    """False when the server only accepts connections from this laptop (127.0.0.1)."""
     try:
         with socket.create_connection((address, port), timeout=CHECK_TIMEOUT_SECONDS):
             return True

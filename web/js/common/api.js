@@ -7,8 +7,7 @@ export function toLogin() {
   location.replace("/");
 }
 
-/** fetch for logged-in calls. If the login has ended, go to the login page; the promise never
- *  resolves, so the caller doesn't go on to show an error the user is already leaving behind. */
+/** fetch for logged-in calls; on 401 it goes to the login page and never resolves. */
 export async function request(url, options) {
   const res = await fetch(url, options);
   if (res.status !== 401) return res;

@@ -2,13 +2,7 @@
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-/**
- * Draws one or more series into an <svg>. Values are plotted left to right,
- * newest on the right; the y-axis starts at 0 and scales to the largest value.
- * null values are skipped (e.g. weeks without a threshold yet).
- * series: [{ values: (number | null)[], className: string }]
- * Returns the y-axis maximum, so the caller can label the scale.
- */
+/** Draws series into an <svg>, y from 0; null values are skipped. Returns the y maximum. */
 export function lineChart(svg, series, { slots }) {
   const height = 100;
   const numbers = series.flatMap((s) => s.values).filter((v) => v != null);

@@ -1,14 +1,6 @@
-"""Who can log in: one shared account per BHU, one for the RHU, one for the load-test tool.
+"""Logins: one account per BHU, plus RHU and LOADTEST. Passwords are stored only as salted hashes.
 
-Only the RHU gives a BHU its password, on the dashboard's BHU Accounts screen. A BHU account has
-none until then, so it can't log in. The password is shown once; the database holds only a salted
-scrypt hash.
-
-The RHU's own password and the load-test tool's are generated on first start and listed in
-var/accounts.txt, which git ignores. BHU passwords are never written there.
-
-Show those two:         python -m rhu.accounts
-Change a password:      python -m rhu.accounts reset RHU
+Usage:  python -m rhu.accounts            python -m rhu.accounts reset RHU
 """
 
 import argparse
@@ -114,8 +106,7 @@ def read_passwords(db_path: Path) -> dict[str, str]:
 
 
 def _save_passwords(db_path: Path, changed: dict[str, str]) -> None:
-    """A password can't be read back from its hash, so other accounts' lines are kept as they are.
-    BHU lines are left out, which also clears them from a list written by an older version."""
+    """BHU passwords are never written here; other lines are kept, as a hash can't be read back."""
     passwords = {**read_passwords(db_path), **changed}
     lines = [
         f"{username}\t{name}\t{passwords[username]}"
@@ -141,8 +132,7 @@ def ensure_accounts(db_path: Path) -> None:
                 "INSERT INTO accounts (username, role, barangay_id, password_hash) VALUES (?, ?, ?, ?)",
                 (username, role, barangay_id, stored),
             )
-        # The first login version generated BHU passwords by itself. Those were never given by the
-        # RHU (every given password has a date), so they stop working.
+        # Passwords the RHU never gave (they have no date) stop working.
         conn.execute(
             "DELETE FROM sessions WHERE username IN "
             "(SELECT username FROM accounts WHERE role = ? AND password_set_at IS NULL)",
@@ -151,8 +141,7 @@ def ensure_accounts(db_path: Path) -> None:
         conn.execute(
             "UPDATE accounts SET password_hash = ? WHERE role = ? AND password_set_at IS NULL", (NO_PASSWORD, BHU)
         )
-        # Inside the transaction: if the list can't be saved, the accounts aren't created either,
-        # so no account ends up with a password nobody can read.
+        # Same transaction, so no account ends up with a password nobody can read.
         _save_passwords(db_path, created)
 
 

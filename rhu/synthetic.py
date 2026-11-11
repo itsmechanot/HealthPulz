@@ -1,9 +1,4 @@
-"""Synthetic case generation (rules: docs/synthetic-data.md).
-
-Python twin of web/js/node/generator.js; both read rhu/data/diseases.json.
-All randomness comes from the `rng` passed in, so a fixed seed gives the
-same data every time (reproducible results for the paper).
-"""
+"""Synthetic case generation (docs/synthetic-data.md). A fixed seed gives the same data every time."""
 
 import math
 import random
@@ -42,7 +37,7 @@ def iso_week_mondays(start: date, end: date) -> list[date]:
 def plan_outbreaks(
     rng: random.Random, barangays: list[dict], diseases: list[dict], weeks: list[date], count: int
 ) -> list[Outbreak]:
-    # Only diseases with outbreak thresholds: urgent ones alert on any case, and non-communicable ones never do.
+    # Only diseases with outbreak thresholds.
     candidates = [d for d in diseases if d["threshold_alerts"]]
     return [
         Outbreak(
@@ -66,10 +61,7 @@ def generate_cases(
     latest: date,
     scale: float = 1,
 ) -> Iterator[tuple[str, dict]]:
-    """Yields (barangay_id, case) for every barangay × disease × week.
-
-    `scale` multiplies every rate. It's used to make large datasets for benchmarks.
-    """
+    """Yields (barangay_id, case) for every barangay × disease × week; `scale` multiplies every rate."""
     neighbors = {b["barangay_id"]: set(b["neighbors"]) for b in barangays}
     for week_start in weeks:
         # Thursday decides the month, the same way ISO 8601 decides which year a week belongs to.
@@ -119,8 +111,7 @@ def make_case(rng: random.Random, disease: dict, week_start: date, latest: date)
 
 
 def poisson(rng: random.Random, rate: float) -> int:
-    """Poisson sample. Knuth's method for small rates; normal approximation for large
-    ones (Knuth is slow there and exp(-rate) underflows)."""
+    """Poisson sample: Knuth's method for small rates, normal approximation for large ones."""
     if rate <= 0:
         return 0
     if rate > 30:

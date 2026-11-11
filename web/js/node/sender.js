@@ -1,16 +1,5 @@
-// Sends outbox batches to the RHU until each one is confirmed STORED (protocol section 2).
-//
-// A batch leaves the outbox only on STORED. If STORED doesn't come within
-// 30 s, the sender asks GET /api/batches/{id} and resends if it's still
-// PENDING. Resending is always safe because the RHU ignores duplicates.
-//
-// Events (CustomEvent, data in event.detail):
-//   sent     batch accepted into the RHU queue (RECEIVED)
-//   stored   STORED message (from WebSocket or status check)
-//   busy     RHU queue full; detail = seconds to wait
-//   offline  RHU unreachable
-//   dropped  batch refused as malformed (400); detail = { batch, body }
-//   changed  outbox size may have changed
+// Sends outbox batches until each is STORED. Without STORED after 30 s it checks the batch
+// status and resends; resending is safe because the RHU ignores duplicates.
 
 import * as api from "../common/api.js";
 import * as outbox from "./outbox.js";

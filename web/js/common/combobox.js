@@ -1,6 +1,4 @@
-// Searchable dropdown: type part of a name to filter the list.
-// Keyboard: ↑/↓ to move, Enter to choose, Esc to close.
-// Matching ignores case and accents, so "capinahan" finds "Capiñahan".
+// Searchable dropdown; matching ignores case and accents.
 
 export function createCombobox({ input, listbox, options, labelOf, onSelect }) {
   let matches = [];

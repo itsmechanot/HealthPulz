@@ -1,18 +1,11 @@
-// Synthetic case generator for one barangay (rules: docs/synthetic-data.md).
-// Uses the same diseases.json the RHU serves at /api/config.
+// Synthetic case generator for one barangay (same rules as the server, from /api/config).
 
 import { uuid4 } from "../common/ids.js";
 
 const OUTBREAK_MULTIPLIER = 5;
 const PUROKS = 7;
 
-/**
- * A realistic week of cases for this barangay, optionally with an outbreak of one disease.
- *
- * outbreak: { code, minimumCases }. The outbreak disease gets ×5 its normal rate but
- * at least `minimumCases`, so it goes over the RHU's threshold in any season (×5 of a
- * low off-season rate can still be below it).
- */
+/** A realistic week of cases; an outbreak disease gets ×5 its rate, and at least minimumCases. */
 export function realisticWeek(diseases, barangay, outbreak = null) {
   const month = new Date().getMonth();
   const records = [];
@@ -34,8 +27,7 @@ export function stressRecords(diseases, count) {
   return Array.from({ length: count }, () => makeRecord(pickWeighted(diseases, (d) => d.base_rate)));
 }
 
-/** The illness may have started up to 6 days ago, but the checkup is always this week, because
- *  a case counts in the week of its checkup and sent data should show in this week's numbers. */
+/** Illness up to 6 days ago; the checkup is always this week, so it shows in this week's numbers. */
 function makeRecord(disease) {
   const today = new Date();
   const monday = addDays(today, -((today.getDay() + 6) % 7));

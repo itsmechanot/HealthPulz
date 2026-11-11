@@ -1,6 +1,4 @@
-// BHU page, for the barangay that is logged in (one account and station per barangay): keep client
-// records (clinic.js), show delivery status, alerts and trends. Demo Tools generate test data and
-// the stress test; only those batches are sent from the browser, with their own offline outbox.
+// BHU page: client records, delivery status, alerts, trends and Demo Tools.
 
 import * as api from "../common/api.js";
 import { uuid4 } from "../common/ids.js";
@@ -150,10 +148,7 @@ async function startStation(config, identity, barangay) {
   sender.start();
 }
 
-/**
- * Records used to be kept in the browser. If this browser still has some for this barangay,
- * offer to move them into the barangay's account. Nothing moves until the worker says so.
- */
+/** Offers to move records an older version kept in this browser into the barangay's account. */
 async function offerToMoveBrowserRecords(identity, clinic) {
   const found = await browserRecords(identity.barangay_id);
   if (!found.clients.length) return;
@@ -317,8 +312,7 @@ function setUnseenAlerts(count) {
 function notifyAlert(alert, config) {
   if (router?.current() === "alerts") return;
   setUnseenAlerts(unseenAlerts + 1);
-  // Alerts arriving together (a BHU catching up after connecting) share one notice,
-  // so a stack of pop-ups doesn't cover the form someone is typing in.
+  // Alerts arriving together share one notice, so pop-ups don't pile up.
   alertsToAnnounce.push(alert);
   clearTimeout(announceTimer);
   announceTimer = setTimeout(() => announceAlerts(config), ALERT_GROUPING_MS);
@@ -364,8 +358,7 @@ function showAlert(alert, config, { quiet = false } = {}) {
     $("alerts-count").textContent = `${alertCards.size} alert${alertCards.size > 1 ? "s" : ""}`;
   }
   if (quiet) return;
-  // Attention cue for new and escalated alerts: a pulse (skipped if the user turned off
-  // motion) and, on phones that support it, a short vibration.
+  // Attention cue: a pulse (unless reduced motion) and a short vibration.
   card.classList.remove("is-new");
   void card.offsetWidth; // restart the animation
   card.classList.add("is-new");
@@ -375,10 +368,7 @@ function showAlert(alert, config, { quiet = false } = {}) {
 
 const OUTBREAK_FALLBACK_CASES = 12; // when the RHU can't be asked (offline) or has no threshold yet
 
-/**
- * How many cases a simulated outbreak needs so the RHU flags it: comfortably above this
- * barangay's epidemic threshold for the current week, which the RHU shares.
- */
+/** Cases a simulated outbreak needs: comfortably above this week's epidemic threshold. */
 async function outbreakSize(diseaseCode, barangay, config) {
   try {
     const { weeks } = await api.fetchJson(api.trendUrl(diseaseCode, barangay.barangay_id, 1));

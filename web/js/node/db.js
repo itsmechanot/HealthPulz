@@ -1,8 +1,4 @@
-// The browser's local database (IndexedDB).
-//
-//   outbox         Demo Tools batches waiting for a STORED confirmation from the RHU
-//   clients, consultations
-//                  records saved before they moved to the barangay's account; only read to move them
+// IndexedDB: the Demo Tools outbox, and old browser records that are only read to move them.
 
 import { toast } from "../common/shell.js";
 
@@ -41,11 +37,7 @@ export function openDb() {
   return dbPromise;
 }
 
-/**
- * Runs `work(stores)` in one transaction over the named stores: either everything it
- * writes is saved, or nothing is. Resolves with the value `work` returns; if that is an
- * IDBRequest, with its result.
- */
+/** Runs work(stores) in one transaction: all of it is saved, or none. */
 export async function transaction(storeNames, mode, work) {
   const db = await openDb();
   if (!db) throw new Error("This browser cannot store data on this device.");

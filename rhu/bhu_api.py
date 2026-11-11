@@ -1,5 +1,4 @@
-"""HTTP endpoints for a BHU's own records (one account per barangay). Only that BHU's login can
-reach them; not another BHU, and not the RHU, which receives de-identified reports only."""
+"""A BHU's own records. Only that BHU's login can reach them; the RHU gets de-identified reports."""
 
 import sqlite3
 from collections.abc import Callable

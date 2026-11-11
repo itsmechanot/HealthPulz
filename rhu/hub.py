@@ -1,9 +1,4 @@
-"""Live WebSocket connections to BHS nodes and System Monitor pages.
-
-All bookkeeping happens on the event loop thread. Other threads (such as the
-DB writer) never touch a socket directly: they hand the message over with
-send_to_node_threadsafe(), which schedules the send on the event loop.
-"""
+"""Live WebSocket connections. Only the event loop touches sockets; threads use send_to_node_threadsafe()."""
 
 import asyncio
 import logging
@@ -71,14 +66,12 @@ class Hub:
                 self.remove_node(node_id, ws)
 
     def send_to_node_threadsafe(self, node_id: str, message: dict) -> None:
-        """Called from worker threads. If the node isn't connected the message is
-        dropped; the node recovers with GET /api/batches/{id} or by resending."""
+        """For other threads. If the node is offline the message is dropped; the node recovers by resending."""
         if self._loop is not None:
             asyncio.run_coroutine_threadsafe(self.send_to_node(node_id, message), self._loop)
 
     async def broadcast_to_nodes(self, message: dict) -> int:
-        """Send to every connected device at the same time, so a slow phone doesn't hold up the
-        rest. Returns how many received it. Nothing is kept for devices that connect later."""
+        """Send to every connected device at once (asyncio.gather). Returns how many received it."""
         connections = [(node_id, ws) for node_id, sockets in self._nodes.items() for ws in sockets]
         results = await asyncio.gather(*(_send(ws, message) for _, ws in connections))
         for (node_id, ws), delivered in zip(connections, results):

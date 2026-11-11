@@ -1,10 +1,7 @@
-"""Each BHU's own records: one SQLite file per barangay (var/bhu/BRGY-08.db), separate from
-the RHU's database. Names and clinical details live only here.
+"""Each BHU's records, one SQLite file per barangay. Names and clinical details never leave it.
 
-Reports reach the RHU through a transactional outbox: saving a checkup writes the record and
-its de-identified report in one transaction, and OutboxRelay then feeds the report into the
-ingestion pipeline. A report stays in the outbox until the RHU confirms it (STORED), so a
-crash at any point can only cause a resend, which the RHU ignores by record_id and revision.
+Transactional outbox: a checkup and its de-identified report are saved together, and OutboxRelay
+feeds the report into the pipeline until the RHU confirms it STORED.
 """
 
 import json
@@ -156,8 +153,7 @@ class BhuStores:
 
     def connect(self, barangay_id: str) -> sqlite3.Connection:
         conn = None
-        # The tables are created under the lock: a page loads several things at once, and the
-        # other requests of a barangay's first use must wait until the tables exist.
+        # Create the tables under the lock, so a barangay's first requests wait for them.
         with self._lock:
             if barangay_id not in self._ready:
                 self.directory.mkdir(parents=True, exist_ok=True)
@@ -190,8 +186,7 @@ class BhuStores:
         return json.loads(row["data"])
 
     def save_client(self, barangay_id: str, client_id: str, fields: dict) -> dict:
-        """Creates or updates a client. If an existing client's birthdate or sex changes, the
-        reports the RHU already holds are wrong too, so they are sent again in the same transaction."""
+        """Creates or updates a client. A changed birthdate or sex also resends its reports."""
         _check_client(fields)
         now = db.utc_now()
         with closing(self.connect(barangay_id)) as conn, conn:
@@ -278,8 +273,7 @@ class BhuStores:
         return consultation
 
     def _write_revision(self, conn, barangay_id: str, client: dict, current: dict, fields: dict, entry: dict) -> dict:
-        """A new version: a higher revision, so the RHU replaces its copy. Time-based, so it stays
-        higher than anything sent before, even after an older backup is restored."""
+        """A new version with a higher, time-based revision, so the RHU replaces its copy."""
         revised = {
             **current,
             **fields,
@@ -319,8 +313,7 @@ class BhuStores:
             return [tuple(r) for r in conn.execute("SELECT batch_id, payload FROM outbox ORDER BY created_at")]
 
     def record_delivery(self, barangay_id: str, batch_id: str, sync: str, detail: str | None = None) -> None:
-        """The RHU answered: the report leaves the outbox, and the checkup shows the result.
-        A batch of an older revision matches no checkup, since a newer report has replaced it."""
+        """The RHU confirmed a report: remove it from the outbox and show the result."""
         with closing(self.connect(barangay_id)) as conn, conn:
             conn.execute("DELETE FROM outbox WHERE batch_id = ?", (batch_id,))
             for visit in self._consultations(conn, "batch_id = ?", (batch_id,)):
@@ -343,8 +336,7 @@ class BhuStores:
         }
 
     def import_backup(self, barangay_id: str, backup: dict) -> dict:
-        """Restores records, also those moved from a browser. A record already here wins if it is
-        newer. Reports that weren't confirmed are queued again; the RHU ignores what it already has."""
+        """Restores records; newer ones win, and unconfirmed reports are queued again."""
         if backup.get("format") != BACKUP_FORMAT or not isinstance(backup.get("clients"), list) or not isinstance(backup.get("consultations"), list):
             raise InvalidRecord("This file is not a HealthPulz backup.")
         if backup.get("barangay_id") != barangay_id:
@@ -379,8 +371,7 @@ class BhuStores:
 
 
 class OutboxRelay:
-    """Thread that moves reports from the BHU outboxes into the ingestion pipeline, as if each
-    BHU were sending them itself. Reports stay in the outbox until STORED arrives."""
+    """Thread that feeds BHU outbox reports into the ingestion pipeline until each is STORED."""
 
     def __init__(self, stores: BhuStores, pipeline: IngestPipeline) -> None:
         self._stores = stores
@@ -436,8 +427,7 @@ class OutboxRelay:
                     self._stores.record_delivery(barangay_id, batch_id, SYNC_REJECTED, "the report was malformed")
 
     def on_stored(self, message: dict) -> None:
-        """Called by the pipeline's writer thread after each commit. Only reports sent by this
-        relay touch a BHU file, so a stress test sent from the browser costs nothing here."""
+        """Called by the DB writer thread after each commit."""
         with self._lock:
             sent = self._in_flight.pop(message["batch_id"], None)
         if sent is None:

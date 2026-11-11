@@ -1,21 +1,7 @@
-"""Outbreak alerts: detection after each analytics run, delivery to nodes, acknowledgement.
+"""Outbreak alerts: detected after each analytics run, sent to the barangay and its neighbors.
 
-Detection checks the current and the previous ISO week in weekly_stats (a BHU
-can enter a checkup a few days late, so last week can still change):
-    URGENT    any case of a single-case-alert disease (the RHU's list, e.g. measles)
-    EPIDEMIC  count > epidemic threshold  and count ≥ MIN_ALERT_CASES
-    ALERT     count > alert threshold     and count ≥ MIN_ALERT_CASES
-Non-communicable diseases have no thresholds, so they are counted but never alert.
-
-There is one alert per barangay × disease × week. It is sent again only if it
-escalates from ALERT to EPIDEMIC.
-
-Delivery is store-and-forward: an alert goes to the nodes of the affected
-barangay (scope LOCAL) and of its neighboring barangays (scope NEIGHBOR).
-Nodes that are offline receive it when they reconnect (HELLO); alerts they had
-already acknowledged come again marked `acknowledged`, so they are listed but
-not announced twice. Every delivery and acknowledgement is recorded in
-alert_deliveries.
+URGENT: any case of a single-case disease. EPIDEMIC / ALERT: above the threshold and >= MIN_ALERT_CASES.
+Store-and-forward: a node that was offline gets its alerts when it reconnects.
 """
 
 import asyncio
@@ -132,8 +118,7 @@ def _describe(disease: dict, barangay_id: str, year: int, week: int, count: int,
 
 
 def reword_old_messages(db_path: Path) -> int:
-    """Alerts saved before the pages showed real dates say "in week 2026-W44". Their counts and
-    status don't change, only that wording. Returns how many were reworded."""
+    """Rewords old "in week 2026-W44" messages to real dates. Returns how many changed."""
     code = re.compile(r"in week (\d{4})-W(\d{2})")
     with closing(db.connect(db_path)) as conn, conn:
         old = conn.execute("SELECT alert_id, message FROM alerts WHERE message LIKE '%in week %-W%'").fetchall()
@@ -159,8 +144,7 @@ def recipients(db_path: Path, barangay_id: str) -> list[tuple[str, str]]:
 
 
 def alerts_for_node(db_path: Path, node_id: str, today: date) -> list[tuple[dict, str, bool]]:
-    """Unresolved alerts of the checked weeks that this node should see, as
-    (alert, scope, already acknowledged by this node)."""
+    """Unresolved alerts this node should see, as (alert, scope, already acknowledged)."""
     with closing(db.connect(db_path)) as conn:
         node = conn.execute("SELECT barangay_id FROM nodes WHERE node_id = ?", (node_id,)).fetchone()
         if node is None:
@@ -223,8 +207,7 @@ def to_message(alert: dict, scope: str, acknowledged: bool = False) -> dict:
 
 
 class AlertService:
-    """Connects detection and delivery to the WebSocket hub. Runs on the event loop;
-    database work is done in threads."""
+    """Connects detection and delivery to the WebSocket hub; database work runs in threads."""
 
     def __init__(self, db_path: Path, hub: Hub) -> None:
         self.db_path = db_path
@@ -240,8 +223,7 @@ class AlertService:
         return alerts
 
     async def send_pending(self, node_id: str, today: date | None = None) -> None:
-        """Called when a node connects: alerts it missed while offline, plus the ones it already
-        acknowledged (marked as such), so a reloaded page still lists every current alert."""
+        """On connect: alerts missed while offline, plus acknowledged ones so a reload still lists them."""
         alerts = await asyncio.to_thread(alerts_for_node, self.db_path, node_id, today or date.today())
         for alert, scope, acknowledged in alerts:
             await self._send(alert, [(node_id, scope)], acknowledged)

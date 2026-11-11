@@ -1,8 +1,4 @@
-// Map of Naval, Biliran, drawn as SVG from /data/naval-map.json (built by tools/build_map.py
-// from official PSGC boundaries). No map tiles or libraries, so it works without internet.
-//
-// Layers, bottom to top: sea → other towns of Biliran (greyed out) → Naval's barangays
-// (colored by level) → Naval's municipal boundary (highlighted) → case markers → labels.
+// Offline SVG map of Naval from /data/naval-map.json (built by tools/build_map.py).
 
 import { el } from "./dom.js";
 
@@ -27,12 +23,7 @@ function svgEl(tag, attrs = {}) {
 
 const shortName = (name) => name.replace(/\s*\(Pob\.\)|\s*Pob\./g, "").replace(/^Padre /, "P. ");
 
-/**
- * Renders the map into `container`.
- * Options: onSelect(barangayId) on click/Enter; ownBarangay (outlined, for a BHS node);
- * labels (barangay names on the map).
- * Returns { update(gridBarangays, diseaseCode | null), select(barangayId) }.
- */
+/** Renders the map. Returns { update(gridBarangays, diseaseCode | null), select(barangayId) }. */
 export async function createNavalMap(container, { onSelect = null, ownBarangay = null, labels = true } = {}) {
   const map = await loadMapData();
   const svg = svgEl("svg", { viewBox: `0 0 ${map.width} ${map.height}`, role: "img", "aria-label": "Map of Naval, Biliran, by barangay" });
@@ -104,7 +95,7 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
   }
 
   return {
-    /** gridBarangays: `barangays` from GET /api/stats/barangays. diseaseCode: one disease, or null for all. */
+    /** diseaseCode: one disease, or null for all. */
     update(gridBarangays, diseaseCode = null) {
       stats.clear();
       for (const b of gridBarangays) {

@@ -1,5 +1,4 @@
-// App shell behavior shared by the dashboard, node and monitor pages:
-// the slide-out menu on phones, hash-based screens, and toast notifications.
+// Shared app shell: phone menu, hash-based screens, toasts.
 
 import { logOut } from "./api.js";
 import { el } from "./dom.js";
@@ -32,14 +31,7 @@ export function setupLogout(confirmFirst = () => true) {
   });
 }
 
-/**
- * Screens are <section data-screen="name">; links use href="#/name" and data-nav="name".
- * A screen with data-parent="other" highlights that screen's link instead of its own.
- * The URL hash keeps the current screen and an optional parameter (#/client/abc123), so
- * reload and the Back button work. The "/" keeps the hash from matching an element id
- * (the browser would scroll to it).
- * onChange(name, param) runs whenever the screen changes.
- */
+/** Hash routing (#/name/param), so reload and Back work. onChange(name, param) runs on each change. */
 export function createRouter(defaultScreen, onChange) {
   const sections = [...document.querySelectorAll("[data-screen]")];
   const parse = () => {

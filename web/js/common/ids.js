@@ -1,8 +1,4 @@
-// ID helpers.
-//
-// crypto.randomUUID() only exists on HTTPS pages or localhost. Classmates open
-// the node page over plain HTTP on the LAN (e.g. http://192.168.1.5:8000), so
-// UUIDs are built from crypto.getRandomValues(), which works everywhere.
+// crypto.randomUUID() needs HTTPS or localhost; getRandomValues() also works over plain HTTP.
 
 export function uuid4() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));

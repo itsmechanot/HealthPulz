@@ -1,5 +1,4 @@
-// Login page: choose a health unit (RHU Naval or a barangay), enter its password,
-// and the server sends you to your own side.
+// Login page: the server sends each account to its own side.
 
 import * as api from "../common/api.js";
 import { createCombobox } from "../common/combobox.js";

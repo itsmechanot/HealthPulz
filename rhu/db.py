@@ -1,8 +1,4 @@
-"""SQLite connection helpers and database setup.
-
-A connection is never used by two threads at the same time: each HTTP request
-and the DB writer thread open their own.
-"""
+"""SQLite connection helpers and database setup. Each thread opens its own connection."""
 
 import json
 import sqlite3
@@ -19,9 +15,7 @@ def utc_now() -> str:
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
-    # check_same_thread=False: FastAPI may open a request's connection in one
-    # worker thread and run the endpoint in another. The connection is still
-    # used by only one request at a time, so this is safe.
+    # check_same_thread=False: FastAPI may use a connection from another thread, never two at once.
     conn = sqlite3.connect(db_path, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -38,8 +32,7 @@ def init_db(db_path: Path) -> None:
         seed_reference_data(conn)
 
 
-# Columns added after the first schema version. CREATE TABLE IF NOT EXISTS
-# doesn't change existing tables, so older databases get them here.
+# Columns added after the first schema version (CREATE TABLE IF NOT EXISTS doesn't add them).
 _ADDED_COLUMNS = [
     ("accounts", "password_set_at", "TEXT"),
     ("nodes", "kind", "TEXT NOT NULL DEFAULT 'LIVE'"),
@@ -58,9 +51,7 @@ def add_missing_columns(conn: sqlite3.Connection) -> None:
 
 
 def create_analytics_index(conn: sqlite3.Connection) -> None:
-    """Holds every column the analytics read, so each worker scans one index in order instead
-    of jumping to a table row per case. That keeps the map step CPU-bound, which is what
-    extra processes can speed up. Created here because `voided` may have just been added."""
+    """Covering index: workers scan one index instead of the table, which keeps them CPU-bound."""
     for older_version in ("idx_cases_brgy_disease_date", "idx_cases_analytics"):
         conn.execute(f"DROP INDEX IF EXISTS {older_version}")
     conn.execute(

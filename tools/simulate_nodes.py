@@ -1,14 +1,7 @@
-"""Simulates many BHS nodes sending case batches to the RHU at the same time.
+"""Simulates many BHU nodes sending batches at once, then checks that no record was lost.
 
-Every node behaves like the real node app: it registers, opens its WebSocket
-(HELLO), sends its batches over HTTP (retrying on 503 backpressure), and waits
-for a STORED message for each batch. The script then checks that no record was lost.
-
-It logs in with the LOADTEST account, which may send reports for any barangay and do nothing else.
-The password is read from var/accounts.txt; from another computer, pass it with --password.
-
-Usage (with the RHU server running):
-    python tools/simulate_nodes.py --nodes 40 --batches 5 --records 100
+Logs in as LOADTEST (password from var/accounts.txt, or --password).
+Usage:  python tools/simulate_nodes.py --nodes 40 --batches 5 --records 100
 """
 
 import argparse

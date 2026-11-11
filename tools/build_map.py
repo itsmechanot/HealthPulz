@@ -1,15 +1,9 @@
-"""Builds the offline map of Naval and the barangay neighbor lists from official boundaries.
-
-Source: faeldon/philippines-json-maps (PSA PSGC boundaries, MIT license), medium resolution:
+"""Builds the offline Naval map and barangay neighbor lists from PSGC boundaries
+(faeldon/philippines-json-maps, MIT license):
     https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/latest/geojson/provdists/medres/municities-provdist-807800000.0.01.json
     https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/latest/geojson/municities/medres/bgysubmuns-municity-807808000.0.01.json
 
-Usage:
-    python tools/build_map.py --province biliran.json --municipality naval.json
-
-Writes:
-    web/data/naval-map.json   SVG paths for the barangays of Naval and the other towns of Biliran
-    rhu/data/barangays.json   `neighbors` filled in from which boundaries touch
+Usage:  python tools/build_map.py --province biliran.json --municipality naval.json
 """
 
 import argparse
@@ -75,8 +69,7 @@ def label_point(geometry: dict, project: Projection) -> list[float]:
 
 
 def touching(a: dict, b: dict, tolerance: float = 0.0004) -> bool:
-    """Two boundaries touch if they share vertices, or have vertices within ~40 m of each other
-    (the simplified boundaries don't always keep exactly the same points on both sides)."""
+    """Two boundaries touch if they share points or have points within ~40 m."""
     points_a = {(round(x, 6), round(y, 6)) for poly in polygons(a) for ring in poly for x, y in ring}
     points_b = {(round(x, 6), round(y, 6)) for poly in polygons(b) for ring in poly for x, y in ring}
     if len(points_a & points_b) >= 2:

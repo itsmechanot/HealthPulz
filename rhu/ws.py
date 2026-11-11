@@ -56,8 +56,7 @@ async def node_socket(ws: WebSocket, node_id: str, session: Session | None = Dep
                 case _:
                     await ws.send_json({"type": "ERROR", "reason": "UNKNOWN_TYPE"})
     except (WebSocketDisconnect, RuntimeError):
-        # RuntimeError: the device left while the server was pushing to it (see Hub._send),
-        # so Starlette reports the next read differently. Either way, the device is gone.
+        # RuntimeError: the device left while the server was pushing to it.
         pass
     finally:
         if joined:
@@ -104,9 +103,7 @@ async def build_snapshot(app: FastAPI, records_per_second: float) -> dict:
     registered = await asyncio.to_thread(_registered_nodes, app.state.db_path)
     nodes = []
     for node_id, barangay_id, last_seen in registered:
-        # One tile per barangay: its fixed station, if recently active. Any other ID (a load-test
-        # node, or one from before the fixed stations) only shows while connected. Those stay in
-        # the database, because their cases point to them.
+        # One tile per barangay station; other IDs (e.g. load-test nodes) only while connected.
         recent_station = node_id == station_id(barangay_id) and last_seen >= _recent_cutoff()
         if not hub.is_connected(node_id) and not recent_station:
             continue

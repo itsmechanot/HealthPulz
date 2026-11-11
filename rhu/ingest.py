@@ -1,11 +1,7 @@
-"""Ingestion pipeline: how case batches from the BHS nodes reach the database.
+"""Ingestion pipeline (producer–consumer: the threads share nothing but the queues).
 
     HTTP receiver ──► ingest queue ──► validator threads (N) ──► write queue ──► DB writer thread
                        (bounded)                                                 (group commit)
-
-The threads share no state except the queues: every hand-off is a message
-placed on a queue (producer–consumer). Only the single DB writer thread
-writes cases, so SQLite never has competing writers.
 """
 
 import logging
@@ -188,9 +184,7 @@ class IngestPipeline:
                 first = self._write_queue.get()
                 if first is _STOP:
                     break
-                # Group commit: take whatever else is already waiting (up to a limit)
-                # and write it all in one transaction. Under a burst this is far
-                # faster than one commit per batch.
+                # Group commit: write everything already waiting in one transaction.
                 group = [first]
                 while len(group) < config.WRITE_GROUP_MAX:
                     try:
@@ -275,8 +269,7 @@ class IngestPipeline:
         accepted = cursor.rowcount if originals else 0
         updated = 0
         if revisions:
-            # Only a newer revision from the same barangay replaces what we have, so resent
-            # or out-of-order messages can't undo a later correction.
+            # Only a newer revision from the same barangay replaces a case.
             cursor = conn.executemany(
                 f"""
                 INSERT INTO cases {_CASE_COLUMNS} VALUES {_CASE_VALUES}

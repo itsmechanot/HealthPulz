@@ -1,9 +1,4 @@
-// The node's live WebSocket channel to the RHU (protocol section 3).
-//
-// Events (CustomEvent, data in event.detail):
-//   status        "connecting" | "online" | "offline"
-//   message       any message from the RHU (STORED, ALERT, ERROR, ...)
-//   unregistered  the RHU doesn't know this node (close code 4404)
+// The node's WebSocket to the RHU. Events: status, message, unregistered (close code 4404).
 
 import { CLOSE_NOT_LOGGED_IN, toLogin, wsUrl } from "../common/api.js";
 

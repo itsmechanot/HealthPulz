@@ -1,20 +1,9 @@
-"""Parallel analytics: weekly case counts and outbreak thresholds, MapReduce style.
+"""Parallel analytics (MapReduce): weekly case counts and outbreak thresholds.
 
-    map     each worker *process* takes one barangay, reads its cases over its own
-            read-only connection, and computes, per disease and ISO week, the case
-            count and the alert/epidemic thresholds
-    reduce  the main process merges the workers' rows and writes weekly_stats in
-            one transaction (still a single writer)
-
-Thresholds compare a week with the same ISO week ±1 in up to 5 previous years
-(the idea behind CDC's "historical limits" method):
-    alert    = mean + 2·SD
-    epidemic = mean + 3·SD
-A threshold needs at least 2 previous years of data; otherwise it is NULL.
-Voided cases and cases from drill (stress-test) batches are left out.
-
-Separate processes (not threads) are used because the map step is CPU-bound
-Python, and Python's GIL lets only one thread run Python code at a time.
+map:     one worker process per barangay counts cases per disease and week, and computes thresholds
+reduce:  the main process merges the rows and writes weekly_stats
+Thresholds: the same ISO week ±1 in up to 5 past years; alert = mean + 2 SD, epidemic = mean + 3 SD.
+Processes, not threads, because Python's GIL lets only one thread run Python code at a time.
 """
 
 import asyncio
@@ -99,8 +88,7 @@ class Analytics:
         if self._executor is None:
             parts = [_map_barangay(*a) for a in args]
         else:
-            # chunksize=1: a worker that finishes a small barangay immediately takes
-            # the next one, which balances the uneven barangay sizes (dynamic scheduling).
+            # chunksize=1: dynamic scheduling, since barangays differ in size.
             parts = list(self._executor.map(_map_barangay, *zip(*args), chunksize=1))
         mapped = time.perf_counter()
 
@@ -141,10 +129,7 @@ def _stored_rows(conn: sqlite3.Connection) -> set[tuple]:
 
 
 def _write_changed_rows(conn: sqlite3.Connection, rows: set[tuple], stored: set[tuple]) -> int:
-    """Reduce: a new report changes only a few of the ~100,000 rows, so writing just those keeps the
-    numbers close to real time and holds the write lock (shared with the DB writer) only briefly.
-    Comparing sets is what makes this fast; comparing row by row took as long as writing them all.
-    Returns how many rows were written or removed."""
+    """Reduce: write only the rows that changed (compared as sets). Returns how many changed."""
     changed = rows - stored
     gone = {row[:4] for row in stored - rows} - {row[:4] for row in changed}
     conn.executemany(
@@ -161,8 +146,7 @@ def _write_changed_rows(conn: sqlite3.Connection, rows: set[tuple], stored: set[
     return len(changed) + len(gone)
 
 
-# ---- map step (runs inside the worker processes) ------------------------------
-# Top-level functions, so they can be sent to other processes.
+# ---- map step (runs in the worker processes; top-level so it can be pickled) ------
 
 def _map_barangay(
     db_path: str, barangay_id: str, diseases: list[str], thresholded: set[str], weeks: list[date]
@@ -182,8 +166,7 @@ def _map_barangay(
     for disease in diseases:
         for monday in weeks:
             alert = epidemic = None
-            # Only contagious diseases get thresholds. Non-communicable ones and "Other" are just
-            # counted, and for the urgent diseases a single case is already enough.
+            # Thresholds only for contagious diseases; urgent ones alert on a single case.
             baseline = baseline_values(counts, disease, monday, first_week=weeks[0]) if disease in thresholded else None
             if baseline is not None:
                 mean, sd = statistics.fmean(baseline), statistics.stdev(baseline)
@@ -194,8 +177,7 @@ def _map_barangay(
 
 
 def baseline_values(counts: Counter, disease: str, monday: date, first_week: date) -> list[int] | None:
-    """Counts for the same ISO week ±BASELINE_WINDOW_WEEKS in previous years,
-    or None if fewer than MIN_BASELINE_YEARS years of history exist."""
+    """Counts for the same week ±1 in past years, or None with too little history."""
     year, week, _ = monday.isocalendar()
     values: list[int] = []
     years_used = 0
@@ -223,10 +205,7 @@ async def run_when_cases_change(
     after_run: Callable[[AnalyticsResult], Awaitable[object]] | None = None,
     new_reports: asyncio.Event | None = None,
 ) -> None:
-    """Background task: re-run the analytics whenever cases were added or replaced, then call
-    `after_run` (used to check for outbreak alerts). `new_reports` starts a run right away, so
-    the dashboard's numbers follow what the BHUs send; `interval` is the safety net for changes
-    nobody announced, such as a history import."""
+    """Background task: re-run when reports arrive or the data changed, then call after_run."""
     new_reports = new_reports or asyncio.Event()
     last_signature = None
     while True:
@@ -249,7 +228,6 @@ async def run_when_cases_change(
 
 
 def _cases_signature(db_path: Path) -> tuple:
-    """Cheap fingerprint of the case data: changes when cases are added, removed or re-imported,
-    and when a batch corrects or voids existing ones (which leaves the case count unchanged)."""
+    """Cheap fingerprint that changes when cases are added, corrected, voided or re-imported."""
     with closing(db.connect(db_path)) as conn:
         return tuple(conn.execute("SELECT (SELECT COUNT(*) FROM cases), (SELECT MAX(rowid) FROM cases), (SELECT COUNT(*) FROM batches)").fetchone())

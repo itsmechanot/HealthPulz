@@ -1,5 +1,4 @@
-// The BHU's clinic screens: clients, client profile, client form, checkup form, visit
-// list and visit record. Records live in this barangay's store on the server (records.js).
+// BHU clinic screens: clients, checkups and visits (records live on the server, see records.js).
 
 import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";

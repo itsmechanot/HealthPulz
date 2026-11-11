@@ -1,7 +1,4 @@
-"""RHU server entry point.
-
-Run with:  python -m rhu
-"""
+"""RHU server entry point. Run with: python -m rhu"""
 
 import asyncio
 import mimetypes
@@ -20,9 +17,7 @@ from rhu.bhu_store import BhuStores, OutboxRelay
 from rhu.hub import Hub
 from rhu.ingest import IngestPipeline
 
-# Python reads file types from the Windows registry, which can map .js to
-# text/plain. Browsers refuse to run module scripts served that way, and won't
-# render an icon sprite that isn't image/svg+xml.
+# Windows can map .js to text/plain, and browsers refuse module scripts served that way.
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("image/svg+xml", ".svg")
 
@@ -85,8 +80,7 @@ def create_app(
             task.cancel()
             with suppress(asyncio.CancelledError):
                 await task
-        # Finish queued batches before shutting down (in a thread, so the event
-        # loop stays free to deliver the last STORED messages).
+        # Finish queued batches before shutting down (in a thread, so STORED messages still go out).
         await asyncio.to_thread(relay.stop)
         await asyncio.to_thread(pipeline.stop)
         analytics.close()

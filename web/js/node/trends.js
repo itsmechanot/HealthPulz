@@ -1,5 +1,4 @@
-// "Trends from RHU Naval" panel: municipal totals and this barangay's trend.
-// Reads only aggregated statistics from the RHU (never individual cases).
+// Trends panel: municipal totals and this barangay's trend (aggregates only).
 
 import * as api from "../common/api.js";
 import { weekStart } from "../common/dates.js";
