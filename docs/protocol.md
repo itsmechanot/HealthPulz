@@ -114,7 +114,7 @@ The BHU's checkup screens need a connection to the server. Without one, the form
 ```
 
 Rules:
-- `batch_id` and `record_id` are UUID v4s created **on the node**. They make retries safe (idempotency). The node page builds them with `crypto.getRandomValues()`, because `crypto.randomUUID()` is unavailable on plain-HTTP LAN addresses such as `http://192.168.1.5:8000`.
+- `batch_id` and `record_id` are UUID v4s created **on the node**. They make retries safe (idempotency). The node page builds them with `crypto.getRandomValues()`, because `crypto.randomUUID()` is unavailable on plain-HTTP LAN addresses such as `http://192.168.1.5:8001`.
 - At most **100 records per batch**.
 - **No names or addresses** are sent, only the purok number (Data Privacy Act of 2012). Names and clinical details stay in the barangay's own store; only this case report reaches the RHU's database.
 - `disease_code` is one of the 19 tracked diseases in `rhu/data/diseases.json` (served at `GET /api/config`), or `OTH` for any other diagnosis. `OTH` is stored and counted as "Other consultations", but has no thresholds or alerts and stays out of the case totals. The specific diagnosis text stays at the BHU.

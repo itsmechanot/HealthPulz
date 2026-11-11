@@ -124,7 +124,7 @@ async def main(args) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     # 127.0.0.1, not localhost: on Windows, localhost tries IPv6 first and waits ~2 s per new connection.
-    parser.add_argument("--url", default="http://127.0.0.1:8000")
+    parser.add_argument("--url", default="http://127.0.0.1:8001")
     parser.add_argument("--password", help="LOADTEST password (default: read from var/accounts.txt)")
     parser.add_argument("--nodes", type=int, default=40)
     parser.add_argument("--batches", type=int, default=5, help="batches per node")

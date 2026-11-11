@@ -24,7 +24,7 @@
 ### 1. Join banner
 | | |
 |---|---|
-| Shows | The address classmates type on their phone/laptop, e.g. `http://192.168.254.139:8000/`, plus one line of instructions |
+| Shows | The address classmates type on their phone/laptop, e.g. `http://192.168.254.139:8001/`, plus one line of instructions |
 | Data | `GET /api/server/addresses` (once, on load). There can be **more than one address** if the laptop has several network adapters. |
 | States | Loading (`…`); one address; several addresses; **warning** when phones can't connect because the server was started for this laptop only (`reachable: false`) |
 | Notes | Must be **very large and easy to copy by eye** from the projector. A QR code of the address would be a good addition. |
