@@ -22,7 +22,8 @@ export async function getAccount() {
 }
 
 export async function logOut() {
-  await fetch("/api/auth/logout", { method: "POST" });
+  const response = await fetch("/api/auth/logout", { method: "POST" });
+  if (!response.ok) throw new Error(`The server could not sign out this session (HTTP ${response.status}).`);
   toLogin();
 }
 

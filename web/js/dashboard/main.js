@@ -7,7 +7,7 @@ import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
 import { applyPlace, fillPlace } from "../common/place.js";
 import { createTownMap } from "../common/town-map.js";
-import { createRouter, setupLogout, setupMenu } from "../common/shell.js";
+import { confirmAction, createRouter, setupLogout, setupMenu } from "../common/shell.js";
 import { createAccountsScreen } from "./accounts.js";
 import { createDayPicker, toIso } from "./calendar.js";
 
@@ -16,12 +16,12 @@ const SPARKLINE_WEEKS = 12;
 const OVERVIEW_ALERTS = 4;
 const LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2, URGENT: 3 };
 const SCREENS = {
-  overview: ["Overview", "Illness situation in {town}, {province}"],
-  map: ["Map", "Cases by barangay, Municipality of {town}"],
-  alerts: ["Alerts", "Outbreaks detected by the parallel analytics"],
-  trends: ["Trends", "Weekly cases compared with outbreak thresholds"],
-  barangays: ["Barangays", "Every barangay and disease for one week"],
-  accounts: ["BHU Accounts", "Give each Barangay Health Unit its password"],
+  overview: ["Surveillance overview", "Weekly disease reports across {town}, {province}"],
+  map: ["Geographic view", "Reported cases by barangay in {town}"],
+  alerts: ["Alerts", "Outbreaks detected by the parallel analytics, by severity"],
+  trends: ["Case trends", "Weekly reports compared with outbreak thresholds"],
+  barangays: ["Barangay summary", "Reported disease counts across all barangays"],
+  accounts: ["Health unit access", "Give each Barangay Health Unit its password"],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -34,6 +34,7 @@ const state = {
   gridWeek: "current",
   gridGroup: "common",
   alertFilter: "active",
+  alertLevel: "ALERT", // Alerts screen: one severity tab at a time
   mapDisease: null, // null = all diseases
   mapWeek: "current",
   mapDay: null, // "YYYY-MM-DD" when the map's calendar shows one day; null = the week toggle
@@ -63,7 +64,7 @@ async function start() {
   setupLogout();
   buildControls();
   [overviewMap, bigMap] = await Promise.all([
-    createTownMap($("ov-map"), { labels: false, onSelect: (id) => selectBarangay(id, true) }),
+    createTownMap($("ov-map"), { labels: true, onSelect: (id) => selectBarangay(id, true) }),
     createTownMap($("big-map"), { onSelect: (id) => selectBarangay(id, false) }),
   ]);
   dayPickers = [overviewMap, bigMap].map((map) =>
@@ -158,6 +159,8 @@ function refreshAfterAnalytics(finishedAt) {
 function setConnection(stateName, text) {
   $("connection").dataset.state = stateName;
   $("connection").textContent = text;
+  $("dashboard-guidance").hidden = stateName !== "offline";
+  $("dashboard-guidance").textContent = "The RHU server cannot be reached. Dashboard figures may be out of date; it will retry automatically.";
 }
 
 const activeAlerts = () => data.alerts.filter((a) => a.status !== "RESOLVED");
@@ -166,7 +169,7 @@ const activeAlerts = () => data.alerts.filter((a) => a.status !== "RESOLVED");
 
 function renderChrome() {
   const { week } = data.summary;
-  $("week-chip").textContent = `This week: ${week.dates} (so far)`;
+  $("week-chip-dates").textContent = week.dates;
   const open = activeAlerts().filter((a) => a.status === "OPEN").length;
   $("nav-alert-count").hidden = open === 0;
   $("nav-alert-count").textContent = open;
@@ -200,7 +203,7 @@ function renderReports({ flashNew = false } = {}) {
     return reportRow(report, flashNew && isNew);
   });
   $("latest-reports").replaceChildren(
-    ...(rows.length ? rows : [el("li", { className: "empty", textContent: "No reports yet. They appear here the moment a BHU saves a checkup." })]),
+    ...(rows.length ? rows : [el("li", { className: "empty", textContent: "No reports yet. They appear here the moment a BHU saves a consultation." })]),
   );
 }
 
@@ -215,7 +218,7 @@ function reportRow(report, flash) {
     el("div", {}, el("strong", { textContent: disease }), el("div", { className: "muted small", textContent: `Brgy. ${barangay}` })),
     el("span", { className: "small", textContent: `${report.age_years} ${report.sex} · Purok ${report.purok}` }),
     el("span", { className: "badge", textContent: change ?? (report.case_status === "CONFIRMED" ? "Confirmed" : "Suspected"), dataset: change ? { level: "ALERT" } : {} }),
-    el("span", { className: "muted small", textContent: `Checkup ${formatDate(report.consult_date)} · illness started ${formatDate(report.onset_date)} · counts in ${weekName(report)}` }),
+    el("span", { className: "muted small", textContent: `Consultation ${formatDate(report.consult_date)} · symptom onset ${formatDate(report.onset_date)} · counts in ${weekName(report)}` }),
   );
 }
 
@@ -246,7 +249,7 @@ function renderOverview() {
   const atLevel = (level) => active.filter((a) => a.level === level).length;
   $("kpi-alerts-sub").textContent = active.length
     ? `${atLevel("URGENT")} urgent · ${atLevel("EPIDEMIC")} epidemic · ${active.filter((a) => a.status === "OPEN").length} not yet acknowledged`
-    : "All barangays within normal levels";
+    : "No reported counts currently exceed outbreak thresholds";
   const withCases = grid.filter((b) => b.total > 0).length;
   const onAlert = grid.filter((b) => Object.values(b.diseases).some((c) => c.level !== "NORMAL")).length;
   $("kpi-barangays").textContent = `${withCases} / ${grid.length}`;
@@ -409,13 +412,18 @@ function renderDetail() {
   });
 
   $("map-detail").replaceChildren(
-    el("div", { className: "station-header" },
+    el("div", { className: "station-header map-station-header" },
       el("span", { className: "avatar", textContent: initials(b.name) }),
-      el("div", { className: "grow" }, el("h3", { textContent: `Brgy. ${b.name}`, style: "font-size: 1.05rem" }), el("span", { className: "muted small", textContent: period })),
-      el("span", { className: "badge", dataset: { level: worst === "NORMAL" ? "OK" : worst }, textContent: worst === "NORMAL" ? "Normal" : worst }),
+      el("div", { className: "grow" },
+        el("div", { className: "map-station-name" },
+          el("h3", { textContent: `Brgy. ${b.name}` }),
+          el("span", { className: "badge map-status-badge", dataset: { level: worst === "NORMAL" ? "OK" : worst }, textContent: worst === "NORMAL" ? "Normal" : worst }),
+        ),
+        el("span", { className: "muted small", textContent: period }),
+      ),
     ),
     el("div", { className: "stats three" },
-      el("div", { className: "stat" }, el("div", { className: "stat-value", textContent: fmt(b.total) }), el("div", { className: "stat-label", textContent: "Cases" })),
+      el("div", { className: "stat" }, el("div", { className: "stat-value", textContent: fmt(b.total) }), el("div", { className: "stat-label", textContent: "Reported cases" })),
       el("div", { className: "stat" }, el("div", { className: "stat-value", textContent: b.rate_per_10k.toFixed(1) }), el("div", { className: "stat-label", textContent: "Per 10,000" })),
       el("div", { className: "stat" }, el("div", { className: "stat-value", textContent: fmt(b.population) }), el("div", { className: "stat-label", textContent: "Population*" })),
     ),
@@ -428,32 +436,52 @@ function renderDetail() {
 // ---- Alerts ------------------------------------------------------------------------------
 
 function renderAlertsScreen() {
-  let alerts = data.alerts;
-  if (state.alertFilter === "active") alerts = activeAlerts();
-  if (state.alertFilter === "RESOLVED") alerts = alerts.filter((a) => a.status === "RESOLVED");
-  const empty = state.alertFilter === "active" ? "No active alerts. All barangays are within normal levels." : "No alerts.";
+  const byStatus = data.alerts.filter((a) =>
+    state.alertFilter === "active" ? a.status !== "RESOLVED" : state.alertFilter === "RESOLVED" ? a.status === "RESOLVED" : true);
+  for (const level of ["ALERT", "EPIDEMIC", "URGENT"]) {
+    const count = byStatus.filter((a) => a.level === level).length;
+    const unacknowledged = data.alerts.some((a) => a.level === level && a.status === "OPEN");
+    $(`alert-count-${level}`).textContent = fmt(count);
+    $(`alert-new-${level}`).hidden = !unacknowledged;
+    document.querySelector(`[data-alert-level="${level}"]`)
+      .setAttribute("aria-label", `${level[0]}${level.slice(1).toLowerCase()}: ${count} alert${count === 1 ? "" : "s"}${unacknowledged ? ", new unacknowledged alert" : ""}`);
+  }
+  const alerts = byStatus.filter((a) => a.level === state.alertLevel);
+  const levelName = state.alertLevel.toLowerCase();
+  const empty = state.alertFilter === "active" ? `No active ${levelName} alerts.` : `No ${levelName} alerts to display.`;
   $("alerts").replaceChildren(...(alerts.length ? alerts.map((a) => alertRow(a)) : [el("p", { className: "empty", textContent: empty })]));
 }
 
 function alertRow(alert, { compact = false } = {}) {
+  const where = alert.barangay_name ?? barangayName(alert.barangay_id);
   const actions = el("div", { className: "actions" });
-  const action = (label, status, primary = false) => {
-    const button = el("button", { type: "button", className: `btn btn-small ${primary ? "btn-primary" : "btn-ghost"}`, textContent: label });
-    button.addEventListener("click", async () => {
-      button.disabled = true;
-      await api.fetchJson(`/api/alerts/${alert.alert_id}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      await refresh();
-    });
+  const action = (label, status, style) => {
+    const button = el("button", { type: "button", className: `btn btn-small alert-action-${style}`, textContent: label });
+    const verb = { ACKNOWLEDGED: "acknowledge", RESOLVED: "resolve", OPEN: "reopen" }[status];
+    button.addEventListener("click", () =>
+      confirmAction({
+        title: `${label} alert?`,
+        message: `Are you sure you want to ${verb} the ${diseaseName(alert.disease_code)} alert for ${where}?`,
+        type: status === "RESOLVED" ? "warning" : "info",
+        confirmLabel: label,
+        successTitle: `Alert ${verb === "reopen" ? "reopened" : `${verb}d`}`,
+        successMessage: `${diseaseName(alert.disease_code)} · ${where}`,
+        action: async () => {
+          await api.fetchJson(`/api/alerts/${alert.alert_id}/status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          });
+          await refresh();
+        },
+      }),
+    );
     return button;
   };
-  if (alert.status === "OPEN") actions.append(action("Acknowledge", "ACKNOWLEDGED", true));
-  if (alert.status !== "RESOLVED") actions.append(action("Resolve", "RESOLVED"));
-  else actions.append(action("Reopen", "OPEN"));
-  const showTrend = el("button", { type: "button", className: "btn btn-small btn-ghost", textContent: "Show trend" });
+  if (alert.status === "OPEN") actions.append(action("Acknowledge", "ACKNOWLEDGED", "acknowledge"));
+  if (alert.status !== "RESOLVED") actions.append(action("Resolve", "RESOLVED", "resolve"));
+  else actions.append(action("Reopen", "OPEN", "reopen"));
+  const showTrend = el("button", { type: "button", className: "btn btn-small alert-action-trend", textContent: "View case trend" });
   showTrend.addEventListener("click", () => {
     state.disease = alert.disease_code;
     state.barangay = alert.barangay_id;
@@ -463,26 +491,49 @@ function alertRow(alert, { compact = false } = {}) {
   actions.append(showTrend);
 
   const statusText = { OPEN: "Open", ACKNOWLEDGED: "Acknowledged by RHU", RESOLVED: "Resolved" }[alert.status];
+  const levelName = alert.level === "EPIDEMIC" ? "epidemic" : "alert";
+  const contextItem = (label, value, note = "") =>
+    el("div", { className: "alert-context-item" },
+      el("span", { className: "alert-context-label", textContent: label }),
+      el("strong", { className: "alert-context-value", textContent: value }),
+      note ? el("span", { className: "alert-context-note", textContent: note }) : null,
+    );
+  const statusDetails = compact
+    ? el("div", { className: "alert-meta", textContent: `${alert.level === "URGENT" ? `${alert.observed} case${alert.observed === 1 ? "" : "s"}: any single case is urgent` : `${alert.observed} cases (threshold ${alert.threshold})`} · ${statusText}` })
+    : el("div", { className: "alert-meta" },
+      el("span", { className: "badge alert-status-badge", dataset: { status: alert.status }, textContent: statusText }),
+      el("span", { className: "muted small", textContent: `Raised: ${new Date(alert.created_at).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}` }),
+      el("span", { className: "muted small", textContent: `Delivered to ${alert.nodes_delivered} health station${alert.nodes_delivered === 1 ? "" : "s"} · Acknowledged by ${alert.nodes_acknowledged} station${alert.nodes_acknowledged === 1 ? "" : "s"}` }),
+    );
   return el(
     "article",
     { className: "alert-row", dataset: { level: alert.level, status: alert.status } },
-    el("div", {},
-      el("span", { className: "badge", dataset: { level: alert.level }, textContent: alert.level }), " ",
-      el("strong", { textContent: `${diseaseName(alert.disease_code)} · Brgy. ${barangayName(alert.barangay_id)}` }),
-      el("span", { className: "muted small", textContent: ` · ${alert.week_dates}` }),
+    el("div", { className: "alert-row-heading" },
+      el("span", { className: "badge", dataset: { level: alert.level }, textContent: alert.level }),
+      el("strong", { textContent: `${diseaseName(alert.disease_code)} · Barangay ${where}` }),
+      compact ? el("span", { className: "muted small", textContent: alert.week_dates }) : null,
     ),
-    compact ? null : el("div", { className: "small", textContent: alert.message }),
+    compact ? null : el("div", {
+      className: "alert-message",
+      textContent: alert.level === "URGENT"
+        ? `A single case of ${diseaseName(alert.disease_code)} needs immediate investigation.`
+        : `The number of ${diseaseName(alert.disease_code)} cases is above the ${levelName} threshold.`,
+    }),
+    compact ? null : el("div", { className: "alert-context" },
+      contextItem("Reported cases", String(alert.observed)),
+      alert.level === "URGENT"
+        ? contextItem("Urgent rule", "One case is enough")
+        : contextItem(`${levelName[0].toUpperCase()}${levelName.slice(1)} threshold`, `${Number(alert.threshold).toFixed(2)} cases`, "Calculated from past reports"),
+      contextItem("Case reporting period", alert.week_dates),
+    ),
     // BHU corrections can lower the count after the alert was raised; staff decide if it still applies.
     alert.status !== "RESOLVED" && alert.current_count != null && alert.current_count < alert.observed
-      ? el("div", { className: "note note-danger", textContent: `Corrected by the BHU: now ${alert.current_count} case(s), down from ${alert.observed}. Review whether this alert still applies.` })
+      ? el("div", {
+        className: "note note-danger alert-correction",
+        textContent: `The BHU updated its reports. The count is now ${alert.current_count} case${alert.current_count === 1 ? "" : "s"}, down from ${alert.observed}. Please review whether this alert is still needed.`,
+      })
       : null,
-    el("div", {
-      className: "muted small",
-      textContent: compact
-        ? `${alert.level === "URGENT" ? `${alert.observed} case${alert.observed === 1 ? "" : "s"}: any single case is urgent` : `${alert.observed} cases (threshold ${alert.threshold})`} · ${statusText}`
-        : `${statusText} · raised ${new Date(alert.created_at).toLocaleString()} · sent to ${alert.nodes_delivered} station${alert.nodes_delivered === 1 ? "" : "s"}, ${alert.nodes_acknowledged} acknowledged`,
-    }),
-    actions,
+    el("div", { className: "alert-row-footer" }, statusDetails, actions),
   );
 }
 
@@ -590,6 +641,7 @@ function buildControls() {
     renderTrends();
   });
   pressGroup("[data-alert-filter]", "alertFilter", renderAlertsScreen);
+  pressGroup("[data-alert-level]", "alertLevel", renderAlertsScreen);
   pressGroup("[data-grid-week]", "gridWeek", renderGrid);
   pressGroup("[data-grid-group]", "gridGroup", renderGrid);
   pressGroup("[data-map-week]", "mapWeek", () => { // on both Overview and Map; a week replaces a chosen day

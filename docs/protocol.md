@@ -18,7 +18,7 @@ Every message is JSON and carries a `type` field.
 
 There is **one shared login per BHU, one for the RHU**, and one for the load-test tool. The username is the barangay ID (`BRGY-08`), `RHU` or `LOADTEST`.
 
-**Only the RHU gives a BHU its password**, on the dashboard's BHU Accounts screen. Until then the BHU can't log in. A password is shown once, when it is given, and never written to a file. The database holds only salted scrypt hashes of passwords and SHA-256 hashes of login tokens.
+**Only the RHU gives a BHU its password**, on the dashboard's Health unit access screen. Until then the BHU can't log in. A password is shown once, when it is given, and never written to a file. The database holds only salted scrypt hashes of passwords and SHA-256 hashes of login tokens.
 
 The RHU's and LOADTEST's own passwords are generated on first start and listed in `var/accounts.txt`, which git ignores:
 

@@ -13,20 +13,20 @@
     <!-- Sidebar (desktop; the slide-out menu on phones) -->
     <aside class="sidebar" aria-label="Navigation">
       <a class="brand" href="#/clients">
-        <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
+        <img class="brand-mark" src="/img/healthpulz-logo.png" alt="" aria-hidden="true">
         <span><span class="brand-name">HealthPulz</span><br><span class="muted small">Barangay Health Unit</span></span>
       </a>
-      <span class="nav-label">Records</span>
-      <a class="nav-link" href="#/clients" data-nav="clients"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Clients</a>
-      <a class="nav-link" href="#/visits" data-nav="visits"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Visits</a>
+      <span class="nav-label">Clinical records</span>
+      <a class="nav-link" href="#/clients" data-nav="clients"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Patients</a>
+      <a class="nav-link" href="#/visits" data-nav="visits"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Consultations</a>
       <span class="nav-label">From the RHU</span>
       <a class="nav-link" href="#/alerts" data-nav="alerts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts<span class="count alert-count" hidden></span></a>
-      <a class="nav-link" href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
+      <a class="nav-link" href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Surveillance trends</a>
       <span class="nav-label">System</span>
-      <a class="nav-link" href="#/activity" data-nav="activity"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Sync &amp; Backup<span class="count pending-count" hidden></span></a>
+      <a class="nav-link" href="#/activity" data-nav="activity"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Data sync &amp; backup<span class="count pending-count" hidden></span></a>
       <a class="nav-link" href="#/tools" data-nav="tools"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Demo Tools</a>
       <div class="sidebar-footer">
-        <button id="logout-btn" class="btn btn-ghost btn-small btn-block" type="button">Log out</button>
+        <button id="logout-btn" class="btn btn-ghost btn-small btn-block" type="button">Sign out</button>
       </div>
     </aside>
     <div class="scrim"></div>
@@ -37,7 +37,7 @@
           <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>
         </button>
         <div class="title">
-          <span id="station-avatar" class="avatar" aria-hidden="true" hidden></span>
+          <span id="station-avatar" class="avatar station-avatar" aria-hidden="true" hidden></span>
           <div style="min-width: 0">
             <h1 id="station-name">HealthPulz</h1>
             <div id="station-sub" class="subtitle">Barangay Health Unit</div>
@@ -48,7 +48,8 @@
         </div>
       </header>
 
-      <main class="content" style="max-width: 1100px">
+      <main class="content">
+        <p id="connection-guidance" class="note note-danger" role="status" hidden></p>
         <!-- ===== Shown only when the server can't be reached while the page starts ===== -->
         <section class="screen" data-screen="unreachable" hidden>
           <p id="unreachable-error" class="card small" role="alert" style="color: var(--danger)"></p>
@@ -57,25 +58,27 @@
         <!-- ===== Clients ===== -->
         <section class="screen" data-screen="clients" hidden>
           <section id="move-banner" class="card" hidden>
-            <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Records found in this browser</h2>
-            <p class="muted small" style="margin: 0">This browser still holds <strong id="move-count"></strong> saved before records moved to your barangay's account. Move them so they appear on every device.</p>
-            <div><button id="move-btn" class="btn btn-primary btn-small" type="button">Move to this barangay's account</button></div>
+            <h2 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#database"/></svg>Records stored in this browser</h2>
+            <p class="muted small" style="margin: 0">This browser contains <strong id="move-count"></strong> saved before records moved to your health unit account. Transfer them so they are available on every device.</p>
+            <div><button id="move-btn" class="btn btn-primary btn-small" type="button">Transfer to health unit account</button></div>
             <p id="move-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
           </section>
           <section class="card" aria-labelledby="clients-title">
             <div class="card-header">
-              <h2 id="clients-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Clients</h2>
-              <a id="new-client-btn" class="btn btn-primary btn-small" href="#/client-form">+ New client</a>
+              <h2 id="clients-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Patient registry</h2>
+              <div class="row-actions">
+                <a id="new-client-btn" class="btn btn-primary btn-small" href="#/client-form">Register patient</a>
+              </div>
             </div>
-            <input id="client-search" type="search" placeholder="Search by name or contact number" aria-label="Search clients">
+            <input id="client-search" type="search" placeholder="Search by patient name or contact number" aria-label="Search patients">
             <div id="client-list" class="record-list"></div>
           </section>
         </section>
 
         <!-- ===== Client profile ===== -->
         <section class="screen" data-screen="client" data-parent="clients" hidden>
-          <a class="link-btn small" href="#/clients">← All clients</a>
-          <section class="card">
+          <a class="link-btn small" href="#/clients">← Patient registry</a>
+          <section class="card patient-profile-card">
             <div class="station-header">
               <span id="profile-avatar" class="avatar" aria-hidden="true"></span>
               <div class="grow">
@@ -83,54 +86,54 @@
                 <span id="profile-summary" class="muted small"></span>
               </div>
               <a id="profile-edit" class="btn btn-ghost btn-small">Edit</a>
-              <a id="profile-new-visit" class="btn btn-primary btn-small">+ New checkup</a>
+              <a id="profile-new-visit" class="btn btn-primary btn-small">+ Add consultation</a>
             </div>
             <dl id="profile-details" class="kv-grid"></dl>
-          </section>
-          <section class="card" aria-labelledby="history-title">
-            <h2 id="history-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Checkup history</h2>
-            <div id="profile-visits" class="record-list"></div>
+            <div class="patient-consultations">
+              <p id="profile-history-empty" class="empty" hidden>No consultation records for this patient.</p>
+              <div id="profile-visits" class="record-list"></div>
+            </div>
           </section>
         </section>
 
         <!-- ===== Client form ===== -->
         <section class="screen" data-screen="client-form" data-parent="clients" hidden>
           <form id="client-form" class="card" novalidate>
-            <h2 id="client-form-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>New client</h2>
+            <h2 id="client-form-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Register patient</h2>
             <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-              These details stay in your barangay's records. Only the client's age, sex and purok are included in case reports.</p>
+              These details stay in your barangay's records. Only the patient's age, sex and purok are included in case reports.</p>
             <div class="form-grid">
-              <div class="field"><label for="c-last">Last name *</label><input id="c-last" name="last_name" type="text" required autocomplete="off"></div>
-              <div class="field"><label for="c-first">First name *</label><input id="c-first" name="first_name" type="text" required autocomplete="off"></div>
-              <div class="field"><label for="c-middle">Middle name</label><input id="c-middle" name="middle_name" type="text" autocomplete="off"></div>
-              <div class="field"><label for="c-birthdate">Birthdate *</label><input id="c-birthdate" name="birthdate" type="date" required></div>
+              <div class="field"><label for="c-last">Last name *</label><input id="c-last" name="last_name" type="text" required autocomplete="family-name"></div>
+              <div class="field"><label for="c-first">First name *</label><input id="c-first" name="first_name" type="text" required autocomplete="given-name"></div>
+              <div class="field"><label for="c-middle">Middle name</label><input id="c-middle" name="middle_name" type="text" autocomplete="additional-name"></div>
+              <div class="field"><label for="c-birthdate">Date of birth *</label><input id="c-birthdate" name="birthdate" type="date" required autocomplete="bday"></div>
               <div class="field"><label for="c-sex">Sex *</label>
                 <select id="c-sex" name="sex" required><option value="">Select…</option><option value="F">Female</option><option value="M">Male</option></select></div>
               <div class="field"><label for="c-civil">Civil status</label>
                 <select id="c-civil" name="civil_status"><option value="">Select…</option><option>Single</option><option>Married</option><option>Widowed</option><option>Separated</option><option>Live-in</option></select></div>
               <div class="field"><label for="c-purok">Purok *</label><input id="c-purok" name="purok" type="number" min="1" max="20" step="1" required></div>
-              <div class="field"><label for="c-address">Street / sitio</label><input id="c-address" name="address" type="text" autocomplete="off"></div>
-              <div class="field"><label for="c-contact">Contact number</label><input id="c-contact" name="contact" type="tel" autocomplete="off"></div>
+              <div class="field"><label for="c-address">Street / sitio</label><input id="c-address" name="address" type="text" autocomplete="street-address"></div>
+              <div class="field"><label for="c-contact">Contact number</label><input id="c-contact" name="contact" type="tel" autocomplete="tel"></div>
               <div class="field"><label for="c-philhealth">PhilHealth number</label><input id="c-philhealth" name="philhealth" type="text" autocomplete="off"></div>
             </div>
             <div class="form-actions">
-              <p id="client-form-error" class="small" role="alert" style="color: var(--danger); margin: 0 auto 0 0; align-self: center"></p>
+              <p id="client-form-error" class="small" role="alert" tabindex="-1" style="color: var(--danger); margin: 0 auto 0 0; align-self: center"></p>
               <a id="client-form-cancel" class="btn btn-ghost" href="#/clients">Cancel</a>
-              <button class="btn btn-primary" type="submit">Save client</button>
+              <button class="btn btn-primary" type="submit">Save patient</button>
             </div>
           </form>
         </section>
 
-        <!-- ===== Checkup form ===== -->
+        <!-- ===== Consultation form ===== -->
         <section class="screen" data-screen="visit-form" data-parent="clients" hidden>
           <form id="visit-form" class="stack" novalidate>
             <section class="card">
-              <h2 id="visit-form-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>New checkup</h2>
+              <h2 id="visit-form-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Add consultation</h2>
               <span id="visit-client" class="small"></span>
               <div class="form-grid">
-                <div class="field"><label for="v-date">Visit date *</label><input id="v-date" name="visit_date" type="date" required></div>
+                <div class="field"><label for="v-date">Consultation date *</label><input id="v-date" name="visit_date" type="date" required></div>
                 <div class="field"><label for="v-onset">Symptom onset <span id="v-onset-required"></span></label><input id="v-onset" name="onset_date" type="date"></div>
-                <div class="field wide"><label for="v-complaint">Chief complaint *</label><input id="v-complaint" name="chief_complaint" type="text" required autocomplete="off" placeholder="e.g. Fever for 3 days"></div>
+                <div class="field wide"><label for="v-complaint">Presenting concern *</label><input id="v-complaint" name="chief_complaint" type="text" required autocomplete="off" placeholder="e.g. Fever for 3 days"></div>
               </div>
             </section>
 
@@ -148,21 +151,21 @@
             </section>
 
             <section class="card">
-              <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Findings and diagnosis</h3>
+              <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Clinical findings and diagnosis</h3>
               <div class="form-grid">
-                <div class="field wide"><label for="v-findings">Findings / result of checkup</label><textarea id="v-findings" name="findings" rows="3"></textarea></div>
+                <div class="field wide"><label for="v-findings">Clinical findings</label><textarea id="v-findings" name="findings" rows="3"></textarea></div>
                 <div class="field"><label for="v-diagnosis">Diagnosis *</label><select id="v-diagnosis" name="diagnosis_code" required></select></div>
                 <div class="field" id="v-status-field" hidden><label for="v-status">Case status *</label>
                   <select id="v-status" name="case_status"><option value="SUSPECTED">Suspected</option><option value="CONFIRMED">Confirmed</option></select></div>
-                <p id="v-urgent-note" class="note note-danger field wide" hidden><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Urgent disease: this single case raises an alert at the RHU as soon as it arrives.</p>
+                <p id="v-urgent-note" class="note note-danger field wide" hidden><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Single-case alert condition: this report triggers an urgent surveillance alert at the RHU.</p>
                 <div class="field" id="v-text-field" hidden><label for="v-text">Specify diagnosis *</label><input id="v-text" name="diagnosis_text" type="text" autocomplete="off" placeholder="e.g. Hypertension"></div>
               </div>
             </section>
 
             <section class="card">
-              <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>Plan</h3>
+              <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>Care plan</h3>
               <div class="form-grid">
-                <div class="field wide"><label for="v-treatment">Treatment / medicine given</label><textarea id="v-treatment" name="treatment" rows="2"></textarea></div>
+                <div class="field wide"><label for="v-treatment">Treatment or medication provided</label><textarea id="v-treatment" name="treatment" rows="2"></textarea></div>
                 <div class="field"><label for="v-disposition">Disposition</label>
                   <select id="v-disposition" name="disposition"><option>Home care</option><option>For follow-up</option><option>Referred to RHU</option><option>Referred to hospital</option></select></div>
                 <div class="field"><label for="v-followup">Follow-up date</label><input id="v-followup" name="follow_up_date" type="date"></div>
@@ -173,36 +176,36 @@
             <section id="visit-reason-card" class="card" hidden>
               <h3 class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Reason for correction</h3>
               <div class="field"><label for="v-reason">Why is this being corrected? *</label><input id="v-reason" name="correction_reason" type="text" autocomplete="off" placeholder="e.g. Laboratory result came back negative for dengue"></div>
-              <span class="muted small">Kept in this checkup's history in your barangay's records. The RHU only receives the corrected report.</span>
+              <span class="muted small">Kept in this consultation's history in your barangay's records. The RHU only receives the corrected report.</span>
             </section>
 
             <section class="card" aria-labelledby="preview-title">
               <h3 id="preview-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>What the RHU receives</h3>
               <div id="visit-preview" class="preview"></div>
-              <p class="muted small" style="margin: 0"><strong>Stays in your barangay's records:</strong> name, birthdate, contact details, complaint, vital signs, findings, specific diagnosis text and treatment.</p>
+              <p class="muted small" style="margin: 0"><strong>Stays in your barangay's records:</strong> name, date of birth, contact details, presenting concern, vital signs, findings, specific diagnosis text and treatment.</p>
             </section>
 
             <div class="form-actions">
-              <p id="visit-form-error" class="small" role="alert" style="color: var(--danger); margin: 0 auto 0 0; align-self: center"></p>
+              <p id="visit-form-error" class="small" role="alert" tabindex="-1" style="color: var(--danger); margin: 0 auto 0 0; align-self: center"></p>
               <a id="visit-form-cancel" class="btn btn-ghost">Cancel</a>
-              <button id="visit-submit" class="btn btn-primary" type="submit">Save checkup and send</button>
+              <button id="visit-submit" class="btn btn-primary" type="submit">Save consultation and send report</button>
             </div>
           </form>
         </section>
 
-        <!-- ===== Visits ===== -->
+        <!-- ===== Consultations ===== -->
         <section class="screen" data-screen="visits" hidden>
           <div class="kpi-row">
             <div class="kpi"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg></span>
-              <div><div id="visits-today" class="kpi-value">0</div><div class="kpi-label">Checkups today</div></div></div>
+              <div><div id="visits-today" class="kpi-value">0</div><div class="kpi-label">Consultations today</div></div></div>
             <div class="kpi"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg></span>
-              <div><div id="clients-total" class="kpi-value">0</div><div class="kpi-label">Clients registered</div></div></div>
+              <div><div id="clients-total" class="kpi-value">0</div><div class="kpi-label">Patients registered</div></div></div>
             <div class="kpi" data-tone="warn"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg></span>
               <div><div id="visits-waiting" class="kpi-value">0</div><div class="kpi-label">Waiting to reach the RHU</div></div></div>
           </div>
           <section class="card" aria-labelledby="visits-title">
-            <h2 id="visits-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>All checkups</h2>
-            <input id="visit-search" type="search" placeholder="Search by name or diagnosis" aria-label="Search checkups">
+            <h2 id="visits-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>All consultations</h2>
+            <input id="visit-search" type="search" placeholder="Search by patient name or diagnosis" aria-label="Search consultations">
             <div id="visit-list" class="record-list"></div>
           </section>
         </section>
@@ -219,20 +222,20 @@
               <span id="visit-sync" class="badge"></span>
             </div>
             <div id="visit-actions" class="form-actions" style="justify-content: flex-start">
-              <a id="visit-correct" class="btn btn-ghost btn-small">Correct</a>
-              <button id="visit-void" class="btn btn-ghost btn-small btn-danger" type="button">Void</button>
+              <a id="visit-correct" class="btn btn-ghost btn-small">Correct record</a>
+              <button id="visit-void" class="btn btn-ghost btn-small btn-danger" type="button">Void record</button>
             </div>
             <div id="visit-details" class="detail-sections"></div>
           </section>
           <dialog id="void-dialog" class="dialog" aria-labelledby="void-title">
             <form id="void-form" class="stack" novalidate>
-              <h2 id="void-title">Void this checkup?</h2>
-              <p class="muted small" style="margin: 0">Use this for a checkup entered by mistake, such as for the wrong client. It stays here marked as voided, and the RHU stops counting it. This can't be undone.</p>
-              <div class="field"><label for="void-reason">Reason *</label><input id="void-reason" type="text" required autocomplete="off" placeholder="e.g. Entered under the wrong client"></div>
+              <h2 id="void-title">Void this consultation?</h2>
+              <p class="muted small" style="margin: 0">Use this for a consultation entered in error, such as for the wrong patient. It remains in the record history as voided and is excluded from RHU surveillance counts. This action cannot be undone.</p>
+              <div class="field"><label for="void-reason">Reason for voiding *</label><input id="void-reason" type="text" required autocomplete="off" placeholder="e.g. Entered under the wrong patient"></div>
               <p id="void-error" class="small" role="alert" style="color: var(--danger); margin: 0"></p>
               <div class="form-actions">
-                <button id="void-cancel" class="btn btn-ghost" type="button">Keep checkup</button>
-                <button class="btn btn-primary btn-danger-solid" type="submit">Void checkup</button>
+                <button id="void-cancel" class="btn btn-ghost" type="button">Keep consultation</button>
+                <button class="btn btn-primary btn-danger-solid" type="submit">Void consultation</button>
               </div>
             </form>
           </dialog>
@@ -242,7 +245,7 @@
         <section class="screen" data-screen="alerts" hidden>
           <section class="card" aria-labelledby="alerts-title">
             <div class="card-header">
-              <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts from RHU</h2>
+              <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Surveillance alerts from RHU</h2>
               <span id="alerts-count" class="badge" hidden></span>
             </div>
             <div id="alerts" class="alert-list" aria-live="assertive"><p class="empty">No alerts yet. Outbreak alerts for your barangay and its neighbors appear here.</p></div>
@@ -300,6 +303,7 @@
           <div class="grid-2">
             <section class="card" aria-labelledby="status-title">
               <h2 id="status-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Delivery to the RHU</h2>
+              <p id="sync-guidance" class="note" role="status">Checking connection. Patient records need a connection to save; Demo Tools batches can wait here until the RHU is reachable.</p>
               <div class="stats compact">
                 <div class="stat"><div id="stat-pending" class="stat-value">0</div><div class="stat-label">Batches waiting</div></div>
                 <div class="stat"><div id="stat-stored" class="stat-value">0</div><div class="stat-label">Cases stored</div></div>
@@ -331,7 +335,7 @@
         <!-- ===== Demo Tools: synthetic data and the stress test ===== -->
         <section class="screen" data-screen="tools" hidden>
           <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>
-            For demonstrations only. These send generated cases to the RHU and don't create client records.</p>
+            For demonstrations only. These send generated cases to the RHU and do not create patient records.</p>
           <section class="card" aria-labelledby="generate-title" style="max-width: 560px">
             <h2 id="generate-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Generate test data</h2>
             <div class="segmented block" role="group" aria-label="Mode">
@@ -354,13 +358,14 @@
             <p id="generate-result" class="muted small" style="margin: 0"></p>
           </section>
         </section>
+
       </main>
     </div>
 
     <!-- Bottom tabs (phones) -->
     <nav class="tabbar" aria-label="BHU">
-      <a href="#/clients" data-nav="clients"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Clients</a>
-      <a href="#/visits" data-nav="visits"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Visits</a>
+      <a href="#/clients" data-nav="clients"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Patients</a>
+      <a href="#/visits" data-nav="visits"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Consultations</a>
       <a href="#/alerts" data-nav="alerts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#bell"/></svg>Alerts<span class="count alert-count" hidden></span></a>
       <a href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
     </nav>

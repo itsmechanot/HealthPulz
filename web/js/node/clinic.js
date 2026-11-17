@@ -1,17 +1,17 @@
-// BHU clinic screens: clients, checkups and visits (records live on the server, see records.js).
+// BHU clinic screens: patients and their consultations (records live on the server, see records.js).
 
 import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
-import { icon, toast } from "../common/shell.js";
+import { confirmAction, icon, toast } from "../common/shell.js";
 import * as records from "./records.js";
 
 const OTHER_CODE = "OTH";
 const STATUS_LABELS = { SUSPECTED: "Suspected", CONFIRMED: "Confirmed" };
-// Fields compared when a checkup is corrected, with the names shown in its history.
+// Fields compared when a consultation is corrected, with the names shown in its history.
 const FIELD_LABELS = {
-  visit_date: "Visit date",
+  visit_date: "Consultation date",
   onset_date: "Symptom onset",
-  chief_complaint: "Chief complaint",
+  chief_complaint: "Presenting concern",
   temperature: "Temperature",
   bp_systolic: "BP systolic",
   bp_diastolic: "BP diastolic",
@@ -88,6 +88,55 @@ export function createClinic({ config, router }) {
     );
   }
 
+  /** One consultation in full, for the patient profile. */
+  function consultationProfile(consultation) {
+    const bp = consultation.bp_systolic || consultation.bp_diastolic
+      ? `${consultation.bp_systolic || "—"}/${consultation.bp_diastolic || "—"} mmHg`
+      : "";
+    const withUnit = (value, unit) => (value ? `${value} ${unit}` : "");
+    const disease = diseases.get(consultation.diagnosis_code);
+    const details = [
+      ["Symptom onset", consultation.onset_date && formatDate(consultation.onset_date)],
+      ["Assessment / findings", consultation.findings],
+      ["Case status", disease?.tracked ? STATUS_LABELS[consultation.case_status] : "Not a surveillance case"],
+      ["Temperature", withUnit(consultation.temperature, "°C")],
+      ["Blood pressure", bp],
+      ["Pulse", withUnit(consultation.pulse, "/min")],
+      ["Respiratory rate", withUnit(consultation.respiratory_rate, "/min")],
+      ["Weight", withUnit(consultation.weight, "kg")],
+      ["Height", withUnit(consultation.height, "cm")],
+      ["Treatment / medication", consultation.treatment],
+      ["Disposition", consultation.disposition],
+      ["Follow-up", consultation.follow_up_date && formatDate(consultation.follow_up_date)],
+      ["Attended by", consultation.attended_by],
+      ["Report status", syncLabel(consultation)[0]],
+      ["RHU response", consultation.sync_detail],
+    ].filter(([, value]) => value);
+
+    return el(
+      "article",
+      { className: `patient-consultation${consultation.voided ? " voided" : ""}` },
+      el(
+        "div",
+        { className: "patient-consultation-heading" },
+        el("h3", { textContent: `${formatDate(consultation.visit_date)} · ${diagnosisLabel(consultation)}` }),
+        wasCorrected(consultation) ? el("span", { className: "chip", textContent: "Corrected" }) : null,
+        consultation.voided ? el("span", { className: "chip", textContent: "Voided" }) : null,
+      ),
+      el("p", { className: "patient-consultation-complaint", textContent: consultation.chief_complaint || "No complaint recorded" }),
+      el("dl", { className: "kv-grid" }, ...details.flatMap(([label, value]) => [el("dt", { textContent: label }), el("dd", { textContent: value })])),
+      ...changeHistory(consultation),
+      el(
+        "div",
+        { className: "patient-consultation-actions" },
+        consultation.voided
+          ? null
+          : el("a", { className: "btn btn-ghost btn-small", href: `#/visit-form/${consultation.client_id}/${consultation.consultation_id}`, textContent: "Correct consultation" }),
+        el("a", { className: "link-btn small", href: `#/visit/${consultation.consultation_id}`, textContent: "Open record" }),
+      ),
+    );
+  }
+
   const empty = (text) => el("p", { className: "empty", textContent: text });
 
   // ---- client list -------------------------------------------------------------------
@@ -107,21 +156,33 @@ export function createClinic({ config, router }) {
         ? matches.map((c) => {
             const visit = lastVisit.get(c.client_id);
             return el(
-              "a",
-              { className: "record-row", href: `#/client/${c.client_id}` },
+              "div",
+              { className: "record-row patient-record-row" },
               el(
-                "div",
-                { className: "grow" },
-                el("strong", { textContent: records.fullName(c) }),
-                el("div", {
-                  className: "muted small",
-                  textContent: `${records.ageOn(c.birthdate, today())} yrs · ${sexLabel(c.sex)} · Purok ${c.purok} · ${visit ? `last checkup ${formatDate(visit)}` : "no checkups yet"}`,
-                }),
+                "a",
+                { className: "patient-row-main", href: `#/client/${c.client_id}` },
+                el(
+                  "div",
+                  { className: "grow" },
+                  el("strong", { textContent: records.fullName(c) }),
+                  el("div", {
+                    className: "muted small",
+                    textContent: `${records.ageOn(c.birthdate, today())} years · ${sexLabel(c.sex)} · Purok ${c.purok} · ${visit ? `last consultation ${formatDate(visit)}` : "no consultations yet"}`,
+                  }),
+                ),
+                icon("arrow"),
               ),
-              icon("arrow"),
+              el("button", {
+                className: "patient-edit-btn",
+                type: "button",
+                title: `Edit ${records.fullName(c)}`,
+                "aria-label": `Edit information for ${records.fullName(c)}`,
+                textContent: "✎",
+                onclick: () => router.go("client-form", c.client_id),
+              }),
             );
           })
-        : [empty(clients.length ? "No client matches your search." : 'No clients yet. Press "New client" to register the first one.')]),
+        : [empty(clients.length ? "No patient matches your search." : 'No patients registered yet. Select "Register patient" to add one.')]),
     );
   }
 
@@ -140,7 +201,10 @@ export function createClinic({ config, router }) {
     $("profile-new-visit").href = `#/visit-form/${client.client_id}`;
 
     const details = [
-      ["Birthdate", formatDate(client.birthdate)],
+      ["Patient ID", client.client_id],
+      ["Date of birth", formatDate(client.birthdate)],
+      ["Sex", sexLabel(client.sex)],
+      ["Purok", client.purok],
       ["Civil status", client.civil_status],
       ["Street / sitio", client.address],
       ["Contact number", client.contact],
@@ -151,9 +215,8 @@ export function createClinic({ config, router }) {
     );
 
     const visits = await records.listClientConsultations(client.client_id);
-    $("profile-visits").replaceChildren(
-      ...(visits.length ? visits.map((v) => visitRow(v)) : [empty("No checkups yet.")]),
-    );
+    $("profile-history-empty").hidden = visits.length > 0;
+    $("profile-visits").replaceChildren(...visits.map(consultationProfile));
   }
 
   // ---- client form ----------------------------------------------------------------------
@@ -166,7 +229,7 @@ export function createClinic({ config, router }) {
     if (clientId && !editingClient) return router.go("clients");
     newClientId = records.newId();
 
-    $("client-form-title").lastChild.textContent = editingClient ? "Edit client" : "New client";
+    $("client-form-title").lastChild.textContent = editingClient ? "Edit patient record" : "Register patient";
     $("client-form-cancel").href = editingClient ? `#/client/${editingClient.client_id}` : "#/clients";
     $("c-birthdate").max = today();
     if (editingClient) {
@@ -180,7 +243,7 @@ export function createClinic({ config, router }) {
     event.preventDefault();
     const form = event.target;
     const birthdate = form.elements.birthdate;
-    birthdate.setCustomValidity(birthdate.value && records.ageOn(birthdate.value, today()) > 110 ? "Check the year: age must be 110 or below." : "");
+    birthdate.setCustomValidity(birthdate.value && records.ageOn(birthdate.value, today()) > 110 ? "Verify the date of birth. The recorded age must be 110 years or younger." : "");
     if (!form.reportValidity()) return;
 
     const values = Object.fromEntries(new FormData(form));
@@ -191,12 +254,23 @@ export function createClinic({ config, router }) {
       middle_name: values.middle_name.trim(),
       purok: Number(values.purok),
     };
-    await submitting(form, $("client-form-error"), async () => {
-      if (!editingClient && (await findDuplicate(fields)) && !confirm("A client with the same name and birthdate already exists. Register anyway?")) return;
-      // The server re-sends the client's reports if the birthdate or sex changed.
+    const save = async () => {
+      // The server re-sends the patient's reports if the birthdate or sex changed.
       const saved = await records.saveClient(editingClient?.client_id ?? newClientId, fields);
       router.go("client", saved.client_id);
-    });
+    };
+    if (!editingClient && (await findDuplicate(fields))) {
+      await confirmAction({
+        title: "Register another patient?",
+        message: "A patient with the same name and date of birth is already registered. Confirm this is a different person before creating another record.",
+        type: "warning",
+        confirmLabel: "Register anyway",
+        successTitle: "Patient registered",
+        action: save,
+      });
+      return;
+    }
+    await submitting(form, $("client-form-error"), save);
   });
 
   /** Runs a save with the form's buttons disabled; a failure is shown and the form keeps its contents. */
@@ -220,7 +294,7 @@ export function createClinic({ config, router }) {
     );
   }
 
-  // ---- checkup form ------------------------------------------------------------------------
+  // ---- consultation form ------------------------------------------------------------------------
 
   const diagnosisSelect = $("v-diagnosis");
   diagnosisSelect.replaceChildren(
@@ -229,7 +303,7 @@ export function createClinic({ config, router }) {
     el("option", { value: OTHER_CODE, textContent: "Other (specify)" }),
   );
 
-  /** param: "<clientId>" for a new checkup, "<clientId>/<consultationId>" to correct one. */
+  /** param: "<clientId>" for a new consultation, "<clientId>/<consultationId>" to correct one. */
   async function showVisitForm(param) {
     const [clientId, consultationId] = (param ?? "").split("/");
     visitClient = clientId && (await records.getClient(clientId));
@@ -247,8 +321,8 @@ export function createClinic({ config, router }) {
     form.elements.correction_reason.setCustomValidity("");
 
     const correcting = Boolean(correctingVisit);
-    $("visit-form-title").lastChild.textContent = correcting ? "Correct checkup" : "New checkup";
-    $("visit-submit").textContent = correcting ? "Save correction and send" : "Save checkup and send";
+    $("visit-form-title").lastChild.textContent = correcting ? "Correct consultation" : "Add consultation";
+    $("visit-submit").textContent = correcting ? "Save correction and send report" : "Save consultation and send report";
     $("visit-reason-card").hidden = !correcting;
     form.elements.correction_reason.required = correcting;
     if (correcting) {
@@ -284,7 +358,7 @@ export function createClinic({ config, router }) {
     const rows = [
       ["Disease", disease ? (code === OTHER_CODE ? "Other consultation" : disease.name) : "–"],
       ["Status", disease?.tracked ? STATUS_LABELS[form.elements.case_status.value] : disease ? "Not applicable" : "–"],
-      ["Visit date", visitDate || "–"],
+      ["Consultation date", visitDate || "–"],
       ["Symptom onset", form.elements.onset_date.value || visitDate || "–"],
       ["Age", age],
       ["Sex", sexLabel(visitClient.sex)],
@@ -300,7 +374,7 @@ export function createClinic({ config, router }) {
     updateVisitForm();
   });
 
-  /** What differs between a saved checkup and the corrected fields, for its history. */
+  /** What differs between a saved consultation and the corrected fields, for its history. */
   function describeChanges(before, after) {
     const changes = Object.entries(FIELD_LABELS)
       .filter(([key]) => String(before[key] ?? "") !== String(after[key] ?? ""))
@@ -318,8 +392,8 @@ export function createClinic({ config, router }) {
     event.preventDefault();
     const form = event.target;
     const { visit_date: visitDate, onset_date: onsetDate } = form.elements;
-    visitDate.setCustomValidity(visitDate.value && visitDate.value < visitClient.birthdate ? "The visit can't be before the client's birthdate." : "");
-    onsetDate.setCustomValidity(onsetDate.value && onsetDate.value > visitDate.value ? "Symptom onset can't be after the visit date." : "");
+    visitDate.setCustomValidity(visitDate.value && visitDate.value < visitClient.birthdate ? "The consultation date cannot be before the patient's birth date." : "");
+    onsetDate.setCustomValidity(onsetDate.value && onsetDate.value > visitDate.value ? "Symptom onset cannot be after the consultation date." : "");
     if (!form.reportValidity()) return;
 
     const { correction_reason: reasonValue, ...values } = Object.fromEntries(new FormData(form));
@@ -335,7 +409,7 @@ export function createClinic({ config, router }) {
     if (correctingVisit) {
       changes = describeChanges(correctingVisit, fields);
       const reason = form.elements.correction_reason;
-      reason.setCustomValidity(changes.length ? "" : "You haven't changed anything in this checkup.");
+      reason.setCustomValidity(changes.length ? "" : "No changes have been made to this consultation.");
       if (!form.reportValidity()) return;
     }
 
@@ -365,7 +439,7 @@ export function createClinic({ config, router }) {
     $("visit-list").replaceChildren(
       ...(matches.length
         ? matches.map((c) => visitRow(c, clientsById.get(c.client_id)))
-        : [empty(consultations.length ? "No checkup matches your search." : "No checkups yet. Open a client to record one.")]),
+        : [empty(consultations.length ? "No consultation matches your search." : "No consultations yet. Open a patient to record one.")]),
     );
   }
 
@@ -385,7 +459,7 @@ export function createClinic({ config, router }) {
     $("visit-client-link").textContent = client ? `${records.fullName(client)} →` : "";
     $("visit-client-link").href = `#/client/${v.client_id}`;
     $("visit-back").href = `#/client/${v.client_id}`;
-    $("visit-back").textContent = "← Back to client";
+    $("visit-back").textContent = "← Back to patient record";
     const [label, level] = syncLabel(v);
     $("visit-sync").textContent = label;
     $("visit-sync").dataset.level = level;
@@ -394,7 +468,7 @@ export function createClinic({ config, router }) {
     const withUnit = (value, unit) => (value ? `${value} ${unit}` : "");
     const disease = diseases.get(v.diagnosis_code);
     const sections = [
-      ["Visit", [["Chief complaint", v.chief_complaint], ["Symptom onset", v.onset_date && formatDate(v.onset_date)]]],
+      ["Consultation", [["Presenting concern", v.chief_complaint], ["Symptom onset", v.onset_date && formatDate(v.onset_date)]]],
       ["Vital signs", [
         ["Temperature", withUnit(v.temperature, "°C")],
         ["Blood pressure", bp],
@@ -417,7 +491,7 @@ export function createClinic({ config, router }) {
     ];
     const voidEntry = v.voided ? v.history.findLast((entry) => entry.action === "VOIDED") : null;
     $("visit-details").replaceChildren(
-      ...(voidEntry ? [el("p", { className: "note note-danger", textContent: `Voided: ${voidEntry.reason}. This checkup is no longer counted by the RHU.` })] : []),
+      ...(voidEntry ? [el("p", { className: "note note-danger", textContent: `Voided: ${voidEntry.reason}. This consultation is excluded from RHU surveillance counts.` })] : []),
       ...(v.sync_detail ? [el("p", { className: "note note-danger", textContent: `The RHU did not count this report: ${v.sync_detail}` })] : []),
       ...sections.map(([title, rows]) =>
         el(
@@ -440,7 +514,7 @@ export function createClinic({ config, router }) {
       el(
         "div",
         {},
-        el("h3", { textContent: "Change history" }),
+        el("h3", { textContent: "Record change history" }),
         el(
           "ul",
           { className: "change-list" },

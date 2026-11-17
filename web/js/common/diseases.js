@@ -3,7 +3,7 @@
 import { el } from "./dom.js";
 
 export const GROUP_LABELS = {
-  common: "Common illnesses",
+  common: "Commonly reported conditions",
   urgent: "Urgent: a single case raises an alert",
   monitored: "Also monitored",
 };

@@ -2,6 +2,7 @@
 
 import * as api from "../common/api.js";
 import { el } from "../common/dom.js";
+import { confirmAction } from "../common/shell.js";
 
 const $ = (id) => document.getElementById(id);
 const MIN_PASSWORD_LENGTH = 8;
@@ -84,15 +85,14 @@ export function createAccountsScreen() {
   }
 
   async function assignMissing() {
-    const button = $("assign-missing-btn");
-    button.disabled = true;
-    try {
-      showPasswords(await postJson("/api/accounts/assign-missing"));
-    } catch (error) {
-      $("accounts-error").textContent = `Could not generate the passwords. (${error.message})`;
-    } finally {
-      button.disabled = false;
-    }
+    await confirmAction({
+      title: "Generate BHU passwords?",
+      message: "Every barangay without a password gets one now. Each password is shown once and must be given to its BHU securely.",
+      type: "warning",
+      confirmLabel: "Generate passwords",
+      successTitle: null,
+      action: async () => showPasswords(await postJson("/api/accounts/assign-missing")),
+    });
   }
 
   /** The only time a password can be seen, so this stays open until the RHU presses Done. */

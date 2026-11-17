@@ -16,24 +16,90 @@ export function setupMenu() {
   document.addEventListener("keydown", (e) => e.key === "Escape" && toggle(false));
 }
 
-/** The sidebar's Log out button. confirmFirst can return false to stay logged in. */
-export function setupLogout(confirmFirst = () => true) {
+/** The sidebar's Log out button, guarded by the shared confirmation modal. */
+export function setupLogout(options = {}) {
   const button = document.getElementById("logout-btn");
   button.addEventListener("click", async () => {
-    if (!confirmFirst()) return;
     button.disabled = true;
-    try {
-      await logOut();
-    } catch {
-      toast({ title: "Could not log out", body: "Cannot reach the RHU server.", level: "ALERT" });
-      button.disabled = false;
-    }
+    await confirmAction({
+      title: "Sign out?",
+      message: typeof options.message === "function" ? options.message() : options.message || "Are you sure you want to sign out of your HealthPulz account?",
+      type: "warning",
+      icon: "users",
+      confirmLabel: "Yes, Sign Out",
+      loadingLabel: "Signing out…",
+      successTitle: null,
+      action: logOut,
+    });
+    button.disabled = false;
+  });
+}
+
+/** Confirms an operation, runs it once, and reports its result. */
+export function confirmAction({
+  title = "Confirm action",
+  message,
+  type = "info",
+  icon: iconName,
+  cancelLabel = "Cancel",
+  confirmLabel = "Confirm",
+  loadingLabel = "Working…",
+  successTitle = "Action completed",
+  successMessage = "Your changes were saved.",
+  action,
+}) {
+  return new Promise((resolve) => {
+    const dialog = el("dialog", { className: `confirm-modal confirm-modal-${type}` });
+    dialog.setAttribute("aria-labelledby", "confirm-modal-title");
+    dialog.setAttribute("aria-describedby", "confirm-modal-message");
+    dialog.setAttribute("role", "alertdialog");
+    const symbol = icon(iconName || ({ info: "pulse", warning: "alert", danger: "alert" }[type] || "pulse"));
+    const heading = el("h2", { id: "confirm-modal-title", textContent: title });
+    const description = el("p", { id: "confirm-modal-message", className: "confirm-modal-message", textContent: message });
+    const error = el("p", { className: "confirm-modal-error", role: "alert", hidden: true });
+    const cancel = el("button", { type: "button", className: "btn btn-ghost", textContent: cancelLabel });
+    const confirm = el("button", { type: "button", className: `btn ${type === "danger" ? "btn-danger-solid" : "btn-primary"}`, textContent: confirmLabel });
+    const finish = (value) => { dialog.close(); dialog.remove(); resolve(value); };
+    cancel.addEventListener("click", () => finish(false));
+    dialog.addEventListener("cancel", (event) => { event.preventDefault(); if (!confirm.disabled) finish(false); });
+    dialog.addEventListener("click", (event) => {
+      if (event.target !== dialog || confirm.disabled) return;
+      const bounds = dialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) finish(false);
+    });
+    confirm.addEventListener("click", async () => {
+      if (confirm.disabled) return;
+      confirm.disabled = true;
+      cancel.disabled = true;
+      confirm.textContent = loadingLabel;
+      confirm.dataset.loading = "true";
+      error.hidden = true;
+      try {
+        await action?.();
+        finish(true);
+        if (successTitle) toast({ title: successTitle, body: successMessage, level: "OK" });
+      } catch (cause) {
+        error.textContent = cause?.message || "The action could not be completed. Try again.";
+        error.hidden = false;
+        confirm.disabled = false;
+        cancel.disabled = false;
+        confirm.textContent = confirmLabel;
+        delete confirm.dataset.loading;
+        toast({ title: "Action failed", body: error.textContent, level: "EPIDEMIC" });
+      }
+    });
+    dialog.append(el("div", { className: "confirm-modal-icon" }, symbol), el("div", { className: "confirm-modal-copy" }, heading, description, error), el("div", { className: "confirm-modal-actions" }, cancel, confirm));
+    document.body.append(dialog);
+    dialog.addEventListener("close", () => dialog.remove(), { once: true });
+    dialog.showModal();
+    confirm.focus();
   });
 }
 
 /** Hash routing (#/name/param), so reload and Back work. onChange(name, param) runs on each change. */
-export function createRouter(defaultScreen, onChange) {
+export function createRouter(defaultScreen, onChange, { beforeNavigate } = {}) {
   const sections = [...document.querySelectorAll("[data-screen]")];
+  let committedHash = location.hash;
   const parse = () => {
     const [name, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
     return sections.some((s) => s.dataset.screen === name) ? { name, param: rest.join("/") || null } : { name: defaultScreen, param: null };
@@ -52,7 +118,15 @@ export function createRouter(defaultScreen, onChange) {
     window.scrollTo(0, 0);
     onChange(name, param);
   };
-  window.addEventListener("hashchange", show);
+  window.addEventListener("hashchange", async () => {
+    const requestedHash = location.hash;
+    if (beforeNavigate && !(await beforeNavigate())) {
+      history.replaceState(null, "", `${location.pathname}${location.search}${committedHash}`);
+      return;
+    }
+    committedHash = requestedHash;
+    show();
+  });
   return {
     current: () => parse().name,
     go(name, param = null) {
@@ -76,7 +150,7 @@ export function toast({ title, body, level = "ALERT", actionLabel, onAction, dur
   const item = el(
     "div",
     { className: "toast", dataset: { level } },
-    icon("alert"),
+    icon(level === "OK" ? "pulse" : "alert"),
     el("div", { className: "grow" }, el("strong", { textContent: title }), el("span", { className: "muted", textContent: body })),
   );
   if (actionLabel) {

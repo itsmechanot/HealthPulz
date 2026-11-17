@@ -235,7 +235,7 @@ function renderNodes(nodes) {
   );
   $("nodes-empty").hidden = nodes.length > 0;
   const barangays = new Set(nodes.map((n) => n.barangay_id)).size;
-  $("nodes-count").textContent = nodes.length ? `${nodes.length} nodes · ${barangays} of 26 barangays` : "";
+  $("nodes-count").textContent = nodes.length ? `${nodes.length} nodes · ${barangays} of ${Object.keys(barangayNames).length} barangays` : "";
 }
 
 const name = (node) => barangayNames[node.barangay_id] ?? node.barangay_id;

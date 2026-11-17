@@ -12,20 +12,20 @@
     <!-- Sidebar -->
     <aside class="sidebar" aria-label="Navigation">
       <a class="brand" href="#/overview">
-        <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
+        <img class="brand-mark" src="/img/healthpulz-logo.png" alt="" aria-hidden="true">
         <span><span class="brand-name">HealthPulz</span><br><span class="muted small" data-place="{rhu}">RHU Naval</span></span>
       </a>
       <span class="nav-label">Surveillance</span>
-      <a class="nav-link" href="#/overview" data-nav="overview"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>Overview</a>
-      <a class="nav-link" href="#/map" data-nav="map"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Map</a>
+      <a class="nav-link" href="#/overview" data-nav="overview"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>Surveillance overview</a>
+      <a class="nav-link" href="#/map" data-nav="map"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Geographic view</a>
       <a class="nav-link" href="#/alerts" data-nav="alerts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Alerts<span id="nav-alert-count" class="count" hidden></span></a>
-      <a class="nav-link" href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends</a>
+      <a class="nav-link" href="#/trends" data-nav="trends"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Case trends</a>
       <a class="nav-link" href="#/barangays" data-nav="barangays"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#table"/></svg>Barangays</a>
       <span class="nav-label">System</span>
-      <a class="nav-link" href="#/accounts" data-nav="accounts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>BHU Accounts</a>
+      <a class="nav-link" href="#/accounts" data-nav="accounts"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Health unit access</a>
       <a class="nav-link" href="/monitor/"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#monitor"/></svg>System Monitor</a>
       <div class="sidebar-footer">
-        <button id="logout-btn" class="btn btn-ghost btn-small btn-block" type="button">Log out</button>
+        <button id="logout-btn" class="btn btn-ghost btn-small btn-block" type="button">Sign out</button>
         All data is synthetic.<br>Numbers update as reports arrive.
       </div>
     </aside>
@@ -39,20 +39,49 @@
         </button>
         <div class="title">
           <div style="min-width: 0">
-            <h1 id="screen-title">Overview</h1>
+            <h1 id="screen-title">Surveillance overview</h1>
             <div id="screen-subtitle" class="subtitle" data-place="{town}, {province}">Naval, Biliran</div>
           </div>
         </div>
         <div class="tools">
-          <span id="week-chip" class="week-chip hide-narrow">–</span>
+          <span id="week-chip" class="week-chip" aria-label="Reporting week"><span class="week-chip-label">This week</span><strong id="week-chip-dates">–</strong><span class="week-chip-status">So far</span></span>
           <span id="connection" class="pill" data-state="connecting" role="status">Loading…</span>
-          <span class="user-chip hide-narrow"><span class="avatar">RHU</span>RHU Staff</span>
         </div>
       </header>
 
       <main class="content">
+        <p id="dashboard-guidance" class="note note-danger" role="status" hidden></p>
         <!-- ===== Overview ===== -->
         <section class="screen" data-screen="overview" hidden>
+          <section class="welcome-banner" aria-labelledby="welcome-title">
+            <div class="welcome-logos" aria-label="HealthPulz and local health partners">
+              <img src="/img/seal.png" alt="Municipal seal">
+              <span class="welcome-logo-divider" aria-hidden="true"></span>
+              <img src="/img/logo.png" alt="Health center emblem">
+              <span class="welcome-logo-divider" aria-hidden="true"></span>
+              <img src="/img/healthpulz-logo.png" alt="HealthPulz logo">
+            </div>
+            <div class="welcome-copy">
+              <p class="welcome-eyebrow" data-place="Health surveillance · {town}, {province}">Health surveillance · Naval, Biliran</p>
+              <h2 id="welcome-title">Welcome back,<br><span>RHU Staff!</span></h2>
+              <p data-place="Monitor cases, manage alerts, and track disease surveillance in {town}, {province}.">Monitor cases, manage alerts, and track disease surveillance in Naval, Biliran.</p>
+            </div>
+            <svg class="welcome-clinic" viewBox="0 0 460 180" role="img" aria-label="Illustration of the Rural Health Unit">
+              <path class="clinic-hill" d="M0 155c58-26 99-20 147-7s97 17 143-1 106-27 170-4v37H0z"/>
+              <path class="clinic-tree" d="M24 146c-5-25 8-34 17-49 8 15 19 23 15 49m-20-10h20m-24 10h29"/>
+              <path class="clinic-tree" d="M408 145c-5-23 7-32 15-46 8 14 18 21 14 46m-20-10h20m-24 10h28"/>
+              <path class="clinic-building-shadow" d="M94 78 230 20l139 58v87H94z"/>
+              <path class="clinic-roof" d="M72 78 230 13 392 78H72z"/>
+              <path class="clinic-facade" d="M102 78h258v86H102z"/>
+              <path class="clinic-roof-edge" d="M82 79h300"/>
+              <path class="clinic-door" d="M209 111h43v53h-43z"/>
+              <path class="clinic-window" d="M126 101h40v29h-40zm170 0h40v29h-40z"/>
+              <path class="clinic-cross" d="M224 39h12v10h10v12h-10v10h-12V61h-10V49h10z"/>
+              <text class="clinic-label" x="230" y="94" text-anchor="middle">RURAL HEALTH UNIT</text>
+              <text class="clinic-location" x="230" y="105" text-anchor="middle" data-place="{TOWN}, {PROVINCE}">NAVAL, BILIRAN</text>
+            </svg>
+            <div class="welcome-building-image" aria-hidden="true"></div>
+          </section>
           <div class="kpi-row">
             <div class="kpi"><span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pulse"/></svg></span>
               <div><div id="kpi-cases" class="kpi-value">–</div><div class="kpi-label">Cases this week (so far)</div><div id="kpi-cases-sub" class="kpi-sub"></div></div></div>
@@ -64,7 +93,7 @@
               <div><div id="kpi-stations" class="kpi-value">–</div><div class="kpi-label">BHU stations online</div><div id="kpi-stations-sub" class="kpi-sub"></div></div></div>
           </div>
 
-          <div class="overview-grid">
+          <div class="overview-sections">
             <section class="card" aria-labelledby="ov-map-title">
               <div class="card-header">
                 <h2 id="ov-map-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Cases by barangay</h2>
@@ -79,32 +108,32 @@
               <p id="ov-map-hint" class="muted small" style="margin: 0"></p>
               <div id="ov-map"></div>
             </section>
-            <section class="card" aria-labelledby="ov-alerts-title">
+            <div class="overview-alert-grid">
+              <section class="card" aria-labelledby="ov-alerts-title">
               <div class="card-header">
                 <h2 id="ov-alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Latest alerts</h2>
                 <a class="link-btn small" href="#/alerts">View all →</a>
               </div>
               <div id="ov-alerts" class="alert-list"></div>
             </section>
-          </div>
+              <section class="card" aria-labelledby="ov-urgent-title">
+              <h2 id="ov-urgent-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Single-case alert conditions</h2>
+              <p class="muted small" style="margin: 0">One reported case triggers an urgent surveillance alert.</p>
+              <div id="urgent-list" class="rank-list"></div>
+            </section>
+            </div>
 
           <section class="card" aria-labelledby="ov-reports-title">
             <div class="card-header">
-              <h2 id="ov-reports-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Latest reports</h2>
-              <span class="muted small">Live from the BHUs · no client names</span>
+              <h2 id="ov-reports-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>Recent case reports</h2>
+              <span class="muted small">Live from the BHUs · no patient names</span>
             </div>
             <ul id="latest-reports" class="report-list"></ul>
           </section>
 
-          <div class="overview-grid">
             <section class="card" aria-labelledby="ov-common-title">
-              <h2 id="ov-common-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pulse"/></svg>Common illnesses · this week so far</h2>
+              <h2 id="ov-common-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pulse"/></svg>Commonly reported conditions · this week so far</h2>
               <div id="common-list" class="rank-list"></div>
-            </section>
-            <section class="card" aria-labelledby="ov-urgent-title">
-              <h2 id="ov-urgent-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Urgent diseases</h2>
-              <p class="muted small" style="margin: 0">A single case raises an urgent alert.</p>
-              <div id="urgent-list" class="rank-list"></div>
             </section>
           </div>
         </section>
@@ -126,9 +155,9 @@
               <p id="big-map-hint" class="muted small" style="margin: 0"></p>
               <div id="big-map"></div>
             </section>
-            <section class="card" aria-labelledby="detail-title">
+            <section class="map-detail-section" aria-labelledby="detail-title">
               <h2 id="detail-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>Barangay details</h2>
-              <div id="map-detail"><p class="empty">Click a barangay on the map to see its numbers.</p></div>
+              <div id="map-detail" class="card"><p class="empty">Click a barangay on the map to see its numbers.</p></div>
             </section>
           </div>
         </section>
@@ -137,11 +166,18 @@
         <section class="screen" data-screen="alerts" hidden>
           <section class="card" aria-labelledby="alerts-title">
             <div class="card-header">
-              <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Outbreak alerts</h2>
-              <div class="segmented" role="group" aria-label="Show alerts">
+              <h2 id="alerts-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#alert"/></svg>Alerts</h2>
+              <div class="segmented alert-status-tabs" role="group" aria-label="Show alert status">
                 <button type="button" data-alert-filter="active" aria-pressed="true">Active</button>
                 <button type="button" data-alert-filter="RESOLVED" aria-pressed="false">Resolved</button>
                 <button type="button" data-alert-filter="all" aria-pressed="false">All</button>
+              </div>
+            </div>
+            <div class="alert-toolbar">
+              <div class="segmented alert-severity-tabs" role="group" aria-label="Alert severity">
+                <button type="button" data-alert-level="ALERT" aria-pressed="true"><span class="severity-label">Alert<span id="alert-new-ALERT" class="severity-new-dot" aria-label="New, unacknowledged alert" hidden></span></span><span id="alert-count-ALERT" class="severity-count">0</span></button>
+                <button type="button" data-alert-level="EPIDEMIC" aria-pressed="false"><span class="severity-label">Epidemic<span id="alert-new-EPIDEMIC" class="severity-new-dot" aria-label="New, unacknowledged alert" hidden></span></span><span id="alert-count-EPIDEMIC" class="severity-count">0</span></button>
+                <button type="button" data-alert-level="URGENT" aria-pressed="false"><span class="severity-label">Urgent<span id="alert-new-URGENT" class="severity-new-dot" aria-label="New, unacknowledged alert" hidden></span></span><span id="alert-count-URGENT" class="severity-count">0</span></button>
               </div>
             </div>
             <div id="alerts" class="alert-list"></div>
@@ -237,6 +273,7 @@
             </form>
           </dialog>
         </section>
+
       </main>
     </div>
   </div>

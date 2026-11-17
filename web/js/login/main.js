@@ -6,7 +6,26 @@ import { applyPlace } from "../common/place.js";
 
 const $ = (id) => document.getElementById(id);
 
+// The background video plays on laptops only: phones never download it (it is large).
+const backgroundVideo = document.querySelector(".login-video-bg video");
+const wideScreen = window.matchMedia("(min-width: 761px)").matches;
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (backgroundVideo && wideScreen && !reducedMotion) {
+  backgroundVideo.addEventListener("playing", () => backgroundVideo.closest(".login-video-bg").classList.add("is-ready"), { once: true });
+  backgroundVideo.src = backgroundVideo.dataset.src;
+  backgroundVideo.play().catch(() => {});
+}
+
 let chosen = null;
+
+function clearLoginFields() {
+  chosen = null;
+  $("unit-input").value = "";
+  $("password-input").value = "";
+}
+
+clearLoginFields();
+window.addEventListener("pageshow", clearLoginFields);
 
 main();
 

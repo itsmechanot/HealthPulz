@@ -22,6 +22,13 @@ mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("image/svg+xml", ".svg")
 
 
+def quiet_closed_connections(loop: asyncio.AbstractEventLoop, context: dict) -> None:
+    """Browsers cut video downloads short all the time; Windows then logs a harmless traceback."""
+    if isinstance(context.get("exception"), ConnectionResetError):
+        return
+    loop.default_exception_handler(context)
+
+
 def create_app(
     db_path: Path | None = None,
     *,
@@ -46,6 +53,7 @@ def create_app(
 
         # Set from the DB writer thread, so it has to go through the event loop.
         loop = asyncio.get_running_loop()
+        loop.set_exception_handler(quiet_closed_connections)
         new_reports = asyncio.Event()
 
         def announce_reports() -> None:

@@ -50,10 +50,9 @@ async function startStation(config, identity, barangay) {
   document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
   applyPlace(config.municipality);
-  $("station-sub").textContent = fillPlace("Barangay Health Unit · synced with {rhu}");
+  $("station-sub").textContent = fillPlace("Barangay Health Unit · connected to {rhu}");
   records.useBarangay(identity.barangay_id);
-  $("station-avatar").textContent = initials(barangay.name);
-  $("station-avatar").hidden = false;
+  setBarangayLogo($("station-avatar"), barangay);
   document.title = `HealthPulz · ${barangay.name}`;
   setupMenu();
   let clinic = null;
@@ -139,10 +138,11 @@ async function startStation(config, identity, barangay) {
 
   setupGenerator(config, identity, barangay, sender);
   // Records are on the server, so only unsent Demo Tools batches are worth a warning.
-  setupLogout(() =>
-    !pendingBatches ||
-    confirm(`${pendingBatches} batch(es) are still waiting on this device. They will send the next time this BHU logs in here. Log out?`),
-  );
+  setupLogout({
+    message: () => pendingBatches
+      ? `${pendingBatches} batch(es) are still waiting on this device. They will send the next time this BHU signs in here. Sign out anyway?`
+      : "Are you sure you want to sign out of your HealthPulz account?",
+  });
 
   if (await register()) log(`Connected as ${identity.node_id}`);
   await refreshPending();
@@ -155,7 +155,7 @@ async function offerToMoveBrowserRecords(identity, clinic) {
   const found = await browserRecords(identity.barangay_id);
   if (!found.clients.length) return;
   $("move-banner").hidden = false;
-  $("move-count").textContent = `${found.clients.length} client(s) and ${found.consultations.length} checkup(s)`;
+  $("move-count").textContent = `${found.clients.length} patient record(s) and ${found.consultations.length} consultation(s)`;
   $("move-btn").addEventListener("click", async () => {
     $("move-btn").disabled = true;
     try {
@@ -183,7 +183,7 @@ function setupBackup(identity, clinic) {
       });
       link.click();
       URL.revokeObjectURL(url);
-      result.textContent = `Backup downloaded: ${backup.clients.length} clients, ${backup.consultations.length} checkups.`;
+      result.textContent = `Backup downloaded: ${backup.clients.length} patient records and ${backup.consultations.length} consultations.`;
     } catch (error) {
       result.textContent = `Backup failed: ${error.message}`;
     }
@@ -195,7 +195,7 @@ function setupBackup(identity, clinic) {
     if (!file) return;
     try {
       const counts = await records.importBackup(JSON.parse(await file.text()));
-      result.textContent = `Restored ${counts.clients} clients and ${counts.consultations} checkups.`;
+      result.textContent = `Restored ${counts.clients} patient records and ${counts.consultations} consultations.`;
       clinic.refresh();
     } catch (error) {
       result.textContent = `Restore failed: ${error.message}`;
@@ -384,6 +384,14 @@ async function outbreakSize(diseaseCode, barangay, config) {
 }
 
 /** "Padre Inocentes Garcia (Pob.)" -> "PI"; "Caraycaray" -> "CA". */
+/** The barangay's logo from /img/barangays/<barangay id>.png, or its initials when there is none. */
+function setBarangayLogo(container, barangay) {
+  const image = Object.assign(document.createElement("img"), { src: `/img/barangays/${barangay.barangay_id}.png`, alt: "" });
+  image.addEventListener("error", () => (container.textContent = initials(barangay.name)), { once: true });
+  container.replaceChildren(image);
+  container.hidden = false;
+}
+
 function initials(name) {
   const words = name.replace(/\(.*?\)/g, "").trim().split(/\s+/);
   return (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase();

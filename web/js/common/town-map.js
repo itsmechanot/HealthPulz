@@ -4,6 +4,7 @@ import { el } from "./dom.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2, URGENT: 3 };
+const LEVEL_LABELS = [["ALERT", "Alert"], ["EPIDEMIC", "Epidemic"], ["URGENT", "Urgent"]];
 
 let mapData = null;
 
@@ -40,31 +41,37 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
     }
   }
 
-  const tooltip = el("div", { className: "map-tooltip", hidden: true });
+  const tooltip = el("div", { className: "map-tooltip", hidden: true, role: "dialog", "aria-live": "polite" });
   const shapes = new Map();
-  const stats = new Map(); // barangay_id -> { cases, level, rate, weekLevel }
+  const stats = new Map(); // barangay_id -> { cases, level, weekLevel, rate, population, levels }
+  let pinnedId = null;
 
   for (const b of map.barangays) {
-    const shape = svgEl("path", { d: b.path, class: "brgy", tabindex: 0, "aria-label": b.name });
+    const shape = svgEl("path", { d: b.path, class: "brgy", tabindex: 0, role: "button", "aria-label": b.name });
     if (b.barangay_id === ownBarangay) shape.classList.add("own");
-    shape.addEventListener("mousemove", (event) => showTooltip(event, b));
-    shape.addEventListener("mouseleave", () => (tooltip.hidden = true));
-    if (onSelect) {
-      shape.addEventListener("click", () => onSelect(b.barangay_id));
-      shape.addEventListener("keydown", (e) => e.key === "Enter" && onSelect(b.barangay_id));
-    } else {
-      shape.addEventListener("click", (event) => showTooltip(event, b)); // phones have no hover
-    }
+    shape.addEventListener("pointermove", (event) => pinnedId !== b.barangay_id && showTooltip(event, b, false));
+    shape.addEventListener("pointerleave", () => pinnedId !== b.barangay_id && (tooltip.hidden = true));
+    shape.addEventListener("click", (event) => {
+      pinnedId = b.barangay_id; // a click (or tap on a phone) keeps the details open
+      showTooltip(event, b, true);
+      onSelect?.(b.barangay_id);
+    });
+    shape.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        shape.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      } else if (event.key === "Escape") dismissTooltip();
+    });
     shapes.set(b.barangay_id, shape);
     svg.append(shape);
   }
 
   svg.append(svgEl("path", { d: map.municipality.path, class: "town-outline" }));
-  const markers = svgEl("g");
+  const markers = svgEl("g", { "aria-hidden": "true" });
   svg.append(markers);
 
   if (labels) {
-    const group = svgEl("g");
+    const group = svgEl("g", { class: "barangay-labels", "aria-hidden": "true" });
     for (const b of map.barangays) {
       // The small barangays around the poblacion sit close together: smaller labels there.
       const text = svgEl("text", { x: b.center[0], y: b.center[1] - 10, class: b.area_km2 < 1 ? "brgy-label small-area" : "brgy-label" });
@@ -77,25 +84,51 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
   const title = el("span", { className: "badge", dataset: { level: "OK" }, textContent: `Municipality of ${town}` });
   title.style.cssText = "position: absolute; top: 10px; left: 10px;";
   const corner = el("div", { className: "map-corner" });
-  container.replaceChildren(
-    el("div", { className: "map" }, svg, title, corner, tooltip),
-    legend(),
-    el("div", { className: "map-attribution", textContent: map.attribution }),
-  );
+  const frame = el("div", { className: "map" }, svg, title, corner, tooltip);
+  container.replaceChildren(frame, legend(), el("div", { className: "map-attribution", textContent: map.attribution }));
 
-  function showTooltip(event, b) {
-    const box = container.querySelector(".map").getBoundingClientRect();
+  tooltip.addEventListener("click", (event) => event.target.closest("[data-map-tooltip-close]") && dismissTooltip());
+  container.addEventListener("click", (event) => {
+    if (pinnedId && !event.target.closest(".brgy") && !tooltip.contains(event.target)) dismissTooltip();
+  });
+
+  function dismissTooltip() {
+    pinnedId = null;
+    tooltip.hidden = true;
+  }
+
+  function showTooltip(event, b, pinned) {
+    const box = frame.getBoundingClientRect();
     const s = stats.get(b.barangay_id);
-    const lines = [b.name];
+    const row = (dot, label, value) =>
+      el("div", { className: "map-tooltip-row" }, el("span", {}, indicator(dot), ` ${label}`), el("strong", { textContent: value }));
+    const rows = [
+      el("div", { className: "map-tooltip-heading" },
+        el("strong", { textContent: b.name }),
+        el("button", { type: "button", className: "map-tooltip-close", dataset: { mapTooltipClose: "" }, "aria-label": "Close barangay details", textContent: "×", hidden: !pinned }),
+      ),
+      el("p", { className: "map-tooltip-population", textContent: `Population: ${s ? s.population.toLocaleString() : "–"}` }),
+    ];
     if (s) {
-      lines.push(`${s.cases.toLocaleString()} case${s.cases === 1 ? "" : "s"} · ${s.rate.toFixed(1)} per 10,000`);
-      if (s.level !== "NORMAL") lines.push(s.level);
-      else if (s.weekLevel !== "NORMAL") lines.push(`${s.weekLevel} this week`);
+      rows.push(
+        el("p", { className: "map-tooltip-subheading", textContent: "Surveillance summary" }),
+        row("cases", "Total cases", s.cases.toLocaleString()),
+        row("cases", "Per 10,000 people", s.rate.toFixed(1)),
+        ...LEVEL_LABELS.map(([level, label]) => row(level.toLowerCase(), `${label} diseases`, String(s.levels[level]))),
+      );
+      // A day view: the week's outbreak still shows even when that day had no cases.
+      if (s.level === "NORMAL" && s.weekLevel !== "NORMAL") rows.push(el("p", { className: "map-tooltip-population", textContent: `${s.weekLevel} this week` }));
     }
-    tooltip.replaceChildren(...lines.flatMap((line, i) => (i ? [el("br"), line] : [el("strong", { textContent: line })])));
-    tooltip.style.left = `${event.clientX - box.left}px`;
-    tooltip.style.top = `${event.clientY - box.top}px`;
+    tooltip.replaceChildren(...rows);
+    tooltip.dataset.pinned = String(pinned);
     tooltip.hidden = false;
+
+    const shapeBox = event.currentTarget?.getBoundingClientRect?.();
+    const atX = event.clientX ? event.clientX - box.left : shapeBox ? shapeBox.left + shapeBox.width / 2 - box.left : 0;
+    const atY = event.clientY ? event.clientY - box.top : shapeBox ? shapeBox.top + shapeBox.height / 2 - box.top : 0;
+    const below = atY + 12;
+    tooltip.style.left = `${Math.max(8, Math.min(atX + 12, box.width - tooltip.offsetWidth - 8))}px`;
+    tooltip.style.top = `${below + tooltip.offsetHeight <= box.height - 8 ? below : Math.max(8, atY - tooltip.offsetHeight - 12)}px`;
   }
 
   return {
@@ -106,8 +139,13 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
         const cells = diseaseCode ? [b.diseases[diseaseCode]].filter(Boolean) : Object.values(b.diseases);
         const cases = cells.reduce((sum, c) => sum + c.cases, 0);
         const worst = (key) => cells.reduce((w, c) => (LEVEL_RANK[c[key] ?? "NORMAL"] > LEVEL_RANK[w] ? c[key] : w), "NORMAL");
+        const levels = { ALERT: 0, EPIDEMIC: 0, URGENT: 0 };
+        for (const c of cells) if (c.level in levels) levels[c.level] += 1;
         // A day view colors by that day's cases; week_level keeps the week's outbreak marked.
-        stats.set(b.barangay_id, { cases, level: worst("level"), weekLevel: worst("week_level"), rate: (cases / b.population) * 10_000 });
+        stats.set(b.barangay_id, {
+          cases, levels, population: b.population, level: worst("level"), weekLevel: worst("week_level"), rate: (cases / b.population) * 10_000,
+        });
+        shapes.get(b.barangay_id)?.setAttribute("aria-label", `${b.name}, ${cases} case${cases === 1 ? "" : "s"}`);
       }
       const maxRate = Math.max(1e-9, ...[...stats.values()].map((s) => s.rate));
 
@@ -139,23 +177,32 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
     },
 
     select(barangayId) {
-      for (const [id, shape] of shapes) shape.classList.toggle("selected", id === barangayId);
+      for (const [id, shape] of shapes) {
+        shape.classList.toggle("selected", id === barangayId);
+        shape.setAttribute("aria-pressed", String(id === barangayId));
+      }
+      if (!barangayId) dismissTooltip();
     },
 
     corner,
   };
 }
 
+function indicator(kind) {
+  return el("span", { className: `map-status-dot map-status-${kind}`, "aria-hidden": "true" });
+}
+
 function legend() {
-  const swatch = (color, label) => el("span", {}, Object.assign(el("span", { className: "swatch" }), { style: `background: ${color}` }), label);
+  const swatch = (kind, label) =>
+    el("span", { className: "map-legend-item" }, el("span", { className: `map-legend-swatch map-status-${kind}`, "aria-hidden": "true" }), label);
   return el(
     "div",
-    { className: "map-legend" },
-    swatch("var(--land)", "No cases"),
-    swatch("color-mix(in srgb, var(--accent) 45%, var(--land))", "Cases (darker = more per 10,000)"),
-    swatch("color-mix(in srgb, var(--warn) 55%, var(--land))", "Alert"),
-    swatch("color-mix(in srgb, var(--danger) 65%, var(--land))", "Epidemic"),
-    swatch("color-mix(in srgb, var(--urgent) 70%, var(--land))", "Urgent"),
-    el("span", { textContent: "● circle size = number of cases" }),
+    { className: "map-legend", "aria-label": "Map legend" },
+    swatch("none", "No cases"),
+    swatch("cases", "Cases (darker = more per 10,000)"),
+    swatch("alert", "Alert"),
+    swatch("epidemic", "Epidemic"),
+    swatch("urgent", "Urgent"),
+    el("span", { className: "map-legend-note", textContent: "Alert and epidemic use weekly thresholds; an urgent disease alerts on a single case. Bigger circle = more cases." }),
   );
 }

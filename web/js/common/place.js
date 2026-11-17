@@ -3,9 +3,11 @@
 
 let place = { name: "Naval", province: "Biliran", rhu_name: "RHU Naval" };
 
-/** "Cases in {town}, {province}" → "Cases in Naval, Biliran". Keys: {town} {province} {rhu}. */
+/** "Cases in {town}, {province}" → "Cases in Naval, Biliran". Keys: {town} {province} {rhu}; {TOWN} {PROVINCE} in capitals. */
 export function fillPlace(template) {
-  return template.replaceAll("{town}", place.name).replaceAll("{province}", place.province).replaceAll("{rhu}", place.rhu_name);
+  return template
+    .replaceAll("{town}", place.name).replaceAll("{province}", place.province).replaceAll("{rhu}", place.rhu_name)
+    .replaceAll("{TOWN}", place.name.toUpperCase()).replaceAll("{PROVINCE}", place.province.toUpperCase());
 }
 
 /** Call once the config has loaded: fills every data-place (text) and data-place-placeholder on the page. */

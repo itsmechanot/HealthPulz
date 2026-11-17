@@ -1,6 +1,6 @@
 # Setting up HealthPulz for another municipality
 
-HealthPulz has no municipality built into its code. Everything specific to Naval is in **four data files**, so moving the system to another town is configuration, not programming. Each municipality runs **its own RHU server**, which serves its own BHUs.
+HealthPulz has no municipality built into its code. Everything specific to Naval is in **four data files** (plus optional images), so moving the system to another town is configuration, not programming. Each municipality runs **its own RHU server**, which serves its own BHUs.
 
 | File | What it holds |
 |---|---|
@@ -8,6 +8,7 @@ HealthPulz has no municipality built into its code. Everything specific to Naval
 | `rhu/data/barangays.json` | Each barangay: ID, PSGC code, name, population, neighbors |
 | `web/data/map.json` | The offline map, built from official boundaries (step 3) |
 | `rhu/data/diseases.json` | The disease lists and alert rules (step 5, optional) |
+| `web/img/seal.png`, `web/img/barangays/` | The municipal seal, and each barangay's logo (step 6, optional) |
 
 Tested: Caibiran, Biliran (17 barangays) ran with only these files changed, from login to the map and the BHU pages, and no page mentioned Naval.
 
@@ -48,14 +49,17 @@ python tools/build_map.py --province biliran.json --municipality caibiran.json -
 ### 5. Disease lists (optional)
 If the RHU's common and urgent diseases differ, edit `rhu/data/diseases.json`. Each disease has a `group`, whether it is `tracked`, and whether it raises `threshold_alerts` or a `single_case_alert`.
 
-### 6. Start with a fresh database
+### 6. Seal and barangay logos (optional)
+Replace `web/img/seal.png` with the municipality's seal (square PNG, about 320 × 320). Each BHU shows its barangay's logo from `web/img/barangays/<barangay ID>.png`, for example `BRGY-03.png` (square, about 128 × 128). A barangay without a file shows its initials instead, so no code changes either way.
+
+### 7. Start with a fresh database
 The `var/` folder holds the previous municipality's data and passwords. Move it aside, then:
 ```powershell
 python -m rhu.history      # optional: synthetic past years, so outbreak thresholds have a baseline
 python -m rhu              # creates the database and the accounts
 python -m rhu.accounts     # shows the RHU password
 ```
-Log in as the RHU and give each BHU its password on **BHU Accounts**.
+Sign in as the RHU and give each BHU its password on **Health unit access**.
 
 ## Adding one barangay to an existing municipality
 1. Add an entry to `rhu/data/barangays.json` with the **next free ID** (never reuse or renumber an ID: past cases point to it), its PSGC code, name and population.

@@ -3,47 +3,78 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0e8c6e">
-  <title>HealthPulz · Log in</title>
+  <meta name="theme-color" content="#f5faff">
+  <title>HealthPulz · Sign in</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/css/base.css">
 </head>
-<body>
+<body class="login-page">
+  <div class="login-video-bg" aria-hidden="true">
+    <video muted loop playsinline preload="none" tabindex="-1" data-src="/media/landing-background.mp4"></video>
+  </div>
   <main class="login">
-    <div class="login-brand">
-      <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
-      <h1>HealthPulz</h1>
-      <p class="muted" data-place="Disease monitoring for the Barangay Health Units of {town}, {province}">Disease monitoring for the Barangay Health Units of Naval, Biliran</p>
-    </div>
-
-    <form id="login-form" class="card login-card" novalidate>
-      <div class="field">
-        <label for="unit-input">Health unit</label>
-        <div class="combobox">
-          <input id="unit-input" type="text" role="combobox" autocomplete="off"
-                 aria-autocomplete="list" aria-expanded="false" aria-controls="unit-list"
-                 placeholder="Type your barangay, or RHU Naval" data-place-placeholder="Type your barangay, or {rhu}">
-          <ul id="unit-list" role="listbox" aria-label="Health units" hidden></ul>
-        </div>
+    <section class="login-brand" aria-labelledby="brand-title">
+      <div class="login-partner-logos" role="group" aria-label="Municipal seal and HealthPulz medical emblem">
+        <img src="/img/seal.png" alt="Municipal seal">
+        <span class="login-logo-divider" aria-hidden="true"></span>
+        <img src="/img/logo.png" alt="HealthPulz medical emblem">
       </div>
-
-      <div class="field">
-        <label for="password-input">Password</label>
-        <div class="password-field">
-          <input id="password-input" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false">
-          <button id="show-password" class="link-btn small" type="button" aria-pressed="false" aria-label="Show password">Show</button>
-        </div>
+      <p class="login-eyebrow" data-place="RURAL HEALTH UNIT · {TOWN}, {PROVINCE}">RURAL HEALTH UNIT · NAVAL, BILIRAN</p>
+      <div class="login-title-row">
+        <img class="brand-mark" src="/img/healthpulz-logo.png" alt="" aria-hidden="true">
+        <h1 id="brand-title"><span>Health</span><span class="login-title-accent">Pulz</span></h1>
       </div>
+      <p class="login-description">Community disease surveillance for connected local health teams.</p>
+      <div class="login-feature-list" aria-label="Platform capabilities">
+        <div class="login-feature-tile"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pulse"/></svg><span>Disease<br>Monitoring</span></div>
+        <div class="login-feature-tile"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg><span>Health<br>Reports</span></div>
+        <div class="login-feature-tile"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#nodes"/></svg><span>RHU<br>Coordination</span></div>
+      </div>
+    </section>
 
-      <button id="login-btn" class="btn btn-primary btn-large btn-block" type="submit" disabled>Log in</button>
-      <p id="login-error" class="small login-error" role="alert"></p>
-    </form>
+    <section class="login-access" aria-labelledby="signin-title">
+      <form id="login-form" class="card login-card" autocomplete="off" novalidate>
+        <div class="login-card-logos" role="group" aria-label="HealthPulz, medical emblem, and municipal seal">
+          <img src="/img/healthpulz-logo.png" alt="HealthPulz">
+          <img src="/img/logo.png" alt="HealthPulz medical emblem">
+          <img src="/img/seal.png" alt="Municipal seal">
+        </div>
+        <div class="login-card-heading">
+          <p class="login-eyebrow">HEALTH UNIT ACCESS</p>
+          <h2 id="signin-title">Sign in to your account</h2>
+          <p class="login-instruction">Use your assigned health unit and password.</p>
+        </div>
+        <div class="field">
+          <label for="unit-input">Health Unit</label>
+          <div class="combobox">
+            <svg class="field-leading-icon" aria-hidden="true"><use href="/img/icons.svg#station"/></svg>
+            <input id="unit-input" type="text" role="combobox" autocomplete="off"
+                   aria-autocomplete="list" aria-expanded="false" aria-controls="unit-list"
+                   placeholder="Select your Barangay or Rural Health Unit">
+            <ul id="unit-list" role="listbox" aria-label="Health units" hidden></ul>
+          </div>
+        </div>
 
-    <p class="login-note muted small">
-      <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-      <span data-place="Client records stay with their own health unit. {rhu} receives de-identified reports only. Forgot your password? Ask the RHU.">Client records stay with their own health unit. RHU Naval receives de-identified reports only.
-      Forgot your password? Ask the RHU.</span>
-    </p>
+        <div class="field">
+          <label for="password-input">Password</label>
+          <div class="password-field">
+            <svg class="field-leading-icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
+            <input id="password-input" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false">
+            <button id="show-password" class="link-btn small" type="button" aria-pressed="false" aria-label="Show password">Show</button>
+          </div>
+        </div>
+
+        <button id="login-btn" class="btn btn-primary btn-large btn-block" type="submit" disabled>Sign In</button>
+        <p id="login-error" class="small login-error" role="alert"></p>
+      </form>
+
+      <aside class="login-note" aria-label="Privacy and account support">
+        <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
+        <div><strong>Privacy &amp; account support</strong>
+          <p data-place="Patient records stay with their own health unit. {rhu} receives de-identified reports only. Forgot your password? Ask the RHU.">Patient records stay with their own health unit. RHU Naval receives de-identified reports only. Forgot your password? Ask the RHU.</p>
+        </div>
+      </aside>
+    </section>
   </main>
   <script type="module" src="/js/login/main.js"></script>
 </body>
