@@ -13,7 +13,7 @@
     <aside class="sidebar" aria-label="Navigation">
       <a class="brand" href="#/overview">
         <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
-        <span><span class="brand-name">HealthPulz</span><br><span class="muted small">RHU Naval</span></span>
+        <span><span class="brand-name">HealthPulz</span><br><span class="muted small" data-place="{rhu}">RHU Naval</span></span>
       </a>
       <span class="nav-label">Surveillance</span>
       <a class="nav-link" href="#/overview" data-nav="overview"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#dashboard"/></svg>Overview</a>
@@ -40,7 +40,7 @@
         <div class="title">
           <div style="min-width: 0">
             <h1 id="screen-title">Overview</h1>
-            <div id="screen-subtitle" class="subtitle">Naval, Biliran</div>
+            <div id="screen-subtitle" class="subtitle" data-place="{town}, {province}">Naval, Biliran</div>
           </div>
         </div>
         <div class="tools">
@@ -157,7 +157,7 @@
                 <label for="trend-disease" class="small">Disease</label>
                 <select id="trend-disease"></select>
                 <label for="trend-barangay" class="small">Area</label>
-                <select id="trend-barangay"><option value="">All of Naval</option></select>
+                <select id="trend-barangay"><option value="" data-place="All of {town}">All of Naval</option></select>
                 <label for="trend-weeks" class="small">Period</label>
                 <select id="trend-weeks">
                   <option value="12">12 weeks</option>

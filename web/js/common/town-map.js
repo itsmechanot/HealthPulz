@@ -1,4 +1,4 @@
-// Offline SVG map of Naval from /data/naval-map.json (built by tools/build_map.py).
+// Offline SVG map of the municipality from /data/map.json (built by tools/build_map.py).
 
 import { el } from "./dom.js";
 
@@ -8,7 +8,7 @@ const LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2, URGENT: 3 };
 let mapData = null;
 
 async function loadMapData() {
-  mapData ??= fetch("/data/naval-map.json").then((res) => {
+  mapData ??= fetch("/data/map.json").then((res) => {
     if (!res.ok) throw new Error(`Map data: HTTP ${res.status}`);
     return res.json();
   });
@@ -25,9 +25,10 @@ const shortName = (name) => name.replace(/\s*\(Pob\.\)|\s*Pob\./g, "").replace(/
 
 /** Renders the map. Returns { update(gridBarangays, diseaseCode | null), select(barangayId), corner }:
  *  corner is an empty box in the map's upper-right corner (the dashboard puts its calendar there). */
-export async function createNavalMap(container, { onSelect = null, ownBarangay = null, labels = true } = {}) {
+export async function createTownMap(container, { onSelect = null, ownBarangay = null, labels = true } = {}) {
   const map = await loadMapData();
-  const svg = svgEl("svg", { viewBox: `0 0 ${map.width} ${map.height}`, role: "img", "aria-label": "Map of Naval, Biliran, by barangay" });
+  const town = map.municipality.name;
+  const svg = svgEl("svg", { viewBox: `0 0 ${map.width} ${map.height}`, role: "img", "aria-label": `Map of ${town} by barangay` });
 
   for (const town of map.towns) svg.append(svgEl("path", { d: town.path, class: "town" }));
   for (const town of map.towns) {
@@ -58,7 +59,7 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
     svg.append(shape);
   }
 
-  svg.append(svgEl("path", { d: map.naval.path, class: "naval-outline" }));
+  svg.append(svgEl("path", { d: map.municipality.path, class: "town-outline" }));
   const markers = svgEl("g");
   svg.append(markers);
 
@@ -73,7 +74,7 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
     svg.append(group);
   }
 
-  const title = el("span", { className: "badge", dataset: { level: "OK" }, textContent: "Municipality of Naval" });
+  const title = el("span", { className: "badge", dataset: { level: "OK" }, textContent: `Municipality of ${town}` });
   title.style.cssText = "position: absolute; top: 10px; left: 10px;";
   const corner = el("div", { className: "map-corner" });
   container.replaceChildren(

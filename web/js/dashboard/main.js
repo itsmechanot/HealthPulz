@@ -5,7 +5,8 @@ import { lineChart } from "../common/chart.js";
 import { weekStart } from "../common/dates.js";
 import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
-import { createNavalMap } from "../common/naval-map.js";
+import { applyPlace, fillPlace } from "../common/place.js";
+import { createTownMap } from "../common/town-map.js";
 import { createRouter, setupLogout, setupMenu } from "../common/shell.js";
 import { createAccountsScreen } from "./accounts.js";
 import { createDayPicker, toIso } from "./calendar.js";
@@ -15,8 +16,8 @@ const SPARKLINE_WEEKS = 12;
 const OVERVIEW_ALERTS = 4;
 const LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2, URGENT: 3 };
 const SCREENS = {
-  overview: ["Overview", "Illness situation in Naval, Biliran"],
-  map: ["Map", "Cases by barangay, Municipality of Naval"],
+  overview: ["Overview", "Illness situation in {town}, {province}"],
+  map: ["Map", "Cases by barangay, Municipality of {town}"],
   alerts: ["Alerts", "Outbreaks detected by the parallel analytics"],
   trends: ["Trends", "Weekly cases compared with outbreak thresholds"],
   barangays: ["Barangays", "Every barangay and disease for one week"],
@@ -28,7 +29,7 @@ const fmt = (n) => Number(n).toLocaleString();
 
 const state = {
   disease: null, // Trends screen
-  barangay: "", // Trends screen: "" = all of Naval
+  barangay: "", // Trends screen: "" = the whole municipality
   weeks: 26,
   gridWeek: "current",
   gridGroup: "common",
@@ -51,6 +52,7 @@ start();
 async function start() {
   try {
     config = await api.getConfig();
+    applyPlace(config.municipality);
   } catch (error) {
     setConnection("offline", "RHU unreachable");
     return;
@@ -61,8 +63,8 @@ async function start() {
   setupLogout();
   buildControls();
   [overviewMap, bigMap] = await Promise.all([
-    createNavalMap($("ov-map"), { labels: false, onSelect: (id) => selectBarangay(id, true) }),
-    createNavalMap($("big-map"), { onSelect: (id) => selectBarangay(id, false) }),
+    createTownMap($("ov-map"), { labels: false, onSelect: (id) => selectBarangay(id, true) }),
+    createTownMap($("big-map"), { onSelect: (id) => selectBarangay(id, false) }),
   ]);
   dayPickers = [overviewMap, bigMap].map((map) =>
     createDayPicker(map.corner, {
@@ -77,7 +79,7 @@ async function start() {
     if (screen === "accounts") accounts.show();
     const [title, subtitle] = SCREENS[screen];
     $("screen-title").textContent = title;
-    $("screen-subtitle").textContent = subtitle;
+    $("screen-subtitle").textContent = fillPlace(subtitle);
     document.title = `HealthPulz · ${title}`;
     if (data.summary) renderScreen(screen);
   });
@@ -501,7 +503,7 @@ async function renderTrends() {
     );
   }
   const max = lineChart($("trend-chart"), series, { slots: Math.max(weeks.length, 2) });
-  const area = state.barangay ? `Brgy. ${barangayName(state.barangay)}` : "all of Naval";
+  const area = state.barangay ? `Brgy. ${barangayName(state.barangay)}` : fillPlace("all of {town}");
   $("trend-title").textContent = `${diseaseName(state.disease)} · ${area}`;
   $("trend-chart").setAttribute("aria-label", `${diseaseName(state.disease)} cases per week in ${area}, last ${weeks.length} weeks`);
   $("trend-scale").textContent = `max ${fmt(Math.round(max))} cases`;

@@ -1,9 +1,10 @@
-"""Builds the offline Naval map and barangay neighbor lists from PSGC boundaries
-(faeldon/philippines-json-maps, MIT license):
-    https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/latest/geojson/provdists/medres/municities-provdist-807800000.0.01.json
-    https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/latest/geojson/municities/medres/bgysubmuns-municity-807808000.0.01.json
+"""Builds the offline map of a municipality and its barangays' neighbor lists from official PSGC
+boundaries (faeldon/philippines-json-maps, MIT license). Any municipality: give its PSGC code.
+    https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/latest/geojson/provdists/medres/municities-provdist-<PROVINCE PSGC>.0.01.json
+    https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/latest/geojson/municities/medres/bgysubmuns-municity-<MUNICIPALITY PSGC>.0.01.json
 
 Usage:  python tools/build_map.py --province biliran.json --municipality naval.json
+        python tools/build_map.py --province biliran.json --municipality caibiran.json --psgc 807804000 --new
 """
 
 import argparse
@@ -14,10 +15,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BARANGAYS_FILE = ROOT / "rhu" / "data" / "barangays.json"
-MAP_FILE = ROOT / "web" / "data" / "naval-map.json"
-NAVAL_PSGC = 807808000
+MUNICIPALITY_FILE = ROOT / "rhu" / "data" / "municipality.json"
+MAP_FILE = ROOT / "web" / "data" / "map.json"
+PLACEHOLDER_POPULATION = 1000  # for --new: replace with census figures, which the rates per 10,000 use
+MAX_BARANGAYS = 99  # IDs are BRGY-01 to BRGY-99
 WIDTH = 1000  # SVG units; the height follows from the shape of the framed area
-PADDING = 0.12  # extra space around Naval, so neighboring towns show at the edges
+PADDING = 0.12  # extra space around the municipality, so neighboring towns show at the edges
 ATTRIBUTION = "Boundaries: PSA PSGC 3Q 2026 via faeldon/philippines-json-maps (MIT)"
 
 
@@ -27,7 +30,7 @@ def polygons(geometry: dict) -> list[list[list[list[float]]]]:
 
 
 class Projection:
-    """Equirectangular projection centered on Naval (accurate enough for one town)."""
+    """Equirectangular projection centered on the municipality (accurate enough for one town)."""
 
     def __init__(self, features: list[dict]) -> None:
         lons = [p[0] for f in features for poly in polygons(f["geometry"]) for ring in poly for p in ring]
@@ -80,23 +83,51 @@ def touching(a: dict, b: dict, tolerance: float = 0.0004) -> bool:
     return close >= 2
 
 
+def new_barangay_list(shapes: dict[int, dict], old: list[dict]) -> list[dict]:
+    """A new municipality: one entry per boundary, IDs BRGY-01, BRGY-02, … in name order.
+    A population already in the old list (same PSGC code) is kept; others get a placeholder."""
+    if len(shapes) > MAX_BARANGAYS:
+        raise SystemExit(f"{len(shapes)} barangays; IDs allow at most {MAX_BARANGAYS}")
+    known = {b["psgc"]: b["population"] for b in old}
+    ordered = sorted(shapes.values(), key=lambda f: f["properties"]["adm4_en"])
+    return [
+        {
+            "barangay_id": f"BRGY-{n:02d}",
+            "psgc": f["properties"]["adm4_psgc"],
+            "name": f["properties"]["adm4_en"],
+            "population": known.get(f["properties"]["adm4_psgc"], PLACEHOLDER_POPULATION),
+            "neighbors": [],
+        }
+        for n, f in enumerate(ordered, start=1)
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--province", type=Path, required=True, help="Biliran municipalities GeoJSON")
-    parser.add_argument("--municipality", type=Path, required=True, help="Naval barangays GeoJSON")
+    parser.add_argument("--province", type=Path, required=True, help="the province's municipalities GeoJSON (provdists/…)")
+    parser.add_argument("--municipality", type=Path, required=True, help="the municipality's barangays GeoJSON (municities/…)")
+    parser.add_argument("--psgc", type=int, help="the municipality's PSGC code (default: the one in rhu/data/municipality.json)")
+    parser.add_argument("--new", action="store_true", help="a new municipality: make the barangay list from the boundaries")
+    parser.add_argument("--barangays", type=Path, default=BARANGAYS_FILE, help="barangay list to read and update")
+    parser.add_argument("--map-out", type=Path, default=MAP_FILE, help="where to write the map")
     args = parser.parse_args()
 
+    psgc = args.psgc or json.loads(MUNICIPALITY_FILE.read_text(encoding="utf-8"))["psgc"]
     towns = json.loads(args.province.read_text(encoding="utf-8"))["features"]
+    town = next((f for f in towns if f["properties"]["adm3_psgc"] == psgc), None)
+    if town is None:
+        listed = ", ".join(f"{f['properties']['adm3_en']} ({f['properties']['adm3_psgc']})" for f in towns)
+        raise SystemExit(f"No municipality with PSGC {psgc} in {args.province}. It has: {listed}")
     barangay_shapes = {
         f["properties"]["adm4_psgc"]: f for f in json.loads(args.municipality.read_text(encoding="utf-8"))["features"]
     }
-    barangays = json.loads(BARANGAYS_FILE.read_text(encoding="utf-8"))
+    old = json.loads(args.barangays.read_text(encoding="utf-8")) if args.barangays.exists() else []
+    barangays = new_barangay_list(barangay_shapes, old) if args.new else old
     missing = [b["name"] for b in barangays if b["psgc"] not in barangay_shapes]
     if missing:
-        raise SystemExit(f"No boundary for: {', '.join(missing)}")
+        raise SystemExit(f"No boundary for: {', '.join(missing)}. A new municipality needs --new.")
 
-    naval = next(f for f in towns if f["properties"]["adm3_psgc"] == NAVAL_PSGC)
-    project = Projection([naval])
+    project = Projection([town])
 
     # Neighbors: barangays whose boundaries touch.
     by_psgc = {b["psgc"]: b for b in barangays}
@@ -113,11 +144,15 @@ def main() -> None:
         "attribution": ATTRIBUTION,
         "width": WIDTH,
         "height": project.height,
-        "naval": {"path": svg_path(naval["geometry"], project), "label": label_point(naval["geometry"], project)},
+        "municipality": {
+            "name": town["properties"]["adm3_en"],
+            "path": svg_path(town["geometry"], project),
+            "label": label_point(town["geometry"], project),
+        },
         "towns": [
             {"name": f["properties"]["adm3_en"], "path": svg_path(f["geometry"], project),
              "label": label_point(f["geometry"], project)}
-            for f in towns if f["properties"]["adm3_psgc"] != NAVAL_PSGC
+            for f in towns if f["properties"]["adm3_psgc"] != psgc
         ],
         "barangays": [
             {
@@ -131,17 +166,21 @@ def main() -> None:
             for b in barangays
         ],
     }
-    MAP_FILE.parent.mkdir(parents=True, exist_ok=True)
-    MAP_FILE.write_text(json.dumps(map_data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    args.map_out.parent.mkdir(parents=True, exist_ok=True)
+    args.map_out.write_text(json.dumps(map_data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     # One barangay per line, like the hand-written file.
     lines = [json.dumps(b, ensure_ascii=False).replace('{"', '{ "').replace("]}", "] }") for b in barangays]
-    BARANGAYS_FILE.write_text("[\n  " + ",\n  ".join(lines) + "\n]\n", encoding="utf-8")
+    args.barangays.write_text("[\n  " + ",\n  ".join(lines) + "\n]\n", encoding="utf-8")
 
-    print(f"Map: {MAP_FILE.relative_to(ROOT)} ({MAP_FILE.stat().st_size / 1024:.0f} KB, {WIDTH}x{project.height})")
+    print(f"Map of {map_data['municipality']['name']}: {args.map_out} ({args.map_out.stat().st_size / 1024:.0f} KB, {WIDTH}x{project.height})")
+    print(f"Barangays: {args.barangays} ({len(barangays)})")
     for b in barangays:
         names = ", ".join(by_psgc_name(barangays, n) for n in b["neighbors"]) or "(none: island or no shared border)"
-        print(f"  {b['name']:<32} {names}")
+        print(f"  {b['barangay_id']}  {b['name']:<32} {names}")
+    placeholders = [b["name"] for b in barangays if b["population"] == PLACEHOLDER_POPULATION]
+    if placeholders:
+        print(f"\nSet the real population of {len(placeholders)} barangay(s) in {args.barangays} (now {PLACEHOLDER_POPULATION}).")
 
 
 def by_psgc_name(barangays: list[dict], barangay_id: str) -> str:

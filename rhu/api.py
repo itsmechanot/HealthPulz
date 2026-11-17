@@ -52,6 +52,7 @@ def server_addresses(request: Request) -> dict:
 def get_config() -> dict:
     return {
         "protocol_version": PROTOCOL_VERSION,
+        "municipality": rules.municipality(),
         "diseases": rules.diseases(),
         "barangays": rules.barangays(),
     }

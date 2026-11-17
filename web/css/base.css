@@ -329,7 +329,7 @@ a { color: var(--accent); }
 .map .brgy:hover { filter: brightness(0.95); }
 .map .brgy.selected { stroke: var(--text); stroke-width: 2.5; }
 .map .brgy.own { stroke: var(--accent-strong); stroke-width: 3; }
-.map .naval-outline { fill: none; stroke: var(--accent-strong); stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.map .town-outline { fill: none; stroke: var(--accent-strong); stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 .map .marker { stroke: var(--surface); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; opacity: 0.92; fill: var(--accent-strong); }
 .map .marker[data-level="ALERT"] { fill: var(--warn); }
 .map .marker[data-level="EPIDEMIC"] { fill: var(--danger); }

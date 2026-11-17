@@ -13,7 +13,7 @@
     <div class="login-brand">
       <svg class="brand-mark" aria-hidden="true"><use href="/img/icons.svg#logo"/></svg>
       <h1>HealthPulz</h1>
-      <p class="muted">Disease monitoring for the Barangay Health Units of Naval, Biliran</p>
+      <p class="muted" data-place="Disease monitoring for the Barangay Health Units of {town}, {province}">Disease monitoring for the Barangay Health Units of Naval, Biliran</p>
     </div>
 
     <form id="login-form" class="card login-card" novalidate>
@@ -22,7 +22,7 @@
         <div class="combobox">
           <input id="unit-input" type="text" role="combobox" autocomplete="off"
                  aria-autocomplete="list" aria-expanded="false" aria-controls="unit-list"
-                 placeholder="Type your barangay, or RHU Naval">
+                 placeholder="Type your barangay, or RHU Naval" data-place-placeholder="Type your barangay, or {rhu}">
           <ul id="unit-list" role="listbox" aria-label="Health units" hidden></ul>
         </div>
       </div>
@@ -41,8 +41,8 @@
 
     <p class="login-note muted small">
       <svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
-      Client records stay with their own health unit. RHU Naval receives de-identified reports only.
-      Forgot your password? Ask the RHU.
+      <span data-place="Client records stay with their own health unit. {rhu} receives de-identified reports only. Forgot your password? Ask the RHU.">Client records stay with their own health unit. RHU Naval receives de-identified reports only.
+      Forgot your password? Ask the RHU.</span>
     </p>
   </main>
   <script type="module" src="/js/login/main.js"></script>

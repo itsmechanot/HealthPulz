@@ -5,7 +5,7 @@ import { weekStart } from "../common/dates.js";
 import { lineChart } from "../common/chart.js";
 import { diseaseOptions } from "../common/diseases.js";
 import { el } from "../common/dom.js";
-import { createNavalMap } from "../common/naval-map.js";
+import { createTownMap } from "../common/town-map.js";
 
 const REFRESH_MS = 30_000;
 const CHART_WEEKS = 12;
@@ -19,7 +19,7 @@ export function startTrendsPanel(config, barangay) {
   let disease = config.diseases[0].disease_code;
   let pending = null;
   // The station's own barangay is outlined; colors show where cases and alerts are.
-  const map = createNavalMap($("node-map"), { ownBarangay: barangay.barangay_id });
+  const map = createTownMap($("node-map"), { ownBarangay: barangay.barangay_id });
 
   const select = $("trend-disease");
   select.replaceChildren(...diseaseOptions(config.diseases.filter((d) => d.tracked)));

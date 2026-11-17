@@ -3,6 +3,7 @@
 import * as api from "../common/api.js";
 import { uuid4 } from "../common/ids.js";
 import { diseaseOptions } from "../common/diseases.js";
+import { applyPlace, fillPlace } from "../common/place.js";
 import { createRouter, setupLogout, setupMenu, toast } from "../common/shell.js";
 import { createClinic } from "./clinic.js";
 import { browserRecords, clearBrowserRecords } from "./db.js";
@@ -48,7 +49,8 @@ async function startStation(config, identity, barangay) {
   document.querySelector(".app").classList.remove("setup-mode");
   document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
-  $("station-sub").textContent = "Barangay Health Unit · synced with RHU Naval";
+  applyPlace(config.municipality);
+  $("station-sub").textContent = fillPlace("Barangay Health Unit · synced with {rhu}");
   records.useBarangay(identity.barangay_id);
   $("station-avatar").textContent = initials(barangay.name);
   $("station-avatar").hidden = false;
@@ -82,7 +84,7 @@ async function startStation(config, identity, barangay) {
   connection.addEventListener("status", ({ detail: state }) => {
     setConnectionState(state);
     if (state === "online") {
-      log("Connected to RHU Naval", "ok");
+      log(fillPlace("Connected to {rhu}"), "ok");
       sender.pump();
     }
   });

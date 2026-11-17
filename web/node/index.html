@@ -253,14 +253,14 @@
         <section class="screen" data-screen="trends" hidden>
           <section class="card" aria-labelledby="node-map-title">
             <div class="card-header">
-              <h2 id="node-map-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg>Naval this week</h2>
+              <h2 id="node-map-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg><span data-place="{town} this week">Naval this week</span></h2>
               <span id="trends-week" class="muted small"></span>
             </div>
             <div id="node-map"></div>
           </section>
 
           <section class="card" aria-labelledby="trends-title">
-            <h2 id="trends-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg>Trends from RHU Naval</h2>
+            <h2 id="trends-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#trend"/></svg><span data-place="Trends from {rhu}">Trends from RHU Naval</span></h2>
             <p class="note"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>
               Weekly totals shared by the RHU. Only aggregated counts are shared, never individual cases.</p>
             <div class="table-wrap">
@@ -269,8 +269,8 @@
                   <tr>
                     <th scope="col">Disease</th>
                     <th scope="col">Your barangay<br><span class="small">this week</span></th>
-                    <th scope="col">Naval<br><span class="small">this week</span></th>
-                    <th scope="col">Naval<br><span class="small">last week</span></th>
+                    <th scope="col"><span data-place="{town}">Naval</span><br><span class="small">this week</span></th>
+                    <th scope="col"><span data-place="{town}">Naval</span><br><span class="small">last week</span></th>
                     <th scope="col">Barangays<br><span class="small">on alert</span></th>
                   </tr>
                 </thead>

@@ -29,7 +29,7 @@ rhu/             RHU server (FastAPI)
   main.py        App entry point
 web/             Web pages served by the RHU (plain HTML/CSS/JS, no build step)
   css/base.css   Design system (shared by every page)
-  data/          naval-map.json: offline map of Naval (built by tools/build_map.py)
+  data/          map.json: offline map of the municipality (built by tools/build_map.py)
   img/icons.svg  Icon sprite and logo
   js/common/     API calls and ID helpers shared by all pages
   node/          BHS Node page
@@ -69,6 +69,10 @@ python -m rhu.history
 ```
 
 Run it again any time to replace the history; live data from nodes is kept. See [synthetic data rules](docs/synthetic-data.md).
+
+## Another municipality
+
+Naval is configuration, not code: its name, barangays, map and disease lists are data files. See [Setting up HealthPulz for another municipality](docs/new-municipality.md), also for adding one barangay.
 
 ## Run the tests
 

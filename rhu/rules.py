@@ -1,4 +1,5 @@
-"""Rules files (diseases, barangays), also served to the browsers through GET /api/config."""
+"""Rules files (municipality, diseases, barangays), also served to the browsers through GET /api/config.
+Moving the system to another municipality changes these files, not the code (docs/new-municipality.md)."""
 
 import json
 from functools import lru_cache
@@ -6,9 +7,15 @@ from functools import lru_cache
 from rhu.config import DATA_DIR
 
 
-def _load(filename: str) -> list[dict]:
+def _load(filename: str):
     with open(DATA_DIR / filename, encoding="utf-8") as f:
         return json.load(f)
+
+
+@lru_cache
+def municipality() -> dict:
+    """{name, province, psgc, rhu_name}"""
+    return _load("municipality.json")
 
 
 @lru_cache

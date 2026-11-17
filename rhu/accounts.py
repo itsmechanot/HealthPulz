@@ -87,7 +87,7 @@ def password_matches(password: str, stored: str) -> bool:
 def _all_accounts() -> list[tuple[str, str, str | None, str]]:
     """(username, role, barangay_id, name to show)"""
     return [
-        (RHU, RHU, None, "RHU Naval"),
+        (RHU, RHU, None, rules.municipality()["rhu_name"]),
         *((b["barangay_id"], BHU, b["barangay_id"], b["name"]) for b in rules.barangays()),
         (LOADTEST, LOADTEST, None, "Load-test tool (tools/simulate_nodes.py)"),
     ]

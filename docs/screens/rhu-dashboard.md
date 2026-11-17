@@ -1,6 +1,6 @@
 # Screen spec: RHU Dashboard
 
-**For:** UI designer · **Page:** `/dashboard/` · **Code:** [`web/dashboard/index.html`](../../web/dashboard/index.html), [`web/js/dashboard/main.js`](../../web/js/dashboard/main.js), map: [`web/js/common/naval-map.js`](../../web/js/common/naval-map.js)
+**For:** UI designer · **Page:** `/dashboard/` · **Code:** [`web/dashboard/index.html`](../../web/dashboard/index.html), [`web/js/dashboard/main.js`](../../web/js/dashboard/main.js), map: [`web/js/common/town-map.js`](../../web/js/common/town-map.js)
 **Status:** working app, ready to be refined. The *screens, components, data and actions* below are fixed; the *look* is yours to improve.
 
 | Overview | Map |
@@ -120,7 +120,7 @@ Passwords are never stored in readable form, so there is deliberately no "show p
 | Alerts | `GET /api/alerts`, `POST /api/alerts/{id}/status` |
 | Trends | `GET /api/stats/trend?disease=…&barangay_id=…&weeks=…` |
 | BHU Accounts | `GET /api/accounts`, `POST /api/accounts/{barangay_id}/password`, `POST /api/accounts/assign-missing` |
-| Map shapes | `/data/naval-map.json` (built by [`tools/build_map.py`](../../tools/build_map.py)) |
+| Map shapes | `/data/map.json` (built by [`tools/build_map.py`](../../tools/build_map.py)) |
 
 ## Known limits
 - **One shared RHU login:** the system can't tell which staff member acknowledged or resolved an alert.

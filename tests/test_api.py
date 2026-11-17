@@ -57,11 +57,12 @@ def test_icon_sprite_is_served_as_svg(client):
 
 
 def test_map_matches_the_barangay_list(client):
-    map_data = client.get("/data/naval-map.json").json()
+    map_data = client.get("/data/map.json").json()
     barangays = client.get("/api/config").json()["barangays"]
     assert {b["barangay_id"]: b["psgc"] for b in map_data["barangays"]} == {b["barangay_id"]: b["psgc"] for b in barangays}
     assert all(b["path"].startswith("M") and len(b["center"]) == 2 for b in map_data["barangays"])
-    assert map_data["naval"]["path"] and map_data["towns"]  # Naval highlighted among the other towns of Biliran
+    assert map_data["municipality"]["path"] and map_data["towns"]  # the municipality highlighted among its province's towns
+    assert map_data["municipality"]["name"] == client.get("/api/config").json()["municipality"]["name"]
 
 
 def test_neighbors_are_symmetric(client):
@@ -150,3 +151,24 @@ def test_register_rejects_malformed_node_id(client):
 
 def test_register_unknown_barangay(client):
     assert register(client, node_id="BRGY-99-K7QX", barangay_id="BRGY-99").status_code == 404
+
+
+def test_the_municipality_comes_from_its_settings_file(client):
+    assert client.get("/api/config").json()["municipality"] == {
+        "name": "Naval", "province": "Biliran", "psgc": 807808000, "rhu_name": "RHU Naval",
+    }
+
+
+def test_no_page_has_the_municipality_built_in():
+    """Its name may appear only as the text shown before the config loads, marked to be replaced."""
+    import re
+    from pathlib import Path as P
+    root = P(__file__).resolve().parent.parent / "web"
+    for path in [*root.rglob("*.js"), *root.rglob("*.html")]:
+        text = path.read_text(encoding="utf-8")
+        if path.name == "place.js":
+            continue
+        for line in text.splitlines():
+            if re.search(r"\bNaval\b", line):
+                assert "data-place" in line, f"{path.relative_to(root)}: {line.strip()[:100]}"
+

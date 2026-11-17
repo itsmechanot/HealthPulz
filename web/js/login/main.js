@@ -2,9 +2,9 @@
 
 import * as api from "../common/api.js";
 import { createCombobox } from "../common/combobox.js";
+import { applyPlace } from "../common/place.js";
 
 const $ = (id) => document.getElementById(id);
-const RHU_OPTION = { username: "RHU", name: "RHU Naval" };
 
 let chosen = null;
 
@@ -19,6 +19,8 @@ async function main() {
     return;
   }
 
+  const place = applyPlace(config.municipality);
+  const rhuOption = { username: "RHU", name: place.rhu_name };
   const barangays = [...config.barangays]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((b) => ({ username: b.barangay_id, name: b.name }));
@@ -26,7 +28,7 @@ async function main() {
   createCombobox({
     input: $("unit-input"),
     listbox: $("unit-list"),
-    options: [RHU_OPTION, ...barangays],
+    options: [rhuOption, ...barangays],
     labelOf: (option) => option.name,
     onSelect: (option) => {
       chosen = option;

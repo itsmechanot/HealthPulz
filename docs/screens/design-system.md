@@ -42,7 +42,7 @@ Each color also has a `-soft` background version (e.g. `--warn-soft`) for badges
 | Screens | `section[data-screen]`, links `href="#/name"` with `data-nav` | One screen at a time; the URL remembers it (`web/js/common/shell.js`) |
 | KPI card | `.kpi` (`.kpi-icon`, `.kpi-value`, `.kpi-label`, `.kpi-sub`), tone `data-tone="warn/danger/ok"` | Overview key numbers |
 | Pop-up notice | `.toast[data-level]` via `toast()` in `shell.js` | New alert while on another screen; View + Dismiss; disappears after 8 s |
-| **Map of Naval** | `.map` (`.town`, `.brgy[data-level]`, `.naval-outline`, `.marker`, `.brgy-label`), `.map-legend` | `web/js/common/naval-map.js`; see below |
+| **Map of Naval** | `.map` (`.town`, `.brgy[data-level]`, `.town-outline`, `.marker`, `.brgy-label`), `.map-legend` | `web/js/common/naval-map.js`; see below |
 | Filter chips | `.filter-chip[aria-pressed]` | Disease filters on Map and Trends |
 | Card | `.card`, `.card-header`, `.section-title` | Section titles have a leading icon in the accent color |
 | Buttons | `.btn` + `.btn-primary` / `.btn-ghost`, sizes `.btn-small` / `.btn-large`, `.btn-block` | One primary button per area |
@@ -72,7 +72,7 @@ To add or replace an icon, add a `<symbol id="…" viewBox="0 0 24 24">` with th
 The page at `/`: logo, health unit and password fields, and the privacy note. See [login.md](login.md).
 
 ## Map of Naval
-- **Data:** drawn as SVG from `web/data/naval-map.json`, built by [`tools/build_map.py`](../../tools/build_map.py) from official PSA PSGC boundaries (via faeldon/philippines-json-maps, MIT). No tiles or map library, so it works offline. Keep the attribution line.
+- **Data:** drawn as SVG from `web/data/map.json`, built by [`tools/build_map.py`](../../tools/build_map.py) from official PSA PSGC boundaries (via faeldon/philippines-json-maps, MIT). No tiles or map library, so it works offline. Keep the attribution line.
 - **Layers, bottom to top:**
   1. sea (`--sea`)
   2. the other towns of Biliran, greyed out (`--land-muted`)

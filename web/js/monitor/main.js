@@ -2,6 +2,7 @@
 
 import * as api from "../common/api.js";
 import { lineChart } from "../common/chart.js";
+import { applyPlace } from "../common/place.js";
 import { setupLogout, setupMenu } from "../common/shell.js";
 
 const HISTORY_SECONDS = 120;
@@ -25,6 +26,7 @@ async function start() {
   $("burst-form").addEventListener("submit", startBurst);
   try {
     const config = await api.getConfig();
+    applyPlace(config.municipality);
     barangayNames = Object.fromEntries(config.barangays.map((b) => [b.barangay_id, b.name]));
   } catch {
     // Names are a nicety; tiles fall back to barangay IDs.
