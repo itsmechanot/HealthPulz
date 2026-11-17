@@ -2873,3 +2873,11 @@ html[data-text-size="large"] { font-size: 18px; }
 .app:not([data-theme="dark"]) .kpi { background: rgb(255 255 255 / 96%); }
 .app[data-theme="dark"] .card,
 .app[data-theme="dark"] .kpi { background: color-mix(in srgb, var(--surface) 96%, transparent); }
+
+/* Phone tab bar (BHU), last so the design's own .content padding can't override it:
+   one equal column per tab, however many tabs there are, and room below every page so the
+   bar never covers the end of it. */
+@media (max-width: 960px) {
+  .app.has-tabbar .tabbar { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .app.has-tabbar .content { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+}
