@@ -1,10 +1,12 @@
 """Tests for the read-only statistics endpoints."""
 
+from contextlib import closing
 from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
+from rhu import db
 from rhu.history import import_history
 from rhu.weeks import week_dates
 from tests.factories import NODE, make_batch, make_record, wait_for_stored, create_test_app
@@ -101,6 +103,10 @@ def test_grid_level_matches_raised_alerts(analyzed):
         ("/api/stats/trend?weeks=0", 400),
         ("/api/stats/barangays?week=2026-44", 400),
         ("/api/stats/barangays?week=2025-W53", 400),  # 2025 has only 52 ISO weeks
+        ("/api/stats/day?date=2026-13-01", 400),
+        ("/api/stats/day", 400),
+        ("/api/stats/days?month=2026-13", 400),
+        ("/api/stats/days?month=2026-1", 400),
     ],
 )
 def test_bad_parameters(client, url, status):
@@ -109,6 +115,71 @@ def test_bad_parameters(client, url, status):
 
 def test_no_endpoint_exposes_individual_cases(analyzed):
     # Privacy: aggregated counts only. No response may contain a record_id or a case's age.
-    for url in ("/api/stats/summary", "/api/stats/trend", "/api/stats/barangays"):
+    today = date.today()
+    for url in ("/api/stats/summary", "/api/stats/trend", "/api/stats/barangays",
+                f"/api/stats/day?date={today.isoformat()}", f"/api/stats/days?month={today:%Y-%m}"):
         text = analyzed.get(url).text
         assert "record_id" not in text and "age_years" not in text
+
+
+# ---- the map's calendar: one day ---------------------------------------------------------
+
+def test_one_day_shows_that_days_cases_per_barangay(analyzed):
+    body = analyzed.get(f"/api/stats/day?date={date.today().isoformat()}").json()
+    caraycaray = next(b for b in body["barangays"] if b["barangay_id"] == "BRGY-08")
+    assert body["date"] == date.today().isoformat()
+    assert body["dates"] == f"{date.today():%b} {date.today().day}, {date.today().year}"
+    assert len(body["barangays"]) == 26
+    assert caraycaray["diseases"]["DEN"]["cases"] == 4
+    assert body["total"] == 4  # history stops at last week: today has only the live cases
+
+
+def test_a_past_day_matches_the_cases_checked_up_that_day(analyzed):
+    with closing(db.connect(analyzed.app.state.db_path)) as conn:
+        day, expected = conn.execute(
+            "SELECT consult_date, COUNT(*) FROM cases WHERE disease_code = 'DEN' GROUP BY consult_date ORDER BY 2 DESC LIMIT 1"
+        ).fetchone()
+    body = analyzed.get(f"/api/stats/day?date={day}").json()
+    assert sum(b["diseases"].get("DEN", {}).get("cases", 0) for b in body["barangays"]) == expected
+
+
+def test_a_day_keeps_its_weeks_outbreak_levels(analyzed):
+    """Day colors follow that day's cases; an outbreak that week stays marked as week_level."""
+    with closing(db.connect(analyzed.app.state.db_path)) as conn:
+        year, week, barangay, code = conn.execute(
+            """SELECT a.iso_year, a.iso_week, a.barangay_id, a.disease_code FROM alerts a
+               WHERE a.level IN ('ALERT', 'EPIDEMIC') ORDER BY a.iso_year DESC, a.iso_week DESC LIMIT 1"""
+        ).fetchone()
+    day = date.fromisocalendar(year, week, 1)  # Monday: never in the future
+    body = analyzed.get(f"/api/stats/day?date={day.isoformat()}").json()
+    cell = next(b for b in body["barangays"] if b["barangay_id"] == barangay)["diseases"][code]
+    assert cell["level"] == "NORMAL"
+    assert cell["week_level"] in ("ALERT", "EPIDEMIC")
+
+
+def test_a_future_day_is_refused(analyzed):
+    tomorrow = date.today() + timedelta(days=1)
+    assert analyzed.get(f"/api/stats/day?date={tomorrow.isoformat()}").status_code == 400
+
+
+def test_the_month_marks_days_with_cases(analyzed):
+    today = date.today()
+    days = analyzed.get(f"/api/stats/days?month={today:%Y-%m}").json()["days"]
+    assert days[today.isoformat()] == 4
+    assert all(count > 0 for count in days.values())
+    last_year = analyzed.get(f"/api/stats/days?month={today.year - 1}-{today.month:02d}").json()["days"]
+    assert len(last_year) >= 20  # history covers every day of a past month
+
+
+def test_test_data_and_voided_checkups_stay_off_the_calendar(client):
+    client.post("/api/nodes/register", json={"type": "REGISTER", "node_id": NODE, "barangay_id": "BRGY-08"})
+    today = date.today().isoformat()
+    real = make_record(disease_code="DEN", onset_date=today, consult_date=today)
+    drill = {**make_batch(NODE, records=[make_record(disease_code="DEN", onset_date=today, consult_date=today)]), "drill": True}
+    for batch in (make_batch(NODE, records=[real]), drill, make_batch(NODE, records=[{**real, "revision": 1, "voided": True}])):
+        client.post("/api/batches", json=batch)
+        wait_for_stored(client, batch["batch_id"])
+
+    assert client.get(f"/api/stats/day?date={today}").json()["total"] == 0
+    assert today not in client.get(f"/api/stats/days?month={today[:7]}").json()["days"]
+

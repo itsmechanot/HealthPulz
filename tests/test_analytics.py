@@ -367,3 +367,15 @@ def test_a_voided_case_leaves_the_weekly_numbers(tmp_path):
     analytics.run(today)
     assert query_count(db_path, year, week) == 0
 
+
+def test_the_calendar_queries_use_the_analytics_index(tmp_path):
+    """Reading the whole cases table for one day took seconds on a large database."""
+    from rhu import stats
+    db_path = tmp_path / "plan.db"
+    db.init_db(db_path)
+    with closing(sqlite3.connect(db_path)) as conn:
+        where, params = stats._real_cases(["DEN", "ARI"])
+        plan = conn.execute(f"EXPLAIN QUERY PLAN SELECT barangay_id, COUNT(*) FROM cases WHERE {where} AND consult_date = ? GROUP BY 1",
+                            (*params, "2026-11-17")).fetchall()
+    assert any("idx_cases_weekly" in row[3] for row in plan)
+

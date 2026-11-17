@@ -8,6 +8,7 @@ import { el } from "../common/dom.js";
 import { createNavalMap } from "../common/naval-map.js";
 import { createRouter, setupLogout, setupMenu } from "../common/shell.js";
 import { createAccountsScreen } from "./accounts.js";
+import { createDayPicker, toIso } from "./calendar.js";
 
 const REFRESH_MS = 10_000;
 const SPARKLINE_WEEKS = 12;
@@ -34,14 +35,16 @@ const state = {
   alertFilter: "active",
   mapDisease: null, // null = all diseases
   mapWeek: "current",
+  mapDay: null, // "YYYY-MM-DD" when the map's calendar shows one day; null = the week toggle
   selected: null, // barangay selected on the map
 };
-const data = { summary: null, grids: {}, alerts: [], nodes: [], reports: [] };
+const data = { summary: null, grids: {}, dayGrid: null, alerts: [], nodes: [], reports: [] };
 let config;
 let tracked; // diseases under outbreak surveillance (config.diseases also has "Other consultations")
 let router;
 let overviewMap;
 let bigMap;
+let dayPickers = [];
 
 start();
 
@@ -61,6 +64,13 @@ async function start() {
     createNavalMap($("ov-map"), { labels: false, onSelect: (id) => selectBarangay(id, true) }),
     createNavalMap($("big-map"), { onSelect: (id) => selectBarangay(id, false) }),
   ]);
+  dayPickers = [overviewMap, bigMap].map((map) =>
+    createDayPicker(map.corner, {
+      getDay: () => state.mapDay,
+      onPick: pickDay,
+      loadMonth: (month) => api.fetchJson(`/api/stats/days?month=${month}`),
+    }),
+  );
   watchStations();
   const accounts = createAccountsScreen();
   router = createRouter("overview", (screen) => {
@@ -97,6 +107,7 @@ async function refresh() {
       api.fetchJson("/api/alerts"),
     ]);
     data.grids = { current, previous };
+    if (state.mapDay) data.dayGrid = await api.fetchJson(dayUrl(state.mapDay)); // a day of this week keeps updating
     data.alerts = alerts;
     renderChrome();
     if (router) renderScreen(router.current());
@@ -240,7 +251,7 @@ function renderOverview() {
   $("kpi-barangays-sub").textContent = `${onAlert} over a threshold this week`;
   renderStations();
 
-  overviewMap.update(data.grids[state.mapWeek].barangays);
+  overviewMap.update(mapGrid());
   $("ov-map-hint").textContent = mapHint();
   const latest = active.slice(0, OVERVIEW_ALERTS);
   $("ov-alerts").replaceChildren(
@@ -305,14 +316,53 @@ function illnessRow(d, spark = null) {
 // ---- Map -------------------------------------------------------------------------------
 
 function renderMapScreen() {
-  bigMap.update(data.grids[state.mapWeek].barangays, state.mapDisease);
+  bigMap.update(mapGrid(), state.mapDisease);
   $("big-map-hint").textContent = mapHint();
   bigMap.select(state.selected);
   renderDetail();
 }
 
-/** Says which week the map shows; early in a week, or before real entries, it can be nearly empty. */
+// ---- the map's calendar ----------------------------------------------------------------
+
+const dayUrl = (day) => `/api/stats/day?date=${day}`;
+
+/** What both maps show: the chosen day, or the week from the This week / Last week toggle. */
+const mapGrid = () => (state.mapDay && data.dayGrid ? data.dayGrid.barangays : data.grids[state.mapWeek].barangays);
+
+let picking = 0;
+
+/** day: "YYYY-MM-DD", or null to go back to the week. Both maps follow. */
+async function pickDay(day) {
+  const token = ++picking;
+  const grid = day ? await api.fetchJson(dayUrl(day)).catch(() => null) : null;
+  if (token !== picking || (day && !grid)) return;
+  state.mapDay = day;
+  data.dayGrid = grid;
+  setPressed("[data-map-week]", day ? null : state.mapWeek);
+  dayPickers.forEach((picker) => {
+    picker.refresh();
+    picker.close();
+  });
+  renderScreen(router.current());
+}
+
+function clearDay() {
+  if (!state.mapDay) return;
+  state.mapDay = null;
+  data.dayGrid = null;
+  dayPickers.forEach((picker) => picker.refresh());
+}
+
+/** Says which week or day the map shows; early in a week, or before real entries, it can be nearly empty. */
 function mapHint() {
+  if (state.mapDay && data.dayGrid) {
+    const g = data.dayGrid;
+    const withCases = g.barangays.filter((b) => b.total > 0).length;
+    const flagged = g.barangays.filter((b) => Object.values(b.diseases).some((c) => c.week_level)).length;
+    const today = g.date === toIso(new Date()) ? " (today, so far)" : "";
+    return `Showing one day, ${g.dates}${today}: ${fmt(g.total)} case(s) in ${withCases} barangay(s), by checkup date.` +
+      (flagged ? ` A colored circle marks ${flagged} barangay(s) with an outbreak alert that week.` : "");
+  }
   const { week, previous_week: previous, totals } = data.summary;
   return state.mapWeek === "current"
     ? `Showing this week, ${week.dates}, still in progress: ${fmt(totals.this_week)} case(s) so far across all diseases. Last week (${previous.dates}) had ${fmt(totals.last_week)}.`
@@ -330,10 +380,12 @@ function selectBarangay(id, fromOverview) {
 
 function renderDetail() {
   if (!state.selected) return;
-  const b = data.grids[state.mapWeek].barangays.find((x) => x.barangay_id === state.selected);
+  const b = mapGrid().find((x) => x.barangay_id === state.selected);
   const meta = config.barangays.find((x) => x.barangay_id === state.selected);
   const week = state.mapWeek === "current" ? `${data.summary.week.dates} (so far)` : data.summary.previous_week.dates;
-  const worst = Object.values(b.diseases).reduce((w, c) => (LEVEL_RANK[c.level] > LEVEL_RANK[w] ? c.level : w), "NORMAL");
+  const period = state.mapDay && data.dayGrid ? data.dayGrid.dates : `Week ${week}`;
+  const levelOf = (c) => (c.level !== "NORMAL" ? c.level : c.week_level ?? "NORMAL"); // a day shows its week's level
+  const worst = Object.values(b.diseases).reduce((w, c) => (LEVEL_RANK[levelOf(c)] > LEVEL_RANK[w] ? levelOf(c) : w), "NORMAL");
 
   const withCases = tracked.filter((d) => b.diseases[d.disease_code]?.cases > 0);
   const rows = withCases.map((d) => {
@@ -342,10 +394,10 @@ function renderDetail() {
       "div",
       {},
       el("span", { textContent: d.name }),
-      el("span", {}, cell.level !== "NORMAL" ? el("span", { className: "badge", dataset: { level: cell.level }, textContent: cell.level }) : "", ` ${fmt(cell.cases)}`),
+      el("span", {}, levelOf(cell) !== "NORMAL" ? el("span", { className: "badge", dataset: { level: levelOf(cell) }, textContent: levelOf(cell) }) : "", ` ${fmt(cell.cases)}`),
     );
   });
-  if (!rows.length) rows.push(el("div", { className: "muted", textContent: "No tracked illness this week." }));
+  if (!rows.length) rows.push(el("div", { className: "muted", textContent: state.mapDay ? "No tracked illness this day." : "No tracked illness this week." }));
   if (b.other_consultations) rows.push(el("div", { className: "muted" }, el("span", { textContent: "Other consultations" }), el("span", { textContent: fmt(b.other_consultations) })));
   const trendBtn = el("button", { type: "button", className: "btn btn-ghost btn-small", textContent: "Open trend" });
   trendBtn.addEventListener("click", () => {
@@ -357,7 +409,7 @@ function renderDetail() {
   $("map-detail").replaceChildren(
     el("div", { className: "station-header" },
       el("span", { className: "avatar", textContent: initials(b.name) }),
-      el("div", { className: "grow" }, el("h3", { textContent: `Brgy. ${b.name}`, style: "font-size: 1.05rem" }), el("span", { className: "muted small", textContent: `Week ${week}` })),
+      el("div", { className: "grow" }, el("h3", { textContent: `Brgy. ${b.name}`, style: "font-size: 1.05rem" }), el("span", { className: "muted small", textContent: period })),
       el("span", { className: "badge", dataset: { level: worst === "NORMAL" ? "OK" : worst }, textContent: worst === "NORMAL" ? "Normal" : worst }),
     ),
     el("div", { className: "stats three" },
@@ -501,6 +553,7 @@ function renderGrid() {
       const open = () => {
         state.selected = b.barangay_id;
         state.mapWeek = state.gridWeek;
+        clearDay();
         setPressed("[data-map-week]", state.mapWeek, "mapWeek");
         router.go("map");
       };
@@ -537,7 +590,10 @@ function buildControls() {
   pressGroup("[data-alert-filter]", "alertFilter", renderAlertsScreen);
   pressGroup("[data-grid-week]", "gridWeek", renderGrid);
   pressGroup("[data-grid-group]", "gridGroup", renderGrid);
-  pressGroup("[data-map-week]", "mapWeek", () => renderScreen(router.current())); // on both Overview and Map
+  pressGroup("[data-map-week]", "mapWeek", () => { // on both Overview and Map; a week replaces a chosen day
+    clearDay();
+    renderScreen(router.current());
+  });
 }
 
 /** Toggle buttons where exactly one is pressed; the pressed value goes into state[key]. */

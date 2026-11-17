@@ -36,7 +36,7 @@ def create_app(
         db.init_db(db_path)
         accounts.ensure_accounts(db_path)
         reword_old_messages(db_path)
-        hub = Hub()
+        hub = Hub()  #switch board
         hub.bind_loop(asyncio.get_running_loop())
         stores = BhuStores(db_path.parent / "bhu")
 

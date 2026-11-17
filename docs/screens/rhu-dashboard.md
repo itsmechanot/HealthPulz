@@ -60,6 +60,13 @@ The **municipality of Naval is the focus**:
   - **Open trend** button
 - **Offline:** the map is drawn from official PSA boundary data stored in the project (no map tiles), so it works without internet. The attribution line under the map must stay.
 
+### The map's calendar (Overview and Map)
+A **calendar button in the map's upper-right corner** ("Pick a day", or the chosen date) opens a month view:
+- Weeks start on Monday. **Days with cases have a dot**, today is outlined, and future days can't be picked.
+- Picking a day shows **that day's cases** (by checkup date) on the map, and the note under the map says which day. Colors follow that day's cases; a barangay with an **outbreak alert that week** keeps its colored circle, because outbreak levels are weekly.
+- **Today** jumps to today, which keeps updating live. **Back to this week** returns to the weekly view; so does pressing *This week* or *Last week*.
+- Both maps share the chosen day. Data: `GET /api/stats/day?date=…` and `GET /api/stats/days?month=…`.
+
 ## Screen 3 · Alerts
 Filter: **Active** (open + acknowledged) · **Resolved** · **All**. Newest first. Each alert:
 - **Level badge and heading:** URGENT, EPIDEMIC or ALERT; disease · barangay · week.

@@ -23,7 +23,8 @@ function svgEl(tag, attrs = {}) {
 
 const shortName = (name) => name.replace(/\s*\(Pob\.\)|\s*Pob\./g, "").replace(/^Padre /, "P. ");
 
-/** Renders the map. Returns { update(gridBarangays, diseaseCode | null), select(barangayId) }. */
+/** Renders the map. Returns { update(gridBarangays, diseaseCode | null), select(barangayId), corner }:
+ *  corner is an empty box in the map's upper-right corner (the dashboard puts its calendar there). */
 export async function createNavalMap(container, { onSelect = null, ownBarangay = null, labels = true } = {}) {
   const map = await loadMapData();
   const svg = svgEl("svg", { viewBox: `0 0 ${map.width} ${map.height}`, role: "img", "aria-label": "Map of Naval, Biliran, by barangay" });
@@ -40,7 +41,7 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
 
   const tooltip = el("div", { className: "map-tooltip", hidden: true });
   const shapes = new Map();
-  const stats = new Map(); // barangay_id -> { cases, level, rate }
+  const stats = new Map(); // barangay_id -> { cases, level, rate, weekLevel }
 
   for (const b of map.barangays) {
     const shape = svgEl("path", { d: b.path, class: "brgy", tabindex: 0, "aria-label": b.name });
@@ -74,8 +75,9 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
 
   const title = el("span", { className: "badge", dataset: { level: "OK" }, textContent: "Municipality of Naval" });
   title.style.cssText = "position: absolute; top: 10px; left: 10px;";
+  const corner = el("div", { className: "map-corner" });
   container.replaceChildren(
-    el("div", { className: "map" }, svg, title, tooltip),
+    el("div", { className: "map" }, svg, title, corner, tooltip),
     legend(),
     el("div", { className: "map-attribution", textContent: map.attribution }),
   );
@@ -87,6 +89,7 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
     if (s) {
       lines.push(`${s.cases.toLocaleString()} case${s.cases === 1 ? "" : "s"} · ${s.rate.toFixed(1)} per 10,000`);
       if (s.level !== "NORMAL") lines.push(s.level);
+      else if (s.weekLevel !== "NORMAL") lines.push(`${s.weekLevel} this week`);
     }
     tooltip.replaceChildren(...lines.flatMap((line, i) => (i ? [el("br"), line] : [el("strong", { textContent: line })])));
     tooltip.style.left = `${event.clientX - box.left}px`;
@@ -101,8 +104,9 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
       for (const b of gridBarangays) {
         const cells = diseaseCode ? [b.diseases[diseaseCode]].filter(Boolean) : Object.values(b.diseases);
         const cases = cells.reduce((sum, c) => sum + c.cases, 0);
-        const level = cells.reduce((worst, c) => (LEVEL_RANK[c.level] > LEVEL_RANK[worst] ? c.level : worst), "NORMAL");
-        stats.set(b.barangay_id, { cases, level, rate: (cases / b.population) * 10_000 });
+        const worst = (key) => cells.reduce((w, c) => (LEVEL_RANK[c[key] ?? "NORMAL"] > LEVEL_RANK[w] ? c[key] : w), "NORMAL");
+        // A day view colors by that day's cases; week_level keeps the week's outbreak marked.
+        stats.set(b.barangay_id, { cases, level: worst("level"), weekLevel: worst("week_level"), rate: (cases / b.population) * 10_000 });
       }
       const maxRate = Math.max(1e-9, ...[...stats.values()].map((s) => s.rate));
 
@@ -115,17 +119,19 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
       }
 
       // Markers: bigger circle = more cases; drawn largest first so small ones stay visible.
+      // A barangay on alert that week keeps a marker on a day view, even with no cases that day.
       const withCases = map.barangays
         .map((b) => ({ b, s: stats.get(b.barangay_id) }))
-        .filter(({ s }) => s && s.cases > 0)
+        .filter(({ s }) => s && (s.cases > 0 || s.weekLevel !== "NORMAL"))
         .sort((a, b) => b.s.cases - a.s.cases);
       markers.replaceChildren(
         ...withCases.map(({ b, s }) => {
           const circle = svgEl("circle", {
             cx: b.center[0], cy: b.center[1] + 6, r: Math.min(26, 5 + Math.sqrt(s.cases) * 3.2), class: "marker",
           });
-          if (s.level !== "NORMAL") circle.dataset.level = s.level;
-          if (s.level === "EPIDEMIC" || s.level === "URGENT") circle.classList.add("pulse");
+          const level = s.level !== "NORMAL" ? s.level : s.weekLevel;
+          if (level !== "NORMAL") circle.dataset.level = level;
+          if (level === "EPIDEMIC" || level === "URGENT") circle.classList.add("pulse");
           return circle;
         }),
       );
@@ -134,6 +140,8 @@ export async function createNavalMap(container, { onSelect = null, ownBarangay =
     select(barangayId) {
       for (const [id, shape] of shapes) shape.classList.toggle("selected", id === barangayId);
     },
+
+    corner,
   };
 }
 

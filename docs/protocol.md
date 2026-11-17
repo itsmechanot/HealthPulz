@@ -263,6 +263,8 @@ These read `weekly_stats`, the output of the parallel analytics, so they return 
 |---|---|---|
 | `GET` | `/api/stats/summary` | Per tracked disease, with its `group`: cases **this week (so far)** vs **last week**, % change, barangays with an open alert; `other_consultations` (this week, last week); total open alerts; when the analytics last ran |
 | `GET` | `/api/stats/trend?disease=DEN&barangay_id=BRGY-08&weeks=26` | Weekly counts, oldest first, up to the current week. Without `barangay_id` it covers the whole municipality; without `disease`, all tracked diseases (`disease=OTH` asks for Other consultations, which have no thresholds). Threshold lines are included only for one barangay **and** one disease with thresholds (summing thresholds isn't statistically valid). |
+| `GET` | `/api/stats/day?date=2026-11-17` | Every barangay × disease for **one day** (the map's calendar), by checkup date. Each cell has `cases` and, when that week has an outbreak alert, `week_level`. Future dates → 400 |
+| `GET` | `/api/stats/days?month=2026-11` | Cases per day in a month (`days`: date → count), for the calendar's dots |
 | `GET` | `/api/stats/barangays?week=2026-W44` | Every barangay × disease for one week (default: current): cases, thresholds, level (`NORMAL` / `ALERT` / `EPIDEMIC` / `URGENT`, same rule as the alerts), barangay total and **rate per 10,000 people** (fair comparison of barangays of different sizes), and `other_consultations` (not part of the total or rate) |
 
 Example `GET /api/stats/summary` (shortened):

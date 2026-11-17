@@ -3,6 +3,11 @@
 from datetime import date, timedelta
 
 
+def day_label(day: date) -> str:
+    """'Nov 17, 2026'"""
+    return f"{day:%b} {day.day}, {day.year}"
+
+
 def week_dates(year: int, week: int) -> str:
     """'Nov 2 – 8, 2026', 'Oct 26 – Nov 1, 2026' or 'Dec 28, 2026 – Jan 3, 2027'."""
     monday = date.fromisocalendar(year, week, 1)

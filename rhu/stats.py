@@ -5,7 +5,7 @@ from datetime import date
 
 from rhu import rules
 from rhu.alerts import classify, weeks_to_check
-from rhu.weeks import week_dates
+from rhu.weeks import day_label, week_dates
 
 
 def week_info(year: int, week: int) -> dict:
@@ -144,3 +144,78 @@ def barangay_grid(conn: sqlite3.Connection, year: int, week: int) -> dict:
             "diseases": by_disease,
         })
     return {"week": week_info(year, week), "barangays": barangays}
+
+
+def _real_cases(diseases: list[str]) -> tuple[str, list[str]]:
+    """Real reports only (no voided checkups, no stress-test data), as in the weekly analytics.
+    Naming every barangay and disease lets SQLite jump to them in the analytics index
+    (idx_cases_weekly) instead of reading the whole cases table."""
+    barangays = [b["barangay_id"] for b in rules.barangays()]
+    where = (
+        f"barangay_id IN ({','.join('?' * len(barangays))}) AND voided = 0 "
+        f"AND disease_code IN ({','.join('?' * len(diseases))}) "
+        "AND batch_id NOT IN (SELECT batch_id FROM batches WHERE drill = 1)"
+    )
+    return where, [*barangays, *diseases]
+
+
+def day_grid(conn: sqlite3.Connection, day: date) -> dict:
+    """Every barangay's cases checked up on one day (the map's calendar). Outbreak levels are
+    weekly, so each cell also carries its week's level as `week_level`."""
+    diseases = {d["disease_code"]: d for d in rules.diseases()}
+    year, week, _ = day.isocalendar()
+    week_levels = {
+        (b["barangay_id"], code): cell["level"]
+        for b in barangay_grid(conn, year, week)["barangays"]
+        for code, cell in b["diseases"].items()
+        if cell["level"] != "NORMAL"
+    }
+    cells: dict[str, dict] = {}
+    other: dict[str, int] = {}
+    where, params = _real_cases(list(diseases))
+    for barangay_id, code, count in conn.execute(
+        f"SELECT barangay_id, disease_code, COUNT(*) FROM cases WHERE {where} AND consult_date = ? GROUP BY 1, 2",
+        (*params, day.isoformat()),
+    ):
+        if not diseases[code]["tracked"]:
+            other[barangay_id] = other.get(barangay_id, 0) + count
+            continue
+        cells.setdefault(barangay_id, {})[code] = {"cases": count, "level": "NORMAL"}
+    # A barangay on alert that week stays marked, even on a day without cases.
+    for (barangay_id, code), level in week_levels.items():
+        cells.setdefault(barangay_id, {}).setdefault(code, {"cases": 0, "level": "NORMAL"})["week_level"] = level
+
+    barangays = []
+    for b in rules.barangays():
+        by_disease = cells.get(b["barangay_id"], {})
+        total = sum(c["cases"] for c in by_disease.values())
+        barangays.append({
+            "barangay_id": b["barangay_id"],
+            "name": b["name"],
+            "population": b["population"],
+            "total": total,
+            "rate_per_10k": round(total / b["population"] * 10_000, 1),
+            "other_consultations": other.get(b["barangay_id"], 0),
+            "diseases": by_disease,
+        })
+    return {
+        "date": day.isoformat(),
+        "dates": day_label(day),
+        "week": week_info(year, week),
+        "total": sum(b["total"] for b in barangays),
+        "barangays": barangays,
+    }
+
+
+def month_days(conn: sqlite3.Connection, year: int, month: int) -> dict:
+    """Cases per day in one month, for the dots on the map's calendar."""
+    tracked = [d["disease_code"] for d in rules.tracked_diseases()]
+    first = date(year, month, 1)
+    after = date(year + (month == 12), month % 12 + 1, 1)
+    where, params = _real_cases(tracked)
+    rows = conn.execute(
+        f"SELECT consult_date, COUNT(*) FROM cases WHERE {where} AND consult_date >= ? AND consult_date < ? GROUP BY consult_date",
+        (*params, first.isoformat(), after.isoformat()),
+    )
+    return {"month": f"{year}-{month:02d}", "days": {day: count for day, count in rows}}
+

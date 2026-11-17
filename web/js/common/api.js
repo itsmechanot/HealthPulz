@@ -9,7 +9,7 @@ export function toLogin() {
 
 /** fetch for logged-in calls; on 401 it goes to the login page and never resolves. */
 export async function request(url, options) {
-  const res = await fetch(url, options);
+  const res = await fetch(url, options); //browser na
   if (res.status !== 401) return res;
   toLogin();
   return new Promise(() => {});

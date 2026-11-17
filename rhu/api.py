@@ -241,6 +241,26 @@ def stats_barangays(
     return stats.barangay_grid(conn, year, number)
 
 
+@router.get("/stats/day")
+def stats_day(
+    day: date = Query(alias="date", description="e.g. 2026-11-17"),
+    conn: sqlite3.Connection = Depends(get_conn),
+) -> dict:
+    """Every barangay's cases on one day, for the map's calendar."""
+    if day > date.today():
+        raise HTTPException(status_code=400, detail="That day hasn't happened yet")
+    return stats.day_grid(conn, day)
+
+
+@router.get("/stats/days")
+def stats_days(
+    month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="e.g. 2026-11"),
+    conn: sqlite3.Connection = Depends(get_conn),
+) -> dict:
+    """Cases per day in one month, so the calendar can mark days that have data."""
+    return stats.month_days(conn, int(month[:4]), int(month[5:]))
+
+
 @router.get("/monitor/stats", dependencies=[Depends(auth.require_rhu)])
 def monitor_stats(pipeline: IngestPipeline = Depends(get_pipeline)) -> dict:
     return pipeline.snapshot()
