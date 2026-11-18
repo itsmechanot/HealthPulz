@@ -3115,3 +3115,6 @@ html[data-text-size="large"] { font-size: 18px; }
 
 /* Map screen: scrolling to a barangay's details stops below the sticky top bar. */
 .map-detail-section, #detail-title { scroll-margin-top: 96px; }
+
+/* Count tables: each number sits centered under its disease heading; the name column stays left. */
+.app table.heat th:not(:first-child), .app table.heat td:not(:first-child) { text-align: center; }
