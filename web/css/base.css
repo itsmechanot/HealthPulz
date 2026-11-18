@@ -3066,3 +3066,31 @@ html[data-text-size="large"] { font-size: 18px; }
   .app .content .timeline-card .timeline-when { padding-right: 18px; }
   .app .content .timeline-dot { right: 10px; top: 13px; }
 }
+
+/* BHU header: the barangay's logo (or its initials as a seal) with the connection status as a dot on its corner. */
+.station-mark { position: relative; display: inline-flex; flex: 0 0 auto; }
+.station-mark[hidden] { display: none; }
+.station-avatar { border-radius: 50%; }
+.station-avatar.initials-seal {
+  background: radial-gradient(circle at 50% 35%, var(--surface) 0 30%, var(--accent-soft) 75%);
+  color: var(--accent-strong); font-weight: 800; letter-spacing: 0.04em;
+  border: 2px solid var(--accent); box-shadow: inset 0 0 0 2px var(--surface), inset 0 0 0 3.5px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.status-dot {
+  display: none; position: absolute; right: -1px; bottom: -1px; width: 13px; height: 13px; border-radius: 50%;
+  border: 2.5px solid var(--surface); background: var(--warn);
+}
+.status-dot[data-state="online"] { background: var(--ok); }
+.status-dot[data-state="offline"] { background: var(--danger); }
+.status-dot[data-state="online"]::after { content: ""; position: absolute; inset: -2.5px; border-radius: 50%; border: 2px solid var(--ok); animation: status-ping 2s ease-out infinite; }
+@keyframes status-ping { from { transform: scale(0.9); opacity: 0.7; } to { transform: scale(1.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .status-dot::after { animation: none !important; display: none; } }
+
+@media (max-width: 640px) {
+  .app.has-tabbar .topbar .tools #connection { display: none; }
+  .app.has-tabbar .status-dot { display: block; }
+  .app.has-tabbar .station-sub-more { display: none; }
+  .app.has-tabbar #station-name {
+    white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2;
+  }
+}

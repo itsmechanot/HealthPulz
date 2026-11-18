@@ -50,9 +50,13 @@ async function startStation(config, identity, barangay) {
   document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
   applyPlace(config.municipality);
-  $("station-sub").textContent = fillPlace("Barangay Health Unit · connected to {rhu}");
+  // On phones the part after "Barangay Health Unit" is hidden, so the barangay's name has room.
+  $("station-sub").replaceChildren("Barangay Health Unit", Object.assign(document.createElement("span"), {
+    className: "station-sub-more", textContent: fillPlace(" · connected to {rhu}"),
+  }));
   records.useBarangay(identity.barangay_id);
   setBarangayLogo($("station-avatar"), barangay);
+  $("station-mark").hidden = false;
   document.title = `HealthPulz · ${barangay.name}`;
   setupMenu();
   let clinic = null;
@@ -387,7 +391,11 @@ async function outbreakSize(diseaseCode, barangay, config) {
 /** The barangay's logo from /img/barangays/<barangay id>.png, or its initials when there is none. */
 function setBarangayLogo(container, barangay) {
   const image = Object.assign(document.createElement("img"), { src: `/img/barangays/${barangay.barangay_id}.png`, alt: "" });
-  image.addEventListener("error", () => (container.textContent = initials(barangay.name)), { once: true });
+  image.addEventListener("error", () => {
+    container.classList.add("initials-seal"); // no logo yet: the initials, styled like a seal
+    container.textContent = initials(barangay.name);
+  }, { once: true });
+  container.classList.remove("initials-seal");
   container.replaceChildren(image);
   container.hidden = false;
 }
@@ -401,6 +409,11 @@ function setConnectionState(state) {
   const labels = { online: "Online", connecting: "Connecting…", offline: "Offline" };
   $("connection").dataset.state = state;
   $("connection").textContent = labels[state];
+  // Phones show only this dot on the logo; the words stay for screen readers and as a tooltip.
+  const words = { online: "Online: connected to the RHU", connecting: "Connecting to the RHU", offline: "Offline: the RHU cannot be reached" }[state];
+  Object.assign($("connection-dot").dataset, { state });
+  $("connection-dot").title = words;
+  $("connection-dot").setAttribute("aria-label", words);
 }
 
 function log(text, kind = "") {
