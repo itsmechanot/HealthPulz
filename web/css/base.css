@@ -3118,3 +3118,32 @@ html[data-text-size="large"] { font-size: 18px; }
 
 /* Count tables: each number sits centered under its disease heading; the name column stays left. */
 .app table.heat th:not(:first-child), .app table.heat td:not(:first-child) { text-align: center; }
+
+/* ---- Barangays table: the hot spots first ---- */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.grid-summary { margin: 0; padding: 10px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 0.9rem; }
+.grid-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+.grid-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 650; cursor: pointer; }
+.grid-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+.app table.heat td.zero { color: color-mix(in srgb, var(--text-muted) 55%, transparent); }
+.app table.heat td.heat-cell { background: color-mix(in srgb, var(--accent) calc(var(--heat) * 100%), transparent); font-weight: 700; color: var(--text); }
+.app table.heat td.grid-total { font-weight: 700; }
+.grid-sort {
+  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px; border-radius: 6px;
+  font: inherit; color: inherit; white-space: nowrap;
+}
+.grid-sort:hover { background: var(--surface-2); color: var(--text); }
+.grid-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.grid-sort.active { color: var(--accent-strong); font-weight: 750; }
+.app table.heat tbody tr.grid-hidden-row { cursor: default; }
+.app table.heat tbody tr.grid-hidden-row:hover { background: none; }
+.app table.heat tbody tr.grid-hidden-row td, .app table.heat td.grid-empty { text-align: left; color: var(--text-muted); font-size: 0.82rem; white-space: normal; }
+/* Hidden screen-reader text in a table scrolls with the table instead of widening the page. */
+.table-wrap { position: relative; }
+/* No sideways wobble on phones from decorative layers (clip keeps the top bar sticky, unlike hidden). */
+.app { overflow-x: clip; }
+.grid-hidden { margin: 0; }
+/* RHU phones: the week chip gives its room to the screen title and the Live status (each screen shows its dates). */
+@media (max-width: 640px) {
+  .app:not(.has-tabbar) .topbar .week-chip { display: none; }
+}

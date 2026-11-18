@@ -33,6 +33,8 @@ const state = {
   weeks: 26,
   gridWeek: "current",
   gridGroup: "common",
+  gridSort: "attention", // Barangays screen: "attention", a disease code, "total", "other" or "rate"
+  gridOnlyCases: true,
   alertFilter: "active",
   alertLevel: "ALERT", // Alerts screen: one severity tab at a time
   mapDisease: null, // null = all diseases
@@ -589,35 +591,88 @@ async function renderTrends() {
 
 // ---- Barangays -----------------------------------------------------------------------------
 
+const GRID_LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2, URGENT: 3 };
+
 function renderGrid() {
   const week = state.gridWeek === "current" ? data.summary.week : data.summary.previous_week;
   $("grid-title").textContent = `Barangays · ${week.dates}${state.gridWeek === "current" ? " (so far)" : ""}`;
   const columns = tracked.filter((d) => d.group === state.gridGroup);
+  const all = data.grids[state.gridWeek].barangays;
+  const cellOf = (b, code) => b.diseases[code] ?? { cases: 0, level: "NORMAL" };
+  const worst = (b, codes) => codes.reduce((w, code) => Math.max(w, GRID_LEVEL_RANK[cellOf(b, code).level] ?? 0), 0);
+  const shownCases = (b) => columns.reduce((sum, d) => sum + cellOf(b, d.disease_code).cases, 0);
+
+  // The headline: where something is happening, across every tracked disease this week.
+  const allCodes = tracked.map((d) => d.disease_code);
+  const flagged = all.filter((b) => worst(b, allCodes) > 0).length;
+  const byDisease = tracked.map((d) => [d, all.reduce((sum, b) => sum + cellOf(b, d.disease_code).cases, 0)]).sort((a, b) => b[1] - a[1]);
+  const busiest = [...all].sort((a, b) => b.total - a.total)[0];
+  $("grid-summary").replaceChildren(...(busiest?.total
+    ? [
+      el("strong", { textContent: `${flagged} barangay${flagged === 1 ? "" : "s"}` }), ` over a threshold or with an urgent case · most reported: `,
+      el("strong", { textContent: `${byDisease[0][0].name} (${fmt(byDisease[0][1])})` }), " · busiest: ",
+      el("strong", { textContent: `${busiest.name} (${fmt(busiest.total)} case${busiest.total === 1 ? "" : "s"})` }),
+    ]
+    : ["No tracked cases reported yet for this week."]));
+
+  // Sorting: "attention" = over a threshold first, then the most cases; or one column, highest first.
+  const sortValue = {
+    total: (b) => b.total, other: (b) => b.other_consultations, rate: (b) => b.rate_per_10k,
+    ...Object.fromEntries(columns.map((d) => [d.disease_code, (b) => cellOf(b, d.disease_code).cases])),
+  };
+  if (state.gridSort !== "attention" && !sortValue[state.gridSort]) state.gridSort = "attention";
+  const byAttention = (a, b) => worst(b, columns.map((d) => d.disease_code)) - worst(a, columns.map((d) => d.disease_code))
+    || shownCases(b) - shownCases(a) || b.total - a.total || a.name.localeCompare(b.name);
+  const rows = [...all].sort(state.gridSort === "attention" ? byAttention
+    : (a, b) => sortValue[state.gridSort](b) - sortValue[state.gridSort](a) || byAttention(a, b));
+  const visible = state.gridOnlyCases ? rows.filter((b) => shownCases(b) > 0 || worst(b, columns.map((d) => d.disease_code)) > 0) : rows;
+
+  const heading = (key, label, title = label) => {
+    const active = state.gridSort === key;
+    return el("th", { scope: "col", "aria-sort": active ? "descending" : "none" },
+      el("button", {
+        type: "button", className: `grid-sort${active ? " active" : ""}`, title: active ? `${title}: sorted, highest first. Click to sort by attention` : `Sort by ${title}`,
+        onclick: () => { state.gridSort = active ? "attention" : key; renderGrid(); },
+      }, label, el("span", { className: "grid-sort-mark", "aria-hidden": "true", textContent: active ? " ▼" : "" })));
+  };
   $("grid-head").replaceChildren(
-    el("th", { scope: "col", textContent: "Barangay" }),
-    ...columns.map((d) => el("th", { scope: "col", textContent: d.name })),
-    el("th", { scope: "col", textContent: "All tracked" }),
-    el("th", { scope: "col", textContent: "Other" }),
-    el("th", { scope: "col", textContent: "Per 10,000" }),
+    el("th", { scope: "col" }, el("button", {
+      type: "button", className: `grid-sort${state.gridSort === "attention" ? " active" : ""}`, title: "Sort by attention: over a threshold first, then the most cases",
+      onclick: () => { state.gridSort = "attention"; renderGrid(); },
+    }, "Barangay", el("span", { className: "grid-sort-mark", "aria-hidden": "true", textContent: state.gridSort === "attention" ? " ▼" : "" }))),
+    ...columns.map((d) => heading(d.disease_code, d.name)),
+    heading("total", "Total", "total tracked cases"),
+    heading("other", "Other", "other consultations"),
+    heading("rate", "Per 10,000", "cases per 10,000 people"),
   );
-  const rows = [...data.grids[state.gridWeek].barangays].sort((a, b) => b.rate_per_10k - a.rate_per_10k || a.name.localeCompare(b.name));
+
+  // Heat: a cell's tint grows with its count, relative to the busiest cell in this view.
+  const peak = Math.max(1, ...visible.flatMap((b) => columns.map((d) => cellOf(b, d.disease_code).cases)));
+  const count = (n, extra = {}) => n
+    ? el("td", { textContent: fmt(n), ...extra })
+    : el("td", { className: "zero", ...extra }, el("span", { className: "sr-only", textContent: "0" }), el("span", { "aria-hidden": "true", textContent: "·" }));
+
+  const hidden = rows.length - visible.length;
   $("grid-body").replaceChildren(
-    ...rows.map((b) => {
+    ...visible.map((b) => {
       const row = el(
         "tr",
         { title: `Show Brgy. ${b.name} on the map`, tabIndex: 0 },
         el("th", { scope: "row", textContent: b.name }),
         ...columns.map((d) => {
-          const cell = b.diseases[d.disease_code] ?? { cases: 0, level: "NORMAL" };
-          return el("td", {
-            textContent: fmt(cell.cases),
-            className: cell.cases ? "" : "zero",
+          const cell = cellOf(b, d.disease_code);
+          const td = count(cell.cases, {
             dataset: { level: cell.level },
             title: d.single_case_alert ? "Any single case is urgent" : !d.threshold_alerts ? "Counted for trends; no outbreak alerts" : cell.alert_threshold == null ? "No threshold yet" : `Alert above ${cell.alert_threshold}, epidemic above ${cell.epidemic_threshold}`,
           });
+          if (cell.cases && cell.level === "NORMAL") {
+            td.classList.add("heat-cell");
+            td.style.setProperty("--heat", (0.12 + 0.5 * (cell.cases / peak)).toFixed(2));
+          }
+          return td;
         }),
-        el("td", { textContent: fmt(b.total) }),
-        el("td", { textContent: fmt(b.other_consultations), className: b.other_consultations ? "" : "zero" }),
+        el("td", { className: "grid-total", textContent: fmt(b.total) }),
+        count(b.other_consultations),
         el("td", { textContent: b.rate_per_10k.toFixed(1) }),
       );
       const open = () => {
@@ -631,7 +686,14 @@ function renderGrid() {
       row.addEventListener("keydown", (e) => e.key === "Enter" && open());
       return row;
     }),
+    ...(visible.length ? [] : [el("tr", {}, el("td", { colSpan: columns.length + 4, className: "grid-empty", textContent: "No barangay has a case of these diseases this week." }))]),
   );
+  // Below the table, so it never scrolls sideways out of sight with the table on a phone.
+  $("grid-hidden").hidden = !hidden;
+  $("grid-hidden").replaceChildren(...(hidden ? [
+    `${hidden} barangay${hidden === 1 ? "" : "s"} with no cases of these diseases ${hidden === 1 ? "is" : "are"} hidden. `,
+    el("button", { type: "button", className: "link-btn small", textContent: "Show all", onclick: () => { $("grid-only-cases").checked = false; state.gridOnlyCases = false; renderGrid(); } }),
+  ] : []));
 }
 
 // ---- controls & helpers ---------------------------------------------------------------------
@@ -661,6 +723,10 @@ function buildControls() {
   pressGroup("[data-alert-level]", "alertLevel", renderAlertsScreen);
   pressGroup("[data-grid-week]", "gridWeek", renderGrid);
   pressGroup("[data-grid-group]", "gridGroup", renderGrid);
+  $("grid-only-cases").addEventListener("change", (e) => {
+    state.gridOnlyCases = e.target.checked;
+    renderGrid();
+  });
   pressGroup("[data-map-week]", "mapWeek", () => { // on both Overview and Map; a week replaces a chosen day
     clearDay();
     renderScreen(router.current());

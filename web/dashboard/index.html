@@ -233,13 +233,18 @@
                 </div>
               </div>
             </div>
-            <p class="muted small" style="margin: 0">Cases per disease. Colored cells are urgent or over the alert or epidemic threshold. Click a row to see the barangay on the map.</p>
+            <p id="grid-summary" class="grid-summary" role="status"></p>
+            <div class="grid-tools">
+              <label class="grid-toggle"><input id="grid-only-cases" type="checkbox" checked> Show only barangays with cases</label>
+              <span class="muted small">Darker = more cases · colored = over a threshold or urgent · click a heading to sort, a row to open the map</span>
+            </div>
             <div class="table-wrap">
               <table class="heat">
                 <thead><tr id="grid-head"></tr></thead>
                 <tbody id="grid-body"></tbody>
               </table>
             </div>
+            <p id="grid-hidden" class="muted small grid-hidden" hidden></p>
           </section>
         </section>
 
