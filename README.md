@@ -74,6 +74,10 @@ Run it again any time to replace the history; live data from nodes is kept. See 
 
 Naval is configuration, not code: its name, barangays, map and disease lists are data files. See [Setting up HealthPulz for another municipality](docs/new-municipality.md), also for adding one barangay.
 
+## Demo patients
+
+`python tools/seed_patients.py` adds 5–10 made-up patients to every BHU, each with one or two consultations, sent to the RHU like any other report. They are fictional on purpose: real residents' records are protected by the Data Privacy Act (RA 10173). Running it again adds nothing new.
+
 ## Run the tests
 
 ```powershell
