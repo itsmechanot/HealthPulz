@@ -3029,3 +3029,12 @@ html[data-text-size="large"] { font-size: 18px; }
   .patient-edit-btn { display: none; }
   .patient-record-row { padding: 12px 14px; }
 }
+
+/* Patient profile on phones: initials, name and badges stacked and centered, so nothing leans right. */
+@media (max-width: 640px) {
+  .profile-hero .station-header { flex-direction: column; flex-wrap: nowrap; align-items: center; text-align: center; gap: 10px; }
+  .profile-hero .station-header .grow { flex: 0 0 auto; width: 100%; min-width: 0; }
+  .profile-hero .profile-chips { justify-content: center; }
+  .profile-hero .profile-actions { flex: 0 0 auto; width: 100%; }
+  .profile-hero .profile-avatar { width: 56px; height: 56px; font-size: 1.1rem; }
+}
