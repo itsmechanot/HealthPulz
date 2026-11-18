@@ -218,10 +218,8 @@ export function createClinic({ config, router }) {
                   "div",
                   { className: "grow" },
                   el("strong", { textContent: records.fullName(c) }),
-                  el("div", {
-                    className: "muted small",
-                    textContent: `${records.ageOn(c.birthdate, today())} years · ${sexLabel(c.sex)} · Purok ${c.purok} · ${visit ? `last consultation ${formatDate(visit)}` : "no consultations yet"}`,
-                  }),
+                  el("div", { className: "small patient-row-facts", textContent: `${records.ageOn(c.birthdate, today())} years · ${sexLabel(c.sex)} · Purok ${c.purok}` }),
+                  el("div", { className: "muted small", textContent: visit ? `Last consultation ${formatDate(visit)}` : "No consultations yet" }),
                 ),
                 icon("arrow"),
               ),
