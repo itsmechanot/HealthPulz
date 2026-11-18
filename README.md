@@ -78,6 +78,8 @@ Naval is configuration, not code: its name, barangays, map and disease lists are
 
 `python tools/seed_patients.py` adds 5–10 made-up patients to every BHU, each with one or two consultations, sent to the RHU like any other report. They are fictional on purpose: real residents' records are protected by the Data Privacy Act (RA 10173). Running it again adds nothing new.
 
+`python tools/seed_scenarios.py` then adds the outbreak stories for the defense, dated in the last three weeks: dengue building in Caraycaray and spreading to its neighbors, diarrhea after flooding in the coastal barangays, leptospirosis in Lucsoon's farmers, a lab-confirmed correction and a voided record. Run `python -m rhu.history` first (with the server stopped) so the weeks before them have normal background cases.
+
 ## Run the tests
 
 ```powershell

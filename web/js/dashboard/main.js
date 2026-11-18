@@ -539,11 +539,16 @@ function alertRow(alert, { compact = false } = {}) {
 
 // ---- Trends ------------------------------------------------------------------------------
 
+let trendRequest = 0;
+
 async function renderTrends() {
   $("trend-disease").value = state.disease;
   $("trend-barangay").value = state.barangay;
 
+  // Filters can change faster than the server answers: only the latest answer is drawn.
+  const request = ++trendRequest;
   const { weeks } = await api.fetchJson(api.trendUrl(state.disease, state.barangay, state.weeks));
+  if (request !== trendRequest) return;
   const selected = config.diseases.find((d) => d.disease_code === state.disease);
   const withThresholds = Boolean(state.barangay) && selected.threshold_alerts;
   const series = [{ values: weeks.map((w) => w.cases), className: "series-accent" }];
