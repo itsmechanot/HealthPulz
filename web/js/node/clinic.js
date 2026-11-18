@@ -554,7 +554,7 @@ export function createClinic({ config, router }) {
 
     // Who, what, when.
     $("visit-back").href = `#/client/${v.client_id}`;
-    $("visit-back").textContent = "← Back to patient record";
+    $("visit-back").replaceChildren(el("span", { "aria-hidden": "true", textContent: "←" }), " Back to patient profile");
     $("visit-client-link").href = `#/client/${v.client_id}`;
     $("visit-client-link").replaceChildren(
       el("span", { className: "avatar", dataset: { sex: client?.sex ?? "" }, textContent: client ? `${client.first_name[0]}${client.last_name[0]}`.toUpperCase() : "?" }),
