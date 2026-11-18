@@ -175,9 +175,9 @@ export function createClinic({ config, router }) {
               el("button", {
                 className: "patient-edit-btn",
                 type: "button",
-                title: `Edit ${records.fullName(c)}`,
-                "aria-label": `Edit information for ${records.fullName(c)}`,
-                textContent: "✎",
+                title: `Change ${records.fullName(c)}'s name, birthdate, purok or contact details`,
+                "aria-label": `Edit patient details of ${records.fullName(c)}`,
+                textContent: "✎ Edit details",
                 onclick: () => router.go("client-form", c.client_id),
               }),
             );
