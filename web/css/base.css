@@ -3038,3 +3038,20 @@ html[data-text-size="large"] { font-size: 18px; }
   .profile-hero .profile-actions { flex: 0 0 auto; width: 100%; }
   .profile-hero .profile-avatar { width: 56px; height: 56px; font-size: 1.1rem; }
 }
+
+/* Timelines (patient history, change history): no left rail; the colored dot sits in the card's
+   upper-right corner, so the cards use the full width. */
+.timeline-item { padding-left: 0; }
+.timeline-item::before { display: none; }
+.timeline-dot { left: auto; right: 14px; top: 16px; z-index: 1; width: 12px; height: 12px; border: 0; box-shadow: 0 0 0 3px var(--surface); }
+.timeline-card .timeline-when { padding-right: 22px; }
+
+/* Patient card on narrow phones: everything stays inside the card. */
+.profile-hero .station-header > .grow { min-width: 0; }
+.profile-fact { min-width: 0; }
+.profile-fact span { overflow-wrap: anywhere; }
+@media (max-width: 400px) {
+  .profile-actions .btn { white-space: normal; line-height: 1.2; min-height: 40px; text-align: center; }
+  .profile-fact { padding: 8px 6px; }
+  .profile-fact span { font-size: 0.58rem; letter-spacing: 0; }
+}

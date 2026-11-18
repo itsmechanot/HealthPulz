@@ -6,6 +6,13 @@ import { confirmAction, icon, toast } from "../common/shell.js";
 import * as records from "./records.js";
 
 const OTHER_CODE = "OTH";
+// The colored dot on each consultation in a patient's history.
+const DOT_MEANING = {
+  urgent: "Urgent disease: one case raises an alert",
+  tracked: "Disease under outbreak surveillance",
+  other: "Other illness, not under surveillance",
+  voided: "Voided consultation",
+};
 const STATUS_LABELS = { SUSPECTED: "Suspected", CONFIRMED: "Confirmed" };
 // Fields compared when a consultation is corrected, with the names shown in its history.
 const FIELD_LABELS = {
@@ -124,7 +131,7 @@ export function createClinic({ config, router }) {
     return el(
       "li",
       { className: "timeline-item", dataset: { kind } },
-      el("span", { className: "timeline-dot", "aria-hidden": "true" }),
+      el("span", { className: "timeline-dot", title: DOT_MEANING[kind], "aria-label": DOT_MEANING[kind] }),
       el(
         "article",
         { className: "timeline-card" },
@@ -246,8 +253,6 @@ export function createClinic({ config, router }) {
     if (!client) return router.go("clients");
     visitBirthdate = client.birthdate;
 
-    $("profile-avatar").textContent = `${client.first_name[0]}${client.last_name[0]}`.toUpperCase();
-    $("profile-avatar").dataset.sex = client.sex;
     $("profile-name").textContent = records.fullName(client);
     $("profile-summary").replaceChildren(
       ...[`${records.ageOn(client.birthdate, today())} years old`, sexLabel(client.sex), `Purok ${client.purok}`]
