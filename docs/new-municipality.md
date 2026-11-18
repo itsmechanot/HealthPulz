@@ -12,6 +12,18 @@ HealthPulz has no municipality built into its code. Everything specific to Naval
 
 Tested: Caibiran, Biliran (17 barangays) ran with only these files changed, from login to the map and the BHU pages, and no page mentioned Naval.
 
+## Switching between municipalities (Caibiran demo)
+
+Caibiran, Biliran is ready to run beside Naval. In `rhu/config.py`, put a `#` in front of `PLACE = "naval"`, remove the `#` from `# PLACE = "caibiran"`, and restart the server (or start it with `HEALTHPULZ_PLACE=caibiran`). Switch back the same way.
+
+- Caibiran's files are in `rhu/data/places/caibiran/` (municipality, 17 barangays, map); `rhu/data/diseases.json` is shared.
+- It has its own database in `var/caibiran/`, so Naval's data, passwords and alerts are untouched.
+- Passwords: RHU `RHUadmin`; each BHU `BHU` + its name in lowercase, e.g. `BHUalegria`, `BHUvillavicenta`.
+- Its populations are placeholders (1,000 each) until real census figures are entered in its `barangays.json`.
+- A seal goes in `rhu/data/places/caibiran/seal.png` and barangay logos in `.../caibiran/barangays/BRGY-xx.png`; without them the HealthPulz logo and the barangays' initials are shown, never Naval's.
+
+A new municipality gets its own folder in `rhu/data/places/` the same way.
+
 ## Steps
 
 ### 1. Get the official boundaries

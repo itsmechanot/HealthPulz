@@ -6,10 +6,22 @@ from pathlib import Path
 PACKAGE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = PACKAGE_DIR.parent
 
-DATA_DIR = PACKAGE_DIR / "data"
+# ---- Which municipality this server runs for ------------------------------------------------
+# Naval is the default. To run the Caibiran demo instead: put a # in front of the first line,
+# remove the # from the second, and restart the server. Each municipality keeps its own
+# database (var/ for Naval, var/caibiran/ for Caibiran), so switching never mixes their data.
+PLACE = "naval"
+# PLACE = "caibiran"
+PLACE = os.environ.get("HEALTHPULZ_PLACE", PLACE)
+
+BASE_DATA_DIR = PACKAGE_DIR / "data"  # diseases.json here is shared by every municipality
+# Naval's files are in rhu/data/; another municipality's in rhu/data/places/<name>/
+# (municipality.json, barangays.json, map.json, and optionally seal.png and barangays/<id>.png).
+DATA_DIR = BASE_DATA_DIR if PLACE == "naval" else BASE_DATA_DIR / "places" / PLACE
 SCHEMA_PATH = PACKAGE_DIR / "schema.sql"
 WEB_DIR = ROOT_DIR / "web"
-DB_PATH = Path(os.environ.get("HEALTHPULZ_DB", ROOT_DIR / "var" / "healthpulz.db"))
+_DEFAULT_DB = ROOT_DIR / "var" / "healthpulz.db" if PLACE == "naval" else ROOT_DIR / "var" / PLACE / "healthpulz.db"
+DB_PATH = Path(os.environ.get("HEALTHPULZ_DB", _DEFAULT_DB))
 
 PROTOCOL_VERSION = 1
 MAX_RECORDS_PER_BATCH = 100

@@ -1,0 +1,19 @@
+[
+  { "barangay_id": "BRGY-01", "psgc": 807804001, "name": "Alegria", "population": 1000, "neighbors": ["BRGY-04", "BRGY-06", "BRGY-13"] },
+  { "barangay_id": "BRGY-02", "psgc": 807804002, "name": "Asug", "population": 1000, "neighbors": ["BRGY-15"] },
+  { "barangay_id": "BRGY-03", "psgc": 807804003, "name": "Bari-is", "population": 1000, "neighbors": ["BRGY-08", "BRGY-15"] },
+  { "barangay_id": "BRGY-04", "psgc": 807804004, "name": "Binohangan", "population": 1000, "neighbors": ["BRGY-01", "BRGY-05", "BRGY-06", "BRGY-16"] },
+  { "barangay_id": "BRGY-05", "psgc": 807804005, "name": "Cabibihan", "population": 1000, "neighbors": ["BRGY-04", "BRGY-06", "BRGY-07", "BRGY-16", "BRGY-17"] },
+  { "barangay_id": "BRGY-06", "psgc": 807804010, "name": "Caulangohan", "population": 1000, "neighbors": ["BRGY-01", "BRGY-04", "BRGY-05", "BRGY-07", "BRGY-13"] },
+  { "barangay_id": "BRGY-07", "psgc": 807804006, "name": "Kawayanon", "population": 1000, "neighbors": ["BRGY-05", "BRGY-06", "BRGY-13"] },
+  { "barangay_id": "BRGY-08", "psgc": 807804007, "name": "Looc", "population": 1000, "neighbors": ["BRGY-03", "BRGY-09", "BRGY-10", "BRGY-14"] },
+  { "barangay_id": "BRGY-09", "psgc": 807804009, "name": "Manlabang", "population": 1000, "neighbors": ["BRGY-08", "BRGY-10", "BRGY-12"] },
+  { "barangay_id": "BRGY-10", "psgc": 807804011, "name": "Maurang", "population": 1000, "neighbors": ["BRGY-08", "BRGY-09", "BRGY-11", "BRGY-12", "BRGY-14", "BRGY-16"] },
+  { "barangay_id": "BRGY-11", "psgc": 807804012, "name": "Palanay", "population": 1000, "neighbors": ["BRGY-10", "BRGY-12", "BRGY-16"] },
+  { "barangay_id": "BRGY-12", "psgc": 807804013, "name": "Palengke", "population": 1000, "neighbors": ["BRGY-09", "BRGY-10", "BRGY-11"] },
+  { "barangay_id": "BRGY-13", "psgc": 807804014, "name": "Tomalistis", "population": 1000, "neighbors": ["BRGY-01", "BRGY-06", "BRGY-07"] },
+  { "barangay_id": "BRGY-14", "psgc": 807804015, "name": "Union", "population": 1000, "neighbors": ["BRGY-08", "BRGY-10", "BRGY-16", "BRGY-17"] },
+  { "barangay_id": "BRGY-15", "psgc": 807804016, "name": "Uson", "population": 1000, "neighbors": ["BRGY-02", "BRGY-03"] },
+  { "barangay_id": "BRGY-16", "psgc": 807804017, "name": "Victory", "population": 1000, "neighbors": ["BRGY-04", "BRGY-05", "BRGY-10", "BRGY-11", "BRGY-14", "BRGY-17"] },
+  { "barangay_id": "BRGY-17", "psgc": 807804018, "name": "Villa Vicenta", "population": 1000, "neighbors": ["BRGY-05", "BRGY-14", "BRGY-16"] }
+]

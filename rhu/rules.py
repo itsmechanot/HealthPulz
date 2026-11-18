@@ -4,11 +4,13 @@ Moving the system to another municipality changes these files, not the code (doc
 import json
 from functools import lru_cache
 
-from rhu.config import DATA_DIR
+from rhu.config import BASE_DATA_DIR, DATA_DIR
 
 
 def _load(filename: str):
-    with open(DATA_DIR / filename, encoding="utf-8") as f:
+    """The municipality's own file, or the shared one (diseases.json) when it has none."""
+    path = DATA_DIR / filename
+    with open(path if path.exists() else BASE_DATA_DIR / filename, encoding="utf-8") as f:
         return json.load(f)
 
 

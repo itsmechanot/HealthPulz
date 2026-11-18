@@ -5,10 +5,10 @@ import mimetypes
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from rhu import accounts, api, auth, bhu_api, config, db, ws
 from rhu.alerts import AlertService, reword_old_messages
@@ -107,10 +107,34 @@ def create_app(
     async def malformed_message(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(status_code=400, content=jsonable_encoder({"detail": exc.errors()}))
 
+    if config.PLACE != "naval":
+        _serve_place_files(app)
+
     # Web pages (login, BHU, RHU). Mounted last so /api and /ws routes take priority.
     app.mount("/", auth.GuardedPages(directory=config.WEB_DIR, html=True), name="web")
 
     return app
+
+
+def _serve_place_files(app: FastAPI) -> None:
+    """Another municipality's map, seal and barangay logos replace Naval's files in web/."""
+    place = config.DATA_DIR
+
+    @app.get("/data/map.json", include_in_schema=False)
+    def place_map() -> FileResponse:
+        return FileResponse(place / "map.json", headers={"Cache-Control": "no-store"})
+
+    @app.get("/img/seal.png", include_in_schema=False)
+    def place_seal() -> FileResponse:
+        seal = place / "seal.png"  # no seal of its own: the HealthPulz logo, never Naval's seal
+        return FileResponse(seal if seal.exists() else config.WEB_DIR / "img" / "healthpulz-logo.png", headers={"Cache-Control": "no-store"})
+
+    @app.get("/img/barangays/{filename}", include_in_schema=False)
+    def place_logo(filename: str) -> FileResponse:
+        logo = place / "barangays" / filename
+        if "/" in filename or "\\" in filename or not logo.is_file():
+            raise HTTPException(404)  # the BHU page then shows the barangay's initials
+        return FileResponse(logo, headers={"Cache-Control": "no-store"})
 
 
 app = create_app()
