@@ -3101,3 +3101,14 @@ html[data-text-size="large"] { font-size: 18px; }
   .app.has-tabbar .status-dot { top: 10px; right: 12px; bottom: auto; left: auto; width: 12px; height: 12px; border-width: 2px; }
   .app.has-tabbar .topbar .title { padding-right: 18px; }
 }
+
+/* Large phones (425px and up) have room for the "Online" pill itself; the dot is for smaller ones. */
+@media (min-width: 425px) and (max-width: 640px) {
+  .app.has-tabbar .topbar .tools #connection { display: inline-flex; }
+  .app.has-tabbar .status-dot { display: none; }
+  .app.has-tabbar .topbar .title { padding-right: 0; }
+}
+/* Smallest phones: a slightly smaller name so even the longest barangay fits in two lines. */
+@media (max-width: 359px) {
+  .app.has-tabbar #station-name { font-size: 0.92rem; }
+}
