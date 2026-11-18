@@ -2881,3 +2881,10 @@ html[data-text-size="large"] { font-size: 18px; }
   .app.has-tabbar .tabbar { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
   .app.has-tabbar .content { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 }
+
+/* Patient profile: "Edit patient details" and "Add consultation" stay side by side, also on phones. */
+.profile-actions { display: flex; gap: 8px; }
+@media (max-width: 640px) {
+  .profile-actions { flex: 1 1 100%; }
+  .profile-actions .btn { flex: 1 1 0; min-width: 0; justify-content: center; padding-inline: 6px; font-size: 0.74rem; white-space: nowrap; }
+}
