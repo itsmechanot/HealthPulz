@@ -226,20 +226,37 @@
         <!-- ===== Visit record ===== -->
         <section class="screen" data-screen="visit" data-parent="visits" hidden>
           <a id="visit-back" class="link-btn small" href="#/visits">← Back</a>
-          <section class="card">
-            <div class="card-header">
-              <div>
-                <h2 id="visit-title" style="font-size: 1.15rem"></h2>
-                <a id="visit-client-link" class="link-btn small"></a>
-              </div>
-              <span id="visit-sync" class="badge"></span>
+          <section class="card record-hero">
+            <a id="visit-client-link" class="record-patient"></a>
+            <div class="record-title">
+              <h2 id="visit-title"></h2>
+              <div id="visit-chips" class="profile-chips"></div>
             </div>
-            <div id="visit-actions" class="form-actions" style="justify-content: flex-start">
-              <a id="visit-correct" class="btn btn-ghost btn-small">Correct record</a>
+            <p id="visit-when" class="muted record-when"></p>
+            <div id="visit-status" class="profile-status" role="status"></div>
+            <div id="visit-actions" class="profile-actions">
+              <a id="visit-correct" class="btn btn-ghost btn-small">✎ Correct record</a>
               <button id="visit-void" class="btn btn-ghost btn-small btn-danger" type="button">Void record</button>
             </div>
-            <div id="visit-details" class="detail-sections"></div>
           </section>
+
+          <div class="profile-layout">
+            <section class="card" aria-labelledby="visit-story-title">
+              <h2 id="visit-story-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>The consultation</h2>
+              <ol id="visit-details" class="record-story"></ol>
+            </section>
+            <div class="record-side">
+              <aside class="card" aria-labelledby="visit-report-title">
+                <h2 id="visit-report-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#send"/></svg>What the RHU received</h2>
+                <dl id="visit-report" class="profile-details"></dl>
+                <p class="muted small record-privacy"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#shield"/></svg>No name, address, contact details, complaint or treatment leaves this BHU.</p>
+              </aside>
+              <section id="visit-history-card" class="card" aria-labelledby="visit-history-title">
+                <h2 id="visit-history-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#list"/></svg>Change history</h2>
+                <ol id="visit-history" class="timeline"></ol>
+              </section>
+            </div>
+          </div>
           <dialog id="void-dialog" class="dialog" aria-labelledby="void-title">
             <form id="void-form" class="stack" novalidate>
               <h2 id="void-title">Void this consultation?</h2>

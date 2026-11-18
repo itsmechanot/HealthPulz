@@ -110,20 +110,9 @@ export function createClinic({ config, router }) {
   function consultationProfile(consultation) {
     const disease = diseases.get(consultation.diagnosis_code);
     const kind = consultation.voided ? "voided" : disease?.single_case_alert ? "urgent" : disease?.tracked ? "tracked" : "other";
-    const adult = records.ageOn(visitBirthdate, consultation.visit_date) >= 18; // children's normal pulse and breathing run higher
     const [syncText, syncLevel] = syncLabel(consultation);
 
-    const vitals = [
-      vital("Temp", consultation.temperature, "°C", (v) => v >= 37.5 || v < 35),
-      consultation.bp_systolic || consultation.bp_diastolic
-        ? vital("BP", `${consultation.bp_systolic || "–"}/${consultation.bp_diastolic || "–"}`, "", () =>
-          adult && (consultation.bp_systolic >= 140 || consultation.bp_diastolic >= 90 || (consultation.bp_systolic && consultation.bp_systolic < 90)))
-        : null,
-      vital("Pulse", consultation.pulse, "/min", (v) => adult && (v > 100 || v < 60)),
-      vital("Breathing", consultation.respiratory_rate, "/min", (v) => adult && (v > 20 || v < 12)),
-      vital("Weight", consultation.weight, "kg"),
-      vital("Height", consultation.height, "cm"),
-    ].filter(Boolean);
+    const vitals = vitalsOf(consultation, visitBirthdate);
 
     const onsetDays = consultation.onset_date ? daysBetween(consultation.onset_date, consultation.visit_date) : null;
     const plan = [
@@ -170,6 +159,23 @@ export function createClinic({ config, router }) {
         ),
       ),
     );
+  }
+
+  /** Vital signs as chips. Out of range is highlighted: adult ranges, and only fever for children
+   *  (their normal pulse and breathing run higher). */
+  function vitalsOf(c, birthdate) {
+    const adult = birthdate ? records.ageOn(birthdate, c.visit_date) >= 18 : true;
+    return [
+      vital("Temp", c.temperature, "°C", (v) => v >= 37.5 || v < 35),
+      c.bp_systolic || c.bp_diastolic
+        ? vital("BP", `${c.bp_systolic || "–"}/${c.bp_diastolic || "–"}`, "mmHg", () =>
+          adult && (c.bp_systolic >= 140 || c.bp_diastolic >= 90 || (c.bp_systolic && c.bp_systolic < 90)))
+        : null,
+      vital("Pulse", c.pulse, "/min", (v) => adult && (v > 100 || v < 60)),
+      vital("Breathing", c.respiratory_rate, "/min", (v) => adult && (v > 20 || v < 12)),
+      vital("Weight", c.weight, "kg"),
+      vital("Height", c.height, "cm"),
+    ].filter(Boolean);
   }
 
   /** A vital sign as a chip; out of the normal range is highlighted. */
@@ -542,84 +548,120 @@ export function createClinic({ config, router }) {
     if (!v) return router.go("visits");
     const client = await records.getClient(v.client_id);
     shownVisit = { visit: v, client };
+    const disease = diseases.get(v.diagnosis_code);
+    const urgent = Boolean(disease?.single_case_alert);
+    const age = client ? records.ageOn(client.birthdate, v.visit_date) : null;
 
-    $("visit-correct").href = `#/visit-form/${v.client_id}/${v.consultation_id}`;
-    $("visit-actions").hidden = v.voided;
-    $("visit-title").textContent = `${diagnosisLabel(v)} · ${formatDate(v.visit_date)}`;
-    $("visit-client-link").textContent = client ? `${records.fullName(client)} →` : "";
-    $("visit-client-link").href = `#/client/${v.client_id}`;
+    // Who, what, when.
     $("visit-back").href = `#/client/${v.client_id}`;
     $("visit-back").textContent = "← Back to patient record";
-    const [label, level] = syncLabel(v);
-    $("visit-sync").textContent = label;
-    $("visit-sync").dataset.level = level;
-
-    const bp = v.bp_systolic || v.bp_diastolic ? `${v.bp_systolic || "–"}/${v.bp_diastolic || "–"} mmHg` : "";
-    const withUnit = (value, unit) => (value ? `${value} ${unit}` : "");
-    const disease = diseases.get(v.diagnosis_code);
-    const sections = [
-      ["Consultation", [["Presenting concern", v.chief_complaint], ["Symptom onset", v.onset_date && formatDate(v.onset_date)]]],
-      ["Vital signs", [
-        ["Temperature", withUnit(v.temperature, "°C")],
-        ["Blood pressure", bp],
-        ["Pulse", withUnit(v.pulse, "/min")],
-        ["Respiratory rate", withUnit(v.respiratory_rate, "/min")],
-        ["Weight", withUnit(v.weight, "kg")],
-        ["Height", withUnit(v.height, "cm")],
-      ]],
-      ["Findings and diagnosis", [
-        ["Findings", v.findings],
-        ["Diagnosis", diagnosisLabel(v)],
-        ["Case status", disease?.tracked ? STATUS_LABELS[v.case_status] : "Not a surveillance case"],
-      ]],
-      ["Plan", [
-        ["Treatment", v.treatment],
-        ["Disposition", v.disposition],
-        ["Follow-up", v.follow_up_date && formatDate(v.follow_up_date)],
-        ["Attended by", v.attended_by],
-      ]],
-    ];
-    const voidEntry = v.voided ? v.history.findLast((entry) => entry.action === "VOIDED") : null;
-    $("visit-details").replaceChildren(
-      ...(voidEntry ? [el("p", { className: "note note-danger", textContent: `Voided: ${voidEntry.reason}. This consultation is excluded from RHU surveillance counts.` })] : []),
-      ...(v.sync_detail ? [el("p", { className: "note note-danger", textContent: `The RHU did not count this report: ${v.sync_detail}` })] : []),
-      ...sections.map(([title, rows]) =>
-        el(
-          "div",
-          {},
-          el("h3", { textContent: title }),
-          el("dl", { className: "kv-grid" }, ...rows.flatMap(([k, value]) => [el("dt", { textContent: k }), el("dd", { textContent: value || "—" })])),
-        ),
+    $("visit-client-link").href = `#/client/${v.client_id}`;
+    $("visit-client-link").replaceChildren(
+      el("span", { className: "avatar", dataset: { sex: client?.sex ?? "" }, textContent: client ? `${client.first_name[0]}${client.last_name[0]}`.toUpperCase() : "?" }),
+      el("span", {},
+        el("strong", { textContent: client ? records.fullName(client) : "Unknown patient" }),
+        el("span", { className: "muted small", textContent: client ? ` · ${age} years old at the visit · ${sexLabel(client.sex)} · Purok ${v.purok ?? client.purok}` : "" }),
       ),
-      ...changeHistory(v),
+      el("span", { className: "record-patient-go", textContent: "Patient record →" }),
     );
+    $("visit-title").textContent = diagnosisLabel(v);
+    $("visit-chips").replaceChildren(
+      ...[
+        disease?.tracked ? el("span", { className: "chip", dataset: { status: v.case_status }, textContent: STATUS_LABELS[v.case_status] }) : el("span", { className: "chip", textContent: "Not a surveillance case" }),
+        urgent ? el("span", { className: "chip chip-urgent", textContent: "Urgent disease" }) : null,
+        wasCorrected(v) ? el("span", { className: "chip", textContent: "Corrected" }) : null,
+        v.voided ? el("span", { className: "chip", textContent: "Voided" }) : null,
+      ].filter(Boolean),
+    );
+    $("visit-when").textContent = `Consultation on ${formatDate(v.visit_date)} · ${relativeDay(v.visit_date)}${v.attended_by ? ` · attended by ${v.attended_by}` : ""}`;
+
+    // What matters about this record right now.
+    const [syncText, syncLevel] = syncLabel(v);
+    const voidEntry = v.voided ? v.history.findLast((entry) => entry.action === "VOIDED") : null;
+    const lines = [];
+    if (voidEntry) lines.push(statusLine("tracked", "Voided", `${voidEntry.reason}. Kept here, but no longer counted by the RHU.`));
+    if (v.sync_detail) lines.push(statusLine("tracked", "The RHU did not count this report", v.sync_detail));
+    if (urgent && !v.voided) lines.push(statusLine("urgent", "Urgent disease", "a single case raises an alert at the RHU and the neighboring barangays"));
+    if (!voidEntry && !v.sync_detail) {
+      lines.push(statusLine(syncLevel === "OK" ? "ok" : "follow-up", syncText,
+        syncLevel === "OK" ? "the RHU stored the de-identified report" : "it will be sent automatically when the RHU can be reached"));
+    }
+    $("visit-status").replaceChildren(...lines);
+    $("visit-correct").href = `#/visit-form/${v.client_id}/${v.consultation_id}`;
+    $("visit-actions").hidden = v.voided;
+
+    // The consultation, told in order.
+    const notRecorded = () => el("p", { className: "muted small record-none", textContent: "Not recorded" });
+    const notes = (rows) => {
+      const shown = rows.filter(([, value]) => value);
+      return shown.length
+        ? el("dl", { className: "timeline-notes" }, ...shown.flatMap(([label, value]) => [el("dt", { textContent: label }), el("dd", { textContent: value })]))
+        : notRecorded();
+    };
+    const onsetDays = v.onset_date ? daysBetween(v.onset_date, v.visit_date) : null;
+    const vitals = vitalsOf(v, client?.birthdate);
+    const flagged = vitals.filter((chip) => chip.classList.contains("vital-high")).length;
+    const followUp = v.follow_up_date ? `${formatDate(v.follow_up_date)} (${relativeDay(v.follow_up_date).toLowerCase()})` : "";
+    const step = (number, title, ...body) =>
+      el("li", { className: "record-step" },
+        el("span", { className: "record-step-number", "aria-hidden": "true", textContent: number }),
+        el("div", { className: "record-step-body" }, el("h3", { textContent: title }), ...body));
+
+    $("visit-details").replaceChildren(
+      step(1, "What they came in with",
+        v.chief_complaint ? el("blockquote", { className: "timeline-complaint", textContent: `“${v.chief_complaint}”` }) : notRecorded(),
+        onsetDays != null
+          ? el("p", { className: "muted small record-line", textContent: onsetDays === 0
+            ? `Symptoms started the same day (${formatDate(v.onset_date)}).`
+            : `Symptoms started ${formatDate(v.onset_date)}, ${onsetDays} day${onsetDays === 1 ? "" : "s"} before the visit.` })
+          : null),
+      step(2, "What was measured",
+        vitals.length ? el("div", { className: "vital-chips record-vitals" }, ...vitals) : notRecorded(),
+        flagged ? el("p", { className: "small record-flag", textContent: `${flagged} reading${flagged === 1 ? " is" : "s are"} outside the normal range (highlighted).` }) : null),
+      step(3, "What was found",
+        notes([["Findings", v.findings], ["Diagnosis", diagnosisLabel(v)],
+          ["Case status", disease?.tracked ? `${STATUS_LABELS[v.case_status]}, counted in the RHU's outbreak surveillance` : "Not a surveillance case: counted as an other consultation"]])),
+      step(4, "What was done",
+        notes([["Treatment", v.treatment], ["Disposition", v.disposition], ["Follow-up", followUp], ["Attended by", v.attended_by]])),
+    );
+
+    // The de-identified report, exactly the fields that went to the RHU.
+    const report = [
+      ["Disease", disease ? (v.diagnosis_code === OTHER_CODE ? "Other consultation" : disease.name) : diagnosisLabel(v)],
+      ["Case status", disease?.tracked ? STATUS_LABELS[v.case_status] : "Not applicable"],
+      ["Consultation date", formatDate(v.visit_date)],
+      ["Symptom onset", formatDate(v.onset_date || v.visit_date)],
+      ["Age", age != null ? `${age} years` : "–"],
+      ["Sex", client ? sexLabel(client.sex) : "–"],
+      ["Purok", String(v.purok ?? client?.purok ?? "–")],
+      ["Report status", syncText],
+    ];
+    $("visit-report").replaceChildren(...report.flatMap(([label, value]) => [el("dt", { textContent: label }), el("dd", { textContent: value })]));
+
+    const history = changeHistory(v);
+    $("visit-history-card").hidden = !history.length;
+    $("visit-history").replaceChildren(...history);
   }
 
-  /** Who changed what is kept on this device; only the corrected report goes to the RHU. */
+  /** Who changed what, newest first, as timeline entries. Kept on this device; only the corrected report goes to the RHU. */
   function changeHistory(v) {
-    const entries = v.history ?? [];
-    if (!entries.length) return [];
     const titles = { CORRECTED: "Corrected", VOIDED: "Voided", CLIENT_CORRECTED: "Report re-sent" };
-    return [
-      el(
-        "div",
-        {},
-        el("h3", { textContent: "Record change history" }),
-        el(
-          "ul",
-          { className: "change-list" },
-          ...[...entries].reverse().map((entry) =>
-            el(
-              "li",
-              {},
-              el("strong", { textContent: `${titles[entry.action]} · ${new Date(entry.at).toLocaleString()}` }),
-              el("div", { className: "muted small", textContent: `Reason: ${entry.reason}` }),
-              ...entry.changes.map((c) => el("div", { className: "small", textContent: `${c.field}: ${c.from || "—"} → ${c.to || "—"}` })),
-            ),
+    const kinds = { CORRECTED: "other", VOIDED: "tracked", CLIENT_CORRECTED: "other" };
+    return [...(v.history ?? [])].reverse().map((entry) =>
+      el("li", { className: "timeline-item", dataset: { kind: kinds[entry.action] ?? "other" } },
+        el("span", { className: "timeline-dot", "aria-hidden": "true" }),
+        el("article", { className: "timeline-card" },
+          el("div", { className: "timeline-when" },
+            el("strong", { textContent: titles[entry.action] ?? entry.action }),
+            el("span", { className: "muted small", textContent: new Date(entry.at).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) }),
           ),
+          el("p", { className: "small record-line", textContent: `Reason: ${entry.reason}` }),
+          ...(entry.changes ?? []).map((c) =>
+            el("p", { className: "small record-change" },
+              el("span", { className: "muted", textContent: `${c.field}: ` }),
+              el("s", { textContent: c.from || "—" }), " → ", el("strong", { textContent: c.to || "—" }))),
         ),
-      ),
-    ];
+      ));
   }
 
   // Void: the record stays here marked as voided, and the RHU stops counting it.

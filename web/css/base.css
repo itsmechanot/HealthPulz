@@ -2967,3 +2967,46 @@ html[data-text-size="large"] { font-size: 18px; }
   .timeline-notes { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .timeline-notes dd { margin-bottom: 6px; }
 }
+
+/* ---- Full consultation record: who and what, the visit told in four steps, what the RHU received ---- */
+.record-hero { gap: 12px; }
+.record-patient {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface-2); color: inherit; text-decoration: none;
+}
+.record-patient:hover { border-color: var(--accent); }
+.record-patient .avatar { width: 34px; height: 34px; font-size: 0.8rem; }
+.record-patient .avatar[data-sex="F"] { background: #fde8f0; color: #a3305e; }
+.record-patient .avatar[data-sex="M"] { background: #e3effb; color: #1d5f96; }
+.record-patient > span:nth-child(2) { flex: 1 1 200px; }
+.record-patient-go { font-size: 0.8rem; font-weight: 650; color: var(--accent-strong); }
+.record-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.record-title h2 { margin: 0; font-size: 1.5rem; line-height: 1.2; }
+.record-when { margin: -4px 0 0; }
+.record-side { display: grid; gap: 16px; align-content: start; }
+
+.record-story { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.record-step { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding-bottom: 18px; }
+.record-step:not(:last-child)::before { content: ""; position: absolute; left: 14px; top: 32px; bottom: 4px; width: 2px; background: var(--border); }
+.record-step-number {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-strong); font-weight: 750; font-size: 0.85rem;
+}
+.record-step-body { display: grid; gap: 8px; min-width: 0; padding-top: 4px; }
+.record-step-body h3 { margin: 0; font-size: 0.95rem; }
+.record-none { margin: 0; font-style: italic; }
+.record-line { margin: 0; }
+.record-flag { margin: 0; color: var(--danger); font-weight: 600; }
+.record-vitals .vital { padding: 7px 12px; font-size: 0.95rem; }
+.record-privacy { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed var(--border); }
+.record-privacy .icon { width: 16px; height: 16px; flex: 0 0 16px; margin-top: 2px; }
+.record-change { margin: 0; overflow-wrap: anywhere; }
+.record-change s { color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .record-title h2 { font-size: 1.25rem; }
+  .record-step { grid-template-columns: 26px minmax(0, 1fr); gap: 10px; }
+  .record-step-number { width: 26px; height: 26px; font-size: 0.78rem; }
+  .record-step:not(:last-child)::before { left: 12px; top: 28px; }
+  .record-patient-go { flex-basis: 100%; }
+}
