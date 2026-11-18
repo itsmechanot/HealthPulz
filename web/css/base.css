@@ -3059,10 +3059,10 @@ html[data-text-size="large"] { font-size: 18px; }
 /* Phones: half the padding around the page, inside cards and inside consultation entries, so the
    content gets the width. The page bottom keeps its room for the tab bar. */
 @media (max-width: 640px) {
-  .app .content, .app:not([data-theme="dark"]) .content { padding-left: 8px; padding-right: 8px; padding-top: 8px; }
-  .app .content .card { padding: 11px; }
-  .app .content .timeline-card { padding: 8px; }
-  .app .content .profile-status-line { padding: 6px 8px; }
+  .app .content, .app:not([data-theme="dark"]) .content { padding-left: 10px; padding-right: 10px; padding-top: 10px; }
+  .app .content .card { padding: 13px; }
+  .app .content .timeline-card { padding: 10px; }
+  .app .content .profile-status-line { padding: 8px 10px; }
   .app .content .timeline-card .timeline-when { padding-right: 18px; }
-  .app .content .timeline-dot { right: 8px; top: 11px; }
+  .app .content .timeline-dot { right: 10px; top: 13px; }
 }
