@@ -2888,3 +2888,82 @@ html[data-text-size="large"] { font-size: 18px; }
   .profile-actions { flex: 1 1 100%; }
   .profile-actions .btn { flex: 1 1 0; min-width: 0; justify-content: center; padding-inline: 6px; font-size: 0.74rem; white-space: nowrap; }
 }
+
+/* ---- Patient profile: who they are, what is going on now, then their story ---- */
+.profile-hero { gap: 16px; }
+.profile-avatar { width: 56px; height: 56px; font-size: 1.15rem; }
+.profile-avatar[data-sex="F"] { background: #fde8f0; color: #a3305e; }
+.profile-avatar[data-sex="M"] { background: #e3effb; color: #1d5f96; }
+.profile-name { margin: 0 0 6px; font-size: 1.35rem; line-height: 1.2; }
+.profile-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-chip { padding: 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-size: 0.78rem; font-weight: 650; color: var(--text); }
+
+.profile-status { display: grid; gap: 8px; }
+.profile-status-line {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface-2);
+}
+.profile-status-dot { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: var(--ok); align-self: center; }
+.profile-status-line[data-kind="tracked"] { border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
+.profile-status-line[data-kind="tracked"] .profile-status-dot { background: var(--danger); }
+.profile-status-line[data-kind="urgent"] { border-color: color-mix(in srgb, var(--urgent) 40%, transparent); background: color-mix(in srgb, var(--urgent) 9%, var(--surface)); }
+.profile-status-line[data-kind="urgent"] .profile-status-dot { background: var(--urgent); }
+.profile-status-line[data-kind="follow-up"] { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
+.profile-status-line[data-kind="follow-up"] .profile-status-dot { background: var(--warn); }
+
+.profile-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.profile-fact { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+.profile-fact strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.profile-fact span { font-size: 0.72rem; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+
+.profile-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+.profile-details { display: grid; gap: 2px; margin: 0; }
+.profile-details dt { font-size: 0.72rem; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 8px; }
+.profile-details dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.profile-missing { margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed var(--border); }
+.profile-id { margin: 6px 0 0; font-size: 0.7rem; overflow-wrap: anywhere; }
+
+/* Consultation timeline: newest first, a dot colored by what kind of illness it was. */
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.timeline-item { position: relative; padding-left: 26px; }
+.timeline-item::before { content: ""; position: absolute; left: 6px; top: 18px; bottom: -14px; width: 2px; background: var(--border); }
+.timeline-item:last-child::before { display: none; }
+.timeline-dot { position: absolute; left: 0; top: 12px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--surface); background: var(--text-muted); box-shadow: 0 0 0 1px var(--border); }
+.timeline-item[data-kind="tracked"] .timeline-dot { background: var(--danger); }
+.timeline-item[data-kind="urgent"] .timeline-dot { background: var(--urgent); }
+.timeline-item[data-kind="other"] .timeline-dot { background: var(--accent); }
+.timeline-item[data-kind="voided"] .timeline-card { opacity: .65; }
+.timeline-card { display: grid; gap: 10px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
+.timeline-when { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.timeline-sync { margin-left: auto; }
+.timeline-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.timeline-title h3 { margin: 0; font-size: 1.1rem; }
+.chip[data-status="CONFIRMED"] { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); color: var(--danger); }
+.chip-urgent { background: color-mix(in srgb, var(--urgent) 14%, var(--surface)); color: var(--urgent); }
+.timeline-complaint { margin: 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 8px 8px 0; font-style: italic; }
+.timeline-complaint .muted { font-style: normal; }
+.vital-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.vital { display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 9px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); font-size: 0.82rem; }
+.vital-label { font-size: 0.7rem; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; }
+.vital-high { border-color: color-mix(in srgb, var(--danger) 45%, transparent); background: color-mix(in srgb, var(--danger) 9%, var(--surface)); color: var(--danger); }
+.timeline-notes { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; }
+.timeline-notes dt { font-size: 0.75rem; font-weight: 650; color: var(--text-muted); padding-top: 2px; }
+.timeline-notes dd { margin: 0; overflow-wrap: anywhere; }
+.timeline-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.timeline-actions { display: inline-flex; align-items: center; gap: 10px; }
+
+@media (max-width: 860px) {
+  .profile-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .profile-name { font-size: 1.15rem; }
+  .profile-avatar { width: 46px; height: 46px; font-size: 1rem; }
+  .profile-facts { gap: 6px; }
+  .profile-fact { padding: 8px; }
+  .profile-fact strong { font-size: 0.9rem; }
+  .profile-fact span { font-size: 0.62rem; }
+  .timeline-card { padding: 12px; }
+  .timeline-sync { margin-left: 0; }
+  .timeline-notes { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .timeline-notes dd { margin-bottom: 6px; }
+}

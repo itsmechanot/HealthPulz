@@ -41,6 +41,24 @@ function today() {
 }
 
 const formatDate = (iso) => new Date(`${iso}T00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+/** "Nov 18", with the year only when it isn't this year. */
+const shortDate = (iso) => new Date(`${iso}T00:00`).toLocaleDateString(undefined,
+  iso.slice(0, 4) === today().slice(0, 4) ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" });
+
+/** Whole days from one YYYY-MM-DD to another (positive when `to` is later). */
+const daysBetween = (from, to) => Math.round((new Date(`${to}T00:00`) - new Date(`${from}T00:00`)) / 86_400_000);
+
+/** "Today", "Yesterday", "3 days ago", "In 5 days". */
+function relativeDay(iso) {
+  const days = daysBetween(iso, today());
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days === -1) return "Tomorrow";
+  const n = Math.abs(days);
+  const span = n >= 60 ? `${Math.round(n / 30)} months` : n >= 14 ? `${Math.round(n / 7)} weeks` : `${n} days`;
+  return days > 0 ? `${span} ago` : `In ${span}`;
+}
+
 const sexLabel = (code) => ({ F: "Female", M: "Male" })[code] ?? code;
 
 export function createClinic({ config, router }) {
@@ -88,54 +106,83 @@ export function createClinic({ config, router }) {
     );
   }
 
-  /** One consultation in full, for the patient profile. */
+  /** One consultation as a timeline entry: when, what it was, how they presented, what was done. */
   function consultationProfile(consultation) {
-    const bp = consultation.bp_systolic || consultation.bp_diastolic
-      ? `${consultation.bp_systolic || "—"}/${consultation.bp_diastolic || "—"} mmHg`
-      : "";
-    const withUnit = (value, unit) => (value ? `${value} ${unit}` : "");
     const disease = diseases.get(consultation.diagnosis_code);
-    const details = [
-      ["Symptom onset", consultation.onset_date && formatDate(consultation.onset_date)],
-      ["Assessment / findings", consultation.findings],
-      ["Case status", disease?.tracked ? STATUS_LABELS[consultation.case_status] : "Not a surveillance case"],
-      ["Temperature", withUnit(consultation.temperature, "°C")],
-      ["Blood pressure", bp],
-      ["Pulse", withUnit(consultation.pulse, "/min")],
-      ["Respiratory rate", withUnit(consultation.respiratory_rate, "/min")],
-      ["Weight", withUnit(consultation.weight, "kg")],
-      ["Height", withUnit(consultation.height, "cm")],
-      ["Treatment / medication", consultation.treatment],
-      ["Disposition", consultation.disposition],
-      ["Follow-up", consultation.follow_up_date && formatDate(consultation.follow_up_date)],
-      ["Attended by", consultation.attended_by],
-      ["Report status", syncLabel(consultation)[0]],
-      ["RHU response", consultation.sync_detail],
-    ].filter(([, value]) => value);
+    const kind = consultation.voided ? "voided" : disease?.single_case_alert ? "urgent" : disease?.tracked ? "tracked" : "other";
+    const adult = records.ageOn(visitBirthdate, consultation.visit_date) >= 18; // children's normal pulse and breathing run higher
+    const [syncText, syncLevel] = syncLabel(consultation);
+
+    const vitals = [
+      vital("Temp", consultation.temperature, "°C", (v) => v >= 37.5 || v < 35),
+      consultation.bp_systolic || consultation.bp_diastolic
+        ? vital("BP", `${consultation.bp_systolic || "–"}/${consultation.bp_diastolic || "–"}`, "", () =>
+          adult && (consultation.bp_systolic >= 140 || consultation.bp_diastolic >= 90 || (consultation.bp_systolic && consultation.bp_systolic < 90)))
+        : null,
+      vital("Pulse", consultation.pulse, "/min", (v) => adult && (v > 100 || v < 60)),
+      vital("Breathing", consultation.respiratory_rate, "/min", (v) => adult && (v > 20 || v < 12)),
+      vital("Weight", consultation.weight, "kg"),
+      vital("Height", consultation.height, "cm"),
+    ].filter(Boolean);
+
+    const onsetDays = consultation.onset_date ? daysBetween(consultation.onset_date, consultation.visit_date) : null;
+    const plan = [
+      consultation.disposition,
+      consultation.follow_up_date ? `follow-up ${formatDate(consultation.follow_up_date)}` : "",
+    ].filter(Boolean).join(" · ");
+    const sections = [["Findings", consultation.findings], ["Treatment", consultation.treatment], ["Plan", plan]].filter(([, v]) => v);
 
     return el(
-      "article",
-      { className: `patient-consultation${consultation.voided ? " voided" : ""}` },
+      "li",
+      { className: "timeline-item", dataset: { kind } },
+      el("span", { className: "timeline-dot", "aria-hidden": "true" }),
       el(
-        "div",
-        { className: "patient-consultation-heading" },
-        el("h3", { textContent: `${formatDate(consultation.visit_date)} · ${diagnosisLabel(consultation)}` }),
-        wasCorrected(consultation) ? el("span", { className: "chip", textContent: "Corrected" }) : null,
-        consultation.voided ? el("span", { className: "chip", textContent: "Voided" }) : null,
-      ),
-      el("p", { className: "patient-consultation-complaint", textContent: consultation.chief_complaint || "No complaint recorded" }),
-      el("dl", { className: "kv-grid" }, ...details.flatMap(([label, value]) => [el("dt", { textContent: label }), el("dd", { textContent: value })])),
-      ...changeHistory(consultation),
-      el(
-        "div",
-        { className: "patient-consultation-actions" },
-        consultation.voided
-          ? null
-          : el("a", { className: "btn btn-ghost btn-small", href: `#/visit-form/${consultation.client_id}/${consultation.consultation_id}`, textContent: "Correct consultation" }),
-        el("a", { className: "link-btn small", href: `#/visit/${consultation.consultation_id}`, textContent: "Open record" }),
+        "article",
+        { className: "timeline-card" },
+        el("div", { className: "timeline-when" },
+          el("strong", { textContent: formatDate(consultation.visit_date) }),
+          el("span", { className: "muted small", textContent: relativeDay(consultation.visit_date) }),
+          el("span", { className: "badge timeline-sync", dataset: { level: syncLevel }, textContent: syncText }),
+        ),
+        el("div", { className: "timeline-title" },
+          el("h3", { textContent: diagnosisLabel(consultation) }),
+          disease?.tracked ? el("span", { className: "chip", dataset: { status: consultation.case_status }, textContent: STATUS_LABELS[consultation.case_status] }) : null,
+          kind === "urgent" ? el("span", { className: "chip chip-urgent", textContent: "Urgent disease" }) : null,
+          wasCorrected(consultation) ? el("span", { className: "chip", textContent: "Corrected" }) : null,
+          consultation.voided ? el("span", { className: "chip", textContent: "Voided" }) : null,
+        ),
+        consultation.chief_complaint
+          ? el("blockquote", { className: "timeline-complaint" },
+            `“${consultation.chief_complaint}”`,
+            onsetDays != null ? el("span", { className: "muted small", textContent: onsetDays === 0 ? " · symptoms started that day" : ` · symptoms for ${onsetDays} day${onsetDays === 1 ? "" : "s"}` }) : null)
+          : null,
+        vitals.length ? el("div", { className: "vital-chips" }, ...vitals) : null,
+        sections.length
+          ? el("dl", { className: "timeline-notes" }, ...sections.flatMap(([label, value]) => [el("dt", { textContent: label }), el("dd", { textContent: value })]))
+          : null,
+        consultation.sync_detail ? el("p", { className: "note note-danger", textContent: `The RHU did not count this report: ${consultation.sync_detail}` }) : null,
+        el("div", { className: "timeline-footer" },
+          el("span", { className: "muted small", textContent: consultation.attended_by ? `Attended by ${consultation.attended_by}` : "" }),
+          el("span", { className: "timeline-actions" },
+            consultation.voided ? null : el("a", { className: "btn btn-ghost btn-small", href: `#/visit-form/${consultation.client_id}/${consultation.consultation_id}`, textContent: "Correct" }),
+            el("a", { className: "link-btn small", href: `#/visit/${consultation.consultation_id}`, textContent: "Full record →" }),
+          ),
+        ),
       ),
     );
   }
+
+  /** A vital sign as a chip; out of the normal range is highlighted. */
+  function vital(label, value, unit, abnormal = () => false) {
+    if (value === "" || value == null) return null;
+    const high = abnormal(Number(value));
+    return el("span", { className: `vital${high ? " vital-high" : ""}`, title: high ? "Outside the normal range" : "" },
+      el("span", { className: "vital-label", textContent: label }),
+      el("strong", { textContent: `${value}${unit ? ` ${unit}` : ""}` }),
+    );
+  }
+
+  let visitBirthdate = null; // the profile's patient, for each consultation's age
 
   const empty = (text) => el("p", { className: "empty", textContent: text });
 
@@ -193,30 +240,73 @@ export function createClinic({ config, router }) {
   async function showClient(clientId) {
     const client = clientId && (await records.getClient(clientId));
     if (!client) return router.go("clients");
+    visitBirthdate = client.birthdate;
 
     $("profile-avatar").textContent = `${client.first_name[0]}${client.last_name[0]}`.toUpperCase();
+    $("profile-avatar").dataset.sex = client.sex;
     $("profile-name").textContent = records.fullName(client);
-    $("profile-summary").textContent = `${records.ageOn(client.birthdate, today())} years old · ${sexLabel(client.sex)} · Purok ${client.purok}`;
+    $("profile-summary").replaceChildren(
+      ...[`${records.ageOn(client.birthdate, today())} years old`, sexLabel(client.sex), `Purok ${client.purok}`]
+        .map((text) => el("span", { className: "profile-chip", textContent: text })),
+    );
     $("profile-edit").href = `#/client-form/${client.client_id}`;
     $("profile-new-visit").href = `#/visit-form/${client.client_id}`;
 
+    // Reference details: what is recorded, and one line for what is not.
     const details = [
-      ["Patient ID", client.client_id],
       ["Date of birth", formatDate(client.birthdate)],
-      ["Sex", sexLabel(client.sex)],
-      ["Purok", client.purok],
       ["Civil status", client.civil_status],
       ["Street / sitio", client.address],
       ["Contact number", client.contact],
       ["PhilHealth number", client.philhealth],
     ];
+    const recorded = details.filter(([, value]) => value);
+    const missing = details.filter(([, value]) => !value).map(([label]) => label.toLowerCase());
     $("profile-details").replaceChildren(
-      ...details.flatMap(([label, value]) => [el("dt", { textContent: label }), el("dd", { textContent: value || "—" })]),
+      ...recorded.flatMap(([label, value]) => [el("dt", { textContent: label }), el("dd", { textContent: value })]),
     );
+    $("profile-missing").hidden = !missing.length;
+    $("profile-missing").textContent = `Not recorded yet: ${missing.join(", ")}.`;
+    $("profile-id").textContent = `Patient ID ${client.client_id}`;
 
-    const visits = await records.listClientConsultations(client.client_id);
+    const visits = (await records.listClientConsultations(client.client_id))
+      .sort((a, b) => b.visit_date.localeCompare(a.visit_date));
+    const counted = visits.filter((v) => !v.voided);
     $("profile-history-empty").hidden = visits.length > 0;
     $("profile-visits").replaceChildren(...visits.map(consultationProfile));
+
+    // The story at a glance: what is going on now, then three numbers.
+    const recent = counted.find((v) => diseases.get(v.diagnosis_code)?.tracked && daysBetween(v.visit_date, today()) <= 14);
+    const followUp = counted.map((v) => v.follow_up_date).filter((d) => d && d >= today()).sort()[0];
+    const lines = [];
+    if (recent) {
+      const disease = diseases.get(recent.diagnosis_code);
+      lines.push(statusLine(disease.single_case_alert ? "urgent" : "tracked",
+        `${STATUS_LABELS[recent.case_status]} ${disease.name}`,
+        `seen ${relativeDay(recent.visit_date).toLowerCase()}, reported to the RHU for surveillance`));
+    }
+    if (followUp) lines.push(statusLine("follow-up", `Follow-up due ${formatDate(followUp)}`, relativeDay(followUp).toLowerCase()));
+    if (!lines.length) {
+      lines.push(counted.length
+        ? statusLine("ok", "No recent illness under surveillance", `last seen ${relativeDay(counted[0].visit_date).toLowerCase()}`)
+        : statusLine("ok", "No consultations yet", "registered patient"));
+    }
+    $("profile-status").replaceChildren(...lines);
+
+    const fact = (value, label) => el("div", { className: "profile-fact" }, el("strong", { textContent: value }), el("span", { textContent: label }));
+    $("profile-facts").replaceChildren(
+      fact(String(counted.length), counted.length === 1 ? "consultation" : "consultations"),
+      fact(counted.length ? shortDate(counted[0].visit_date) : "–", "last seen"),
+      fact(followUp ? shortDate(followUp) : "None", "next follow-up"),
+    );
+  }
+
+  function statusLine(kind, title, detail) {
+    return el("div", { className: "profile-status-line", dataset: { kind } },
+      el("span", { className: "profile-status-dot", "aria-hidden": "true" }),
+      el("strong", { textContent: title }),
+      el("span", { className: "muted small", textContent: detail }),
+    );
   }
 
   // ---- client form ----------------------------------------------------------------------

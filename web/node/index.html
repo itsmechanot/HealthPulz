@@ -78,24 +78,35 @@
         <!-- ===== Client profile ===== -->
         <section class="screen" data-screen="client" data-parent="clients" hidden>
           <a class="link-btn small" href="#/clients">← Patient registry</a>
-          <section class="card patient-profile-card">
+          <section class="card profile-hero">
             <div class="station-header">
-              <span id="profile-avatar" class="avatar" aria-hidden="true"></span>
+              <span id="profile-avatar" class="avatar profile-avatar" aria-hidden="true"></span>
               <div class="grow">
-                <h2 id="profile-name" style="font-size: 1.2rem"></h2>
-                <span id="profile-summary" class="muted small"></span>
+                <h2 id="profile-name" class="profile-name"></h2>
+                <div id="profile-summary" class="profile-chips"></div>
               </div>
               <div class="profile-actions">
                 <a id="profile-edit" class="btn btn-ghost btn-small" title="Change name, birthdate, purok or contact details">✎ Edit patient details</a>
                 <a id="profile-new-visit" class="btn btn-primary btn-small">+ Add consultation</a>
               </div>
             </div>
-            <dl id="profile-details" class="kv-grid"></dl>
-            <div class="patient-consultations">
-              <p id="profile-history-empty" class="empty" hidden>No consultation records for this patient.</p>
-              <div id="profile-visits" class="record-list"></div>
-            </div>
+            <div id="profile-status" class="profile-status" role="status"></div>
+            <div id="profile-facts" class="profile-facts"></div>
           </section>
+
+          <div class="profile-layout">
+            <section class="card" aria-labelledby="profile-history-title">
+              <h2 id="profile-history-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#clipboard"/></svg>Consultation history</h2>
+              <p id="profile-history-empty" class="empty" hidden>No consultations yet. Use "+ Add consultation" to record the first one.</p>
+              <ol id="profile-visits" class="timeline"></ol>
+            </section>
+            <aside class="card" aria-labelledby="profile-details-title">
+              <h2 id="profile-details-title" class="section-title"><svg class="icon" aria-hidden="true"><use href="/img/icons.svg#users"/></svg>Personal details</h2>
+              <dl id="profile-details" class="profile-details"></dl>
+              <p id="profile-missing" class="muted small profile-missing" hidden></p>
+              <p id="profile-id" class="muted small profile-id"></p>
+            </aside>
+          </div>
         </section>
 
         <!-- ===== Client form ===== -->
