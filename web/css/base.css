@@ -3112,3 +3112,6 @@ html[data-text-size="large"] { font-size: 18px; }
 @media (max-width: 359px) {
   .app.has-tabbar #station-name { font-size: 0.92rem; }
 }
+
+/* Map screen: scrolling to a barangay's details stops below the sticky top bar. */
+.map-detail-section, #detail-title { scroll-margin-top: 96px; }

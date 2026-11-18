@@ -374,13 +374,24 @@ function mapHint() {
     : `Showing last week, ${previous.dates}: ${fmt(totals.last_week)} case(s) across all diseases.`;
 }
 
+let scrollToDetail = false; // set by a click on a barangay; the 10-second refresh never scrolls
+
 function selectBarangay(id, fromOverview) {
   state.selected = id;
-  if (fromOverview) router.go("map");
+  scrollToDetail = true;
+  if (fromOverview) router.go("map"); // the Map screen renders, then scrolls to the details
   else {
     bigMap.select(id);
     renderDetail();
   }
+}
+
+/** After a click on the map: bring the barangay's details into view. */
+function revealDetail() {
+  if (!scrollToDetail) return;
+  scrollToDetail = false;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  requestAnimationFrame(() => $("detail-title").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }));
 }
 
 function renderDetail() {
@@ -431,6 +442,7 @@ function renderDetail() {
     el("p", { className: "muted small", style: "margin: 0", textContent: `Neighbors: ${meta.neighbors.map(barangayName).join(", ") || "none (island)"}. They also receive this barangay's alerts. *Synthetic population.` }),
     trendBtn,
   );
+  revealDetail();
 }
 
 // ---- Alerts ------------------------------------------------------------------------------
