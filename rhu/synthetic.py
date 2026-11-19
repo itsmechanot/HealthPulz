@@ -15,7 +15,7 @@ NEIGHBOR_SPILLOVER = 1.5
 class Outbreak:
     barangay_id: str
     disease_code: str
-    start: date  # Monday of the first outbreak week
+    start: date
     weeks: int
     multiplier: float
 
@@ -37,7 +37,6 @@ def iso_week_mondays(start: date, end: date) -> list[date]:
 def plan_outbreaks(
     rng: random.Random, barangays: list[dict], diseases: list[dict], weeks: list[date], count: int
 ) -> list[Outbreak]:
-    # Only diseases with outbreak thresholds.
     candidates = [d for d in diseases if d["threshold_alerts"]]
     return [
         Outbreak(
@@ -64,7 +63,6 @@ def generate_cases(
     """Yields (barangay_id, case) for every barangay × disease × week; `scale` multiplies every rate."""
     neighbors = {b["barangay_id"]: set(b["neighbors"]) for b in barangays}
     for week_start in weeks:
-        # Thursday decides the month, the same way ISO 8601 decides which year a week belongs to.
         month = (week_start + timedelta(days=3)).month
         for barangay in barangays:
             for disease in diseases:

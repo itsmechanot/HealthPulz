@@ -28,7 +28,7 @@ const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString();
 
 const state = {
-  disease: null, // Trends screen
+  disease: null,
   barangay: "", // Trends screen: "" = the whole municipality
   weeks: 26,
   gridWeek: "current",
@@ -37,14 +37,14 @@ const state = {
   gridOnlyCases: true,
   alertFilter: "active",
   alertLevel: "ALERT", // Alerts screen: one severity tab at a time
-  mapDisease: null, // null = all diseases
+  mapDisease: null,
   mapWeek: "current",
-  mapDay: null, // "YYYY-MM-DD" when the map's calendar shows one day; null = the week toggle
-  selected: null, // barangay selected on the map
+  mapDay: null,
+  selected: null,
 };
 const data = { summary: null, grids: {}, dayGrid: null, alerts: [], nodes: [], reports: [] };
 let config;
-let tracked;  // outbreak-tracked diseases (not "Other")
+let tracked;
 let router;
 let overviewMap;
 let bigMap;
@@ -87,7 +87,7 @@ async function start() {
     if (data.summary) renderScreen(screen);
   });
   await refresh();
-  renderReports(); // again, now that "this week" and "last week" are known
+  renderReports();
   router.start();
   setInterval(refresh, REFRESH_MS);
 }
@@ -110,7 +110,7 @@ async function refresh() {
       api.fetchJson("/api/alerts"),
     ]);
     data.grids = { current, previous };
-    if (state.mapDay) data.dayGrid = await api.fetchJson(dayUrl(state.mapDay)); // a day of this week keeps updating
+    if (state.mapDay) data.dayGrid = await api.fetchJson(dayUrl(state.mapDay));
     data.alerts = alerts;
     renderChrome();
     if (router) renderScreen(router.current());
@@ -139,7 +139,7 @@ function watchStations() {
     data.nodes = message.nodes;
     renderStations();
     updateReports(message.latest_reports);
-    refreshAfterAnalytics(message.analytics?.finished_at); // in case the message above was missed
+    refreshAfterAnalytics(message.analytics?.finished_at);
   };
   ws.onclose = (event) => {
     if (event.code === api.CLOSE_NOT_LOGGED_IN) return api.toLogin();
@@ -177,7 +177,7 @@ function renderScreen(screen) {
   ({ overview: renderOverview, map: renderMapScreen, alerts: renderAlertsScreen, trends: renderTrends, barangays: renderGrid })[screen]?.();
 }
 
-const seenReports = new Set(); // `${record_id}.${revision}`, so only what just arrived flashes
+const seenReports = new Set();
 let reportsKey = null;
 
 /** The feed sends the list every second; redraw only when it changed. */
@@ -268,13 +268,12 @@ function renderStations() {
 }
 
 async function renderIllnesses(diseases) {
-  // Most cases first; last week breaks ties, since early in a week most counts are low.
   const listed = diseases
     .filter((d) => d.group !== "urgent")
     .sort((a, b) => b.this_week - a.this_week || b.last_week - a.last_week);
   const drawing = ++commonListDrawing;
   const trends = await Promise.all(listed.map((d) => api.fetchJson(api.trendUrl(d.disease_code, "", SPARKLINE_WEEKS))));
-  if (drawing !== commonListDrawing) return; // a newer refresh started while these were loading
+  if (drawing !== commonListDrawing) return;
   $("common-list").replaceChildren(
     ...listed.map((d, i) => {
       const spark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -364,7 +363,7 @@ function mapHint() {
     : `Showing last week, ${previous.dates}: ${fmt(totals.last_week)} case(s) across all diseases.`;
 }
 
-let scrollToDetail = false; // set by a click on a barangay; the 10-second refresh never scrolls
+let scrollToDetail = false;
 
 function selectBarangay(id, fromOverview) {
   state.selected = id;
@@ -526,7 +525,6 @@ function alertRow(alert, { compact = false } = {}) {
         : contextItem(`${levelName[0].toUpperCase()}${levelName.slice(1)} threshold`, `${Number(alert.threshold).toFixed(2)} cases`, "Calculated from past reports"),
       contextItem("Case reporting period", alert.week_dates),
     ),
-    // BHU corrections can lower the count; staff decide.
     alert.status !== "RESOLVED" && alert.current_count != null && alert.current_count < alert.observed
       ? el("div", {
         className: "note note-danger alert-correction",
@@ -584,7 +582,6 @@ function renderGrid() {
   const worst = (b, codes) => codes.reduce((w, code) => Math.max(w, GRID_LEVEL_RANK[cellOf(b, code).level] ?? 0), 0);
   const shownCases = (b) => columns.reduce((sum, d) => sum + cellOf(b, d.disease_code).cases, 0);
 
-  // Headline: where something is happening this week.
   const allCodes = tracked.map((d) => d.disease_code);
   const flagged = all.filter((b) => worst(b, allCodes) > 0).length;
   const byDisease = tracked.map((d) => [d, all.reduce((sum, b) => sum + cellOf(b, d.disease_code).cases, 0)]).sort((a, b) => b[1] - a[1]);
@@ -597,7 +594,6 @@ function renderGrid() {
     ]
     : ["No tracked cases reported yet for this week."]));
 
-  // "attention": over a threshold first, then most cases.
   const sortValue = {
     total: (b) => b.total, other: (b) => b.other_consultations, rate: (b) => b.rate_per_10k,
     ...Object.fromEntries(columns.map((d) => [d.disease_code, (b) => cellOf(b, d.disease_code).cases])),
@@ -628,7 +624,6 @@ function renderGrid() {
     heading("rate", "Per 10,000", "cases per 10,000 people"),
   );
 
-  // Heat: darker tint = more cases (relative to the busiest cell).
   const peak = Math.max(1, ...visible.flatMap((b) => columns.map((d) => cellOf(b, d.disease_code).cases)));
   const count = (n, extra = {}) => n
     ? el("td", { textContent: fmt(n), ...extra })
@@ -670,7 +665,6 @@ function renderGrid() {
     }),
     ...(visible.length ? [] : [el("tr", {}, el("td", { colSpan: columns.length + 4, className: "grid-empty", textContent: "No barangay has a case of these diseases this week." }))]),
   );
-  // Outside the table, so it doesn't scroll away on phones.
   $("grid-hidden").hidden = !hidden;
   $("grid-hidden").replaceChildren(...(hidden ? [
     `${hidden} barangay${hidden === 1 ? "" : "s"} with no cases of these diseases ${hidden === 1 ? "is" : "are"} hidden. `,

@@ -43,7 +43,6 @@ def server_addresses(request: Request) -> dict:
     """LAN addresses for the join banner, and whether phones can reach them."""
     addresses = network.lan_addresses()
     port = request.url.port
-    # Unknown is not closed: no false alarm without a port or address.
     reachable = not (port and addresses) or any(network.accepts_connections(a, port) for a in addresses)
     return {"addresses": addresses, "port": port, "reachable": reachable}
 
@@ -74,7 +73,6 @@ def register_node(
     if barangay is None:
         raise HTTPException(status_code=404, detail="Unknown barangay_id")
 
-    # INSERT OR IGNORE: registering again is harmless.
     with conn:
         conn.execute(
             "INSERT OR IGNORE INTO nodes (node_id, barangay_id, registered_at) VALUES (?, ?, ?)",
@@ -141,7 +139,7 @@ def assign_missing_passwords(request: Request) -> list[dict]:
 def give_password(barangay_id: str, give: GivePassword, request: Request) -> dict:
     """Gives one BHU a password (generated if none is sent) and logs out its devices."""
     barangay = rules.barangays_by_id().get(barangay_id)
-    if barangay is None:  # also keeps this away from the RHU's own account and LOADTEST
+    if barangay is None:
         raise HTTPException(status_code=404, detail="Unknown barangay")
     password = accounts.set_password(request.app.state.db_path, barangay_id, give.password)
     return {"barangay_id": barangay_id, "name": barangay["name"], "password": password}

@@ -6,7 +6,6 @@ import { confirmAction, icon, toast } from "../common/shell.js";
 import * as records from "./records.js";
 
 const OTHER_CODE = "OTH";
-// The colored dot on each consultation in a patient's history.
 const DOT_MEANING = {
   urgent: "Urgent disease: one case raises an alert",
   tracked: "Disease under outbreak surveillance",
@@ -14,7 +13,6 @@ const DOT_MEANING = {
   voided: "Voided consultation",
 };
 const STATUS_LABELS = { SUSPECTED: "Suspected", CONFIRMED: "Confirmed" };
-// Fields compared when a consultation is corrected, with the names shown in its history.
 const FIELD_LABELS = {
   visit_date: "Consultation date",
   onset_date: "Symptom onset",
@@ -192,7 +190,7 @@ export function createClinic({ config, router }) {
     );
   }
 
-  let visitBirthdate = null; // the profile's patient, for each consultation's age
+  let visitBirthdate = null;
 
   const empty = (text) => el("p", { className: "empty", textContent: text });
 
@@ -254,7 +252,6 @@ export function createClinic({ config, router }) {
     $("profile-edit").href = `#/client-form/${client.client_id}`;
     $("profile-new-visit").href = `#/visit-form/${client.client_id}`;
 
-    // Recorded details; missing ones on one line.
     const details = [
       ["Date of birth", formatDate(client.birthdate)],
       ["Civil status", client.civil_status],
@@ -277,7 +274,6 @@ export function createClinic({ config, router }) {
     $("profile-history-empty").hidden = visits.length > 0;
     $("profile-visits").replaceChildren(...visits.map(consultationProfile));
 
-    // Status first, then three key numbers.
     const recent = counted.find((v) => diseases.get(v.diagnosis_code)?.tracked && daysBetween(v.visit_date, today()) <= 14);
     const followUp = counted.map((v) => v.follow_up_date).filter((d) => d && d >= today()).sort()[0];
     const lines = [];
@@ -345,7 +341,6 @@ export function createClinic({ config, router }) {
       purok: Number(values.purok),
     };
     const save = async () => {
-      // The server re-sends the patient's reports if the birthdate or sex changed.
       const saved = await records.saveClient(editingClient?.client_id ?? newClientId, fields);
       router.go("client", saved.client_id);
     };
@@ -431,7 +426,6 @@ export function createClinic({ config, router }) {
     $("v-status-field").hidden = !tracked;
     $("v-text-field").hidden = code !== OTHER_CODE;
     form.elements.diagnosis_text.required = code === OTHER_CODE;
-    // Onset dates matter for spotting outbreaks; long-term conditions may not have a clear one.
     const needsOnset = Boolean(diseases.get(code)?.threshold_alerts || diseases.get(code)?.single_case_alert);
     form.elements.onset_date.required = needsOnset;
     $("v-onset-required").textContent = needsOnset ? "*" : "(optional)";
@@ -610,7 +604,6 @@ export function createClinic({ config, router }) {
         notes([["Treatment", v.treatment], ["Disposition", v.disposition], ["Follow-up", followUp], ["Attended by", v.attended_by]])),
     );
 
-    // The de-identified report, exactly the fields that went to the RHU.
     const report = [
       ["Disease", disease ? (v.diagnosis_code === OTHER_CODE ? "Other consultation" : disease.name) : diagnosisLabel(v)],
       ["Case status", disease?.tracked ? STATUS_LABELS[v.case_status] : "Not applicable"],
@@ -649,7 +642,6 @@ export function createClinic({ config, router }) {
       ));
   }
 
-  // Void: the record stays here marked as voided, and the RHU stops counting it.
   const voidDialog = $("void-dialog");
   $("visit-void").addEventListener("click", () => {
     $("void-reason").value = "";

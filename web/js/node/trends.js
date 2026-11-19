@@ -9,7 +9,7 @@ import { createTownMap } from "../common/town-map.js";
 
 const REFRESH_MS = 30_000;
 const CHART_WEEKS = 12;
-const SOON_MS = 13_000; // the RHU re-runs its analytics every 10 s, so new data shows up after one run
+const SOON_MS = 13_000;
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString();
@@ -18,7 +18,6 @@ const fmt = (n) => Number(n).toLocaleString();
 export function startTrendsPanel(config, barangay) {
   let disease = config.diseases[0].disease_code;
   let pending = null;
-  // The station's own barangay is outlined; colors show where cases and alerts are.
   const map = createTownMap($("node-map"), { ownBarangay: barangay.barangay_id });
 
   const select = $("trend-disease");
@@ -66,7 +65,6 @@ export function startTrendsPanel(config, barangay) {
         });
         return row;
       }),
-      // Counted, but not under outbreak surveillance, so no alerts and no chart.
       el(
         "tr",
         { style: "cursor: default" },

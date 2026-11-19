@@ -27,7 +27,7 @@ async def node_socket(ws: WebSocket, node_id: str, session: Session | None = Dep
     hub: Hub = ws.app.state.hub
     db_path: Path = ws.app.state.db_path
     joined = False
-    await ws.accept()  # accepted first: a refused handshake can't tell the page why
+    await ws.accept()
     if not await _allowed(ws, session, lambda s: s.may_send_for(barangay_of(node_id))):
         return
     try:
@@ -44,7 +44,7 @@ async def node_socket(ws: WebSocket, node_id: str, session: Session | None = Dep
         joined = True
         await asyncio.to_thread(_set_node_status, db_path, node_id, "ONLINE")
         await ws.send_json({"type": "WELCOME", "node_id": node_id})
-        await ws.app.state.alerts.send_pending(node_id)  # alerts it missed while offline
+        await ws.app.state.alerts.send_pending(node_id)
 
         while True:
             message = await ws.receive_json()
@@ -56,7 +56,6 @@ async def node_socket(ws: WebSocket, node_id: str, session: Session | None = Dep
                 case _:
                     await ws.send_json({"type": "ERROR", "reason": "UNKNOWN_TYPE"})
     except (WebSocketDisconnect, RuntimeError):
-        # RuntimeError: the device left while the server was pushing to it.
         pass
     finally:
         if joined:
@@ -73,12 +72,11 @@ async def monitor_socket(ws: WebSocket, session: Session | None = Depends(auth.o
         return
     hub.add_monitor(ws)
     try:
-        # Send one snapshot right away so the page doesn't start empty.
         await ws.send_json(await build_snapshot(ws.app, records_per_second=0.0))
         while True:
-            await ws.receive_text()  # monitors only listen; this just waits for the disconnect
+            await ws.receive_text()
     except (WebSocketDisconnect, RuntimeError):
-        pass  # the page left (RuntimeError: while the server was pushing to it)
+        pass
     finally:
         hub.remove_monitor(ws)
 
@@ -103,7 +101,6 @@ async def build_snapshot(app: FastAPI, records_per_second: float) -> dict:
     registered = await asyncio.to_thread(_registered_nodes, app.state.db_path)
     nodes = []
     for node_id, barangay_id, last_seen in registered:
-        # One tile per barangay station; other IDs (e.g. load-test nodes) only while connected.
         recent_station = node_id == station_id(barangay_id) and last_seen >= _recent_cutoff()
         if not hub.is_connected(node_id) and not recent_station:
             continue
@@ -140,7 +137,6 @@ def _type(message) -> str | None:
 def _pending_batches(message: dict) -> int:
     value = message.get("pending_batches", 0)
     return value if isinstance(value, int) and value >= 0 else 0
-
 
 
 def _node_exists(db_path: Path, node_id: str) -> bool:

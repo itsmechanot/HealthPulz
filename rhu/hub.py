@@ -14,14 +14,13 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class Presence:
-    last_seen: float  # time.monotonic() of the last HELLO/HEARTBEAT
+    last_seen: float
     pending_batches: int
 
 
 class Hub:
     def __init__(self) -> None:
         self._loop: asyncio.AbstractEventLoop | None = None
-        # One station, many devices (every phone logged in as that barangay).
         self._nodes: dict[str, set[WebSocket]] = {}
         self._presence: dict[str, Presence] = {}
         self._monitors: set[WebSocket] = set()
@@ -99,6 +98,5 @@ async def _send(ws: WebSocket, message: dict) -> bool:
         await ws.send_json(message)
         return True
     except Exception:
-        # The other side went away mid-send; the caller drops this connection.
         log.debug("Dropping closed WebSocket", exc_info=True)
         return False

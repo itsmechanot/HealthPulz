@@ -1,8 +1,4 @@
-"""Outbreak alerts: detected after each analytics run, sent to the barangay and its neighbors.
-
-URGENT: any case of a single-case disease. EPIDEMIC / ALERT: above the threshold and >= MIN_ALERT_CASES.
-Store-and-forward: a node that was offline gets its alerts when it reconnects.
-"""
+"""Outbreak alerts: detected after each analytics run, sent to the barangay and its neighbors."""
 
 import asyncio
 import re
@@ -93,9 +89,8 @@ def _save(conn, row, year, week, level, threshold, message) -> str | None:
 
     rank, previous_rank = LEVEL_RANK[level], LEVEL_RANK[existing["level"]]
     if rank < previous_rank:
-        return None  # keep the higher level that was already reported
+        return None
     escalated = rank > previous_rank
-    # Same level: refresh the count quietly. Escalation: reopen and send again.
     conn.execute(
         """
         UPDATE alerts SET level = ?, observed = ?, threshold = ?, message = ?,
@@ -212,7 +207,7 @@ class AlertService:
     def __init__(self, db_path: Path, hub: Hub) -> None:
         self.db_path = db_path
         self.hub = hub
-        self._lock = asyncio.Lock()  # the scheduler and a manual run must not detect at the same time
+        self._lock = asyncio.Lock()
 
     async def check_and_publish(self, today: date | None = None) -> list[dict]:
         async with self._lock:

@@ -48,7 +48,7 @@ def create_app(
         stores = BhuStores(db_path.parent / "bhu")
 
         def on_stored(node_id: str, message: dict) -> None:
-            relay.on_stored(message)  # first, so a device told STORED reads the updated record
+            relay.on_stored(message)
             hub.send_to_node_threadsafe(node_id, message)
 
         # Set from the DB writer thread, so it has to go through the event loop.
@@ -102,7 +102,6 @@ def create_app(
     app.include_router(bhu_api.router)
     app.include_router(ws.router)
 
-    # The protocol defines malformed messages as 400 (FastAPI's default is 422).
     @app.exception_handler(RequestValidationError)
     async def malformed_message(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(status_code=400, content=jsonable_encoder({"detail": exc.errors()}))
@@ -126,14 +125,14 @@ def _serve_place_files(app: FastAPI) -> None:
 
     @app.get("/img/seal.png", include_in_schema=False)
     def place_seal() -> FileResponse:
-        seal = place / "seal.png"  # no seal of its own: the HealthPulz logo, never Naval's seal
+        seal = place / "seal.png"
         return FileResponse(seal if seal.exists() else config.WEB_DIR / "img" / "healthpulz-logo.png", headers={"Cache-Control": "no-store"})
 
     @app.get("/img/barangays/{filename}", include_in_schema=False)
     def place_logo(filename: str) -> FileResponse:
         logo = place / "barangays" / filename
         if "/" in filename or "\\" in filename or not logo.is_file():
-            raise HTTPException(404)  # the BHU page then shows the barangay's initials
+            raise HTTPException(404)
         return FileResponse(logo, headers={"Cache-Control": "no-store"})
 
 

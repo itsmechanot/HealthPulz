@@ -1,7 +1,4 @@
-"""Logins: one account per BHU, plus RHU and LOADTEST. Passwords are stored only as salted hashes.
-
-Usage:  python -m rhu.accounts            python -m rhu.accounts reset RHU
-"""
+"""Logins: one account per BHU, plus RHU and LOADTEST. Passwords are stored only as salted hashes."""
 
 import argparse
 import base64
@@ -18,15 +15,15 @@ from rhu import config, db, rules
 
 RHU = "RHU"
 BHU = "BHU"
-LOADTEST = "LOADTEST"  # tools/simulate_nodes.py: may send reports for any barangay, and nothing else
+LOADTEST = "LOADTEST"
 
 SESSION_HOURS = 12
-SCRYPT_N = 2**14  # memory and time cost; stored with each hash, so it can be raised later
+SCRYPT_N = 2**14
 SCRYPT_R = 8
 SCRYPT_P = 1
 SALT_BYTES = 16
 MIN_PASSWORD_LENGTH = 8
-NO_PASSWORD = ""  # the stored hash of a BHU account the RHU hasn't given a password yet
+NO_PASSWORD = ""
 
 # No look-alikes (l/1, o/0), because passwords are copied from paper onto phones.
 _PASSWORD_LETTERS = "abcdefghjkmnpqrstuvwxyz23456789"
@@ -56,7 +53,6 @@ class Session:
         return self.role == LOADTEST or self.may_open_records(barangay_id)
 
 
-
 def new_password() -> str:
     letters = "".join(secrets.choice(_PASSWORD_LETTERS) for _ in range(8))
     return f"{letters[:4]}-{letters[4:]}"
@@ -79,7 +75,6 @@ def password_matches(password: str, stored: str) -> bool:
     _, n, r, p, salt, digest = stored.split("$")
     actual = _scrypt(password, base64.b64decode(salt), int(n), int(r), int(p))
     return hmac.compare_digest(actual, base64.b64decode(digest))
-
 
 
 def _all_accounts() -> list[tuple[str, str, str | None, str]]:
@@ -130,7 +125,6 @@ def ensure_accounts(db_path: Path) -> None:
                 "INSERT INTO accounts (username, role, barangay_id, password_hash) VALUES (?, ?, ?, ?)",
                 (username, role, barangay_id, stored),
             )
-        # Passwords the RHU never gave (they have no date) stop working.
         conn.execute(
             "DELETE FROM sessions WHERE username IN "
             "(SELECT username FROM accounts WHERE role = ? AND password_set_at IS NULL)",
@@ -139,7 +133,6 @@ def ensure_accounts(db_path: Path) -> None:
         conn.execute(
             "UPDATE accounts SET password_hash = ? WHERE role = ? AND password_set_at IS NULL", (NO_PASSWORD, BHU)
         )
-        # Same transaction, so no account ends up with a password nobody can read.
         _save_passwords(db_path, created)
 
 
@@ -190,7 +183,6 @@ def assign_missing(db_path: Path) -> list[dict]:
     ]
 
 
-
 def _session_key(token: str) -> str:
     """Only a hash of the token is stored, so reading the database doesn't give anyone a login."""
     return hashlib.sha256(token.encode()).hexdigest()
@@ -228,7 +220,6 @@ def session_for_token(conn: sqlite3.Connection, token: str) -> Session | None:
 def log_out(conn: sqlite3.Connection, token: str) -> None:
     with conn:
         conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_session_key(token),))
-
 
 
 def main() -> None:

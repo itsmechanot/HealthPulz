@@ -32,7 +32,6 @@ def init_db(db_path: Path) -> None:
         seed_reference_data(conn)
 
 
-# Columns added after v1 (CREATE TABLE IF NOT EXISTS won't add them).
 _ADDED_COLUMNS = [
     ("accounts", "password_set_at", "TEXT"),
     ("nodes", "kind", "TEXT NOT NULL DEFAULT 'LIVE'"),

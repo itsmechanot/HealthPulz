@@ -21,13 +21,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from contextlib import closing  # noqa: E402
+from contextlib import closing
 
-from rhu import config, db, rules  # noqa: E402
-from rhu.bhu_store import BhuStores, RecordNotFound, station_id  # noqa: E402
-from rhu.models import ClientFields, ConsultationFields  # noqa: E402
+from rhu import config, db, rules
+from rhu.bhu_store import BhuStores, RecordNotFound, station_id
+from rhu.models import ClientFields, ConsultationFields
 
-NAMESPACE = uuid.UUID("6f1c2a52-6b0e-4d55-9a57-6c2b1d0f9e31")  # fixed, so IDs repeat between runs
+NAMESPACE = uuid.UUID("6f1c2a52-6b0e-4d55-9a57-6c2b1d0f9e31")
 
 SURNAMES = [
     "Dela Cruz", "Garcia", "Reyes", "Ramos", "Mendoza", "Santos", "Flores", "Gonzales", "Bautista", "Villanueva",
@@ -43,10 +43,7 @@ FEMALE = ["Maria", "Ana", "Rosario", "Kristine", "Jessa", "Liza", "Marites", "An
 SITIOS = ["Sitio Proper", "Sitio Riverside", "Sitio Ilaya", "Sitio Ubos", "Sitio Centro", "Sitio Mangga", "Sitio Baybay"]
 ATTENDING = ["Midwife Rosa Lagado", "Nurse Ana Espina", "BHW Lorna Cabahug", "Midwife Nenita Gerona", "Nurse Paolo Dadizon"]
 
-# What a typical rural BHU sees, mostly from RHU Naval's own top-10 list; no urgent diseases, so
-# the demo data doesn't raise urgent alerts by itself.
 VISITS = [
-    # (weight, code, other diagnosis, complaints, findings, treatment, vitals kind)
     (14, "HTN", None, ["Headache and dizziness", "Nape pain", "BP check-up"], "Elevated BP on two readings", "Amlodipine 5 mg once daily, low-salt diet", "htn"),
     (14, "ARI", None, ["Cough and colds for 3 days", "Sore throat and runny nose", "Cough with phlegm"], "Clear breath sounds, mild throat redness", "Increased fluids, paracetamol as needed", "fever"),
     (8, "WND", None, ["Cut on the foot from bolo", "Abrasion on the knee after a fall", "Laceration on the hand"], "Clean wound, no signs of infection", "Wound cleaning and dressing, tetanus toxoid", "normal"),
@@ -73,7 +70,6 @@ def vitals(kind: str, age: int, rng: random.Random) -> dict:
         fields |= {"weight": round(rng.uniform(45, 78), 1), "height": round(rng.uniform(148, 172), 1)}
     else:
         fields |= {"pulse": rng.randint(80, 120), "respiratory_rate": rng.randint(18, 30)}
-        # Roughly the growth-chart middle for Filipino children: 2 years ~ 12 kg and 87 cm, 10 years ~ 28 kg and 136 cm.
         weight, height = (8 + 2 * age, 75 + 6 * age) if age >= 1 else (7, 66)
         fields |= {"weight": round(weight * rng.uniform(0.9, 1.1), 1), "height": round(height * rng.uniform(0.96, 1.04), 1)}
     return fields
@@ -138,11 +134,10 @@ def main() -> None:
     added_patients = added_visits = skipped = 0
     for barangay in rules.barangays():
         bid = barangay["barangay_id"]
-        # As the BHU page does before sending: the RHU only accepts reports from a registered station.
         with closing(db.connect(args.db)) as conn, conn:
             conn.execute("INSERT OR IGNORE INTO nodes (node_id, barangay_id, registered_at) VALUES (?, ?, ?)",
                          (station_id(bid), bid, db.utc_now()))
-        rng = random.Random(f"healthpulz-demo-{bid}")  # same people every run
+        rng = random.Random(f"healthpulz-demo-{bid}")
         count = rng.randint(args.min, args.max)
         new_here = 0
         for n in range(count):
@@ -151,7 +146,7 @@ def main() -> None:
             visits = [make_visit(rng, patient, today - timedelta(days=rng.randint(0, 45)), today) for _ in range(rng.choice([1, 1, 2]))]
             try:
                 stores.get_client(bid, client_id)
-                skipped += 1  # added by an earlier run
+                skipped += 1
                 continue
             except RecordNotFound:
                 pass

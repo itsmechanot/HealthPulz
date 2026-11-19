@@ -11,7 +11,7 @@ export class Sender extends EventTarget {
     super();
     this.nodeId = nodeId;
     this.reRegister = reRegister;
-    this.inFlight = new Map(); // batch_id -> time it was RECEIVED
+    this.inFlight = new Map();
     this.pausedUntil = 0;
     this.pumping = false;
     this.pumpAgain = false;
@@ -62,11 +62,10 @@ export class Sender extends EventTarget {
   /** Returns false when sending should stop for now (RHU busy or unreachable). */
   async process(batch) {
     const receivedAt = this.inFlight.get(batch.batch_id);
-    if (receivedAt && Date.now() - receivedAt < STORED_TIMEOUT_MS) return true; // waiting for STORED
+    if (receivedAt && Date.now() - receivedAt < STORED_TIMEOUT_MS) return true;
 
     try {
       if (receivedAt) {
-        // STORED is overdue (maybe it arrived while we were disconnected): ask the RHU.
         const status = await api.getBatchStatus(batch.batch_id);
         if (status.status === "STORED") {
           await this.confirmStored({ ...status, type: "STORED" }); // here `rejected` is a count, not a list
@@ -86,7 +85,7 @@ export class Sender extends EventTarget {
           return false;
         case 404:
           await this.reRegister();
-          return false; // retried on the next pump
+          return false;
         case 400:
           await outbox.removeBatch(batch.batch_id);
           this.emit("dropped", { batch, body: res.body });

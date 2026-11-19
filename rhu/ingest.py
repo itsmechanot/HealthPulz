@@ -53,13 +53,12 @@ class PipelineStats:
     """Counters shown on the System Monitor. Updated from several threads, so guarded by a lock."""
 
     batches_received: int = 0
-    batches_busy: int = 0  # refused with 503 because the queue was full
+    batches_busy: int = 0
     batches_stored: int = 0
-    batches_resent: int = 0  # a batch that was already stored arrived again
-    # When idle: received = accepted + updated + duplicate + rejected.
+    batches_resent: int = 0
     records_received: int = 0
     records_accepted: int = 0
-    records_updated: int = 0  # corrections and voids of earlier reports
+    records_updated: int = 0
     records_duplicate: int = 0
     records_rejected: int = 0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -87,7 +86,7 @@ class IngestPipeline:
         self._db_path = db_path
         self._worker_count = workers
         self._on_stored = on_stored
-        self._on_reports = on_reports  # called after real reports are committed (not test data)
+        self._on_reports = on_reports
         self._ingest_queue: queue.Queue = queue.Queue(maxsize=queue_size)
         self._write_queue: queue.Queue = queue.Queue(maxsize=queue_size)
         self._validators: list[threading.Thread] = []
@@ -144,7 +143,6 @@ class IngestPipeline:
             self._write_queue.put(self._validate(item))
 
     def _validate(self, item: _ReceivedBatch) -> _ValidatedBatch:
-        # One day of slack so a node whose clock or timezone is slightly ahead isn't rejected.
         latest_allowed = date.today() + timedelta(days=1)
         valid: list[CaseRecord] = []
         rejected: list[dict] = []
@@ -213,7 +211,6 @@ class IngestPipeline:
         # After the commit only: STORED means safe on disk.
         for item, node_id, message, resent in messages:
             if resent:
-                # Every record of a resent batch is already stored, so all of them count as duplicates.
                 batch_size = message["accepted"] + message["updated"] + message["duplicates"] + len(message["rejected"])
                 self.stats.add(batches_resent=1, records_duplicate=batch_size)
             else:
@@ -238,7 +235,6 @@ class IngestPipeline:
             "SELECT accepted, updated, duplicates FROM batches WHERE batch_id = ?", (batch_id,)
         ).fetchone()
         if previous is not None:
-            # The node resent a batch we already stored (e.g. it missed the STORED message).
             message = _stored_message(batch_id, previous["accepted"], previous["updated"], previous["duplicates"], item.rejected)
             return batch.node_id, message, True
 
@@ -293,7 +289,6 @@ class IngestPipeline:
         try:
             self._on_reports()
         except Exception:
-            # Like a failed notification, this must never stop the writer thread.
             log.exception("Could not announce new reports")
 
     def _notify(self, node_id: str, message: dict) -> None:
@@ -302,7 +297,6 @@ class IngestPipeline:
         try:
             self._on_stored(node_id, message)
         except Exception:
-            # A failed notification must never stop the writer thread.
             log.exception("on_stored callback failed for batch %s", message["batch_id"])
 
 

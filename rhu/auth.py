@@ -22,11 +22,9 @@ MAX_FAILED_LOGINS = 5
 LOCKOUT_SECONDS = 60
 MAX_PASSWORD_LENGTH = 200  # hashing is deliberately slow; don't do it for huge inputs
 
-# WebSocket close codes; the pages send the user back to the login page on 4401.
 CLOSE_NOT_LOGGED_IN = 4401
 CLOSE_NOT_ALLOWED = 4403
 
-# Which account each page folder belongs to. Everything else under web/ is public (styles, scripts).
 PAGE_ROLES = {"node": accounts.BHU, "dashboard": accounts.RHU, "monitor": accounts.RHU}
 
 
@@ -40,7 +38,7 @@ class LoginThrottle:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._failures: dict[tuple[str, str], tuple[int, float]] = {}  # (count, last failure time)
+        self._failures: dict[tuple[str, str], tuple[int, float]] = {}
 
     def seconds_left(self, key: tuple[str, str]) -> int:
         with self._lock:
@@ -59,7 +57,6 @@ class LoginThrottle:
     def succeeded(self, key: tuple[str, str]) -> None:
         with self._lock:
             self._failures.pop(key, None)
-
 
 
 def optional_session(connection: HTTPConnection) -> Session | None:
@@ -93,7 +90,6 @@ def require_may_send_for(session: Session, barangay_id: str) -> None:
         raise HTTPException(status_code=403, detail="This account cannot send reports for that barangay.")
 
 
-
 def _describe(session: Session) -> dict:
     return {
         "username": session.username, "role": session.role, "barangay_id": session.barangay_id, "home": session.home,
@@ -124,8 +120,8 @@ def log_in(login: LoginRequest, request: Request, response: Response) -> dict:
         COOKIE,
         token,
         max_age=accounts.SESSION_HOURS * 3600,
-        httponly=True,  # page scripts can't read it
-        samesite="lax",  # other websites can't send requests with it
+        httponly=True,
+        samesite="lax",
         secure=request.url.scheme == "https",
     )
     return _describe(session)
@@ -146,18 +142,16 @@ def who_am_i(session: Session = Depends(current_session)) -> dict:
     return _describe(session)
 
 
-
 class GuardedPages(StaticFiles):
     """Serves web/, and sends people to the login page or to their own side."""
 
     async def get_response(self, path: str, scope) -> Response:
         parts = PurePath(path).parts
-        folder = parts[0].lower() if parts else ""  # lower(): Windows file names ignore case
+        folder = parts[0].lower() if parts else ""
         role = PAGE_ROLES.get(folder)
         is_login_page = parts in ((), ("index.html",))
         if role is None and not is_login_page:
             response = await super().get_response(path, scope)
-            # Municipality can be switched: re-check its map, seal and logos.
             if path.replace("\\", "/").lower().startswith(("data/", "img/seal", "img/barangays/")):
                 response.headers["Cache-Control"] = "no-cache"
             return response
@@ -169,5 +163,5 @@ class GuardedPages(StaticFiles):
             return RedirectResponse(session.home if session else "/", status_code=303)
 
         response = await super().get_response(path, scope)
-        response.headers["Cache-Control"] = "no-store"  # so Back can't reopen a page after logging out
+        response.headers["Cache-Control"] = "no-store"
         return response

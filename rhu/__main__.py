@@ -6,8 +6,8 @@ import uvicorn
 
 from rhu.network import lan_addresses
 
-DEFAULT_PORT = 8001  
-ALL_NETWORKS = "0.0.0.0"  
+DEFAULT_PORT = 8001
+ALL_NETWORKS = "0.0.0.0"
 
 
 def main() -> None:
@@ -19,7 +19,7 @@ def main() -> None:
     print(f"\n  This laptop:   http://localhost:{args.port}/")
     for address in lan_addresses():
         print(f"  Phones:        http://{address}:{args.port}/")
-    print(flush=True)  
+    print(flush=True)
     uvicorn.run("rhu.main:app", host=ALL_NETWORKS, port=args.port, reload=args.reload)
 
 

@@ -64,7 +64,7 @@ def get_client(request: Request, barangay_id: str, client_id: str) -> dict:
 @_guarded
 def save_client(request: Request, barangay_id: str, client_id: UUID, fields: ClientFields) -> dict:
     client = _stores(request).save_client(barangay_id, str(client_id), fields.model_dump(mode="json"))
-    _send_reports(request, barangay_id)  # correcting a birthdate or sex re-sends reports
+    _send_reports(request, barangay_id)
     return client
 
 

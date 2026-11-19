@@ -8,15 +8,15 @@ import { setupLogout, setupMenu } from "../common/shell.js";
 const HISTORY_SECONDS = 120;
 const RECONNECT_MS = 2000;
 const MAX_BURST_RECORDS = 5000;
-const BURST_GIVE_UP_MS = 60_000; // a device that left mid-burst would otherwise keep the button disabled
+const BURST_GIVE_UP_MS = 60_000;
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString();
 const history = { rate: [], ingest: [], write: [] };
 let peakRate = 0;
 let barangayNames = {};
-let storedNow = 0; // records stored so far, from the latest snapshot
-let burst = null; // the burst in progress: { startedAt, storedBefore, expected, devices }
+let storedNow = 0;
+let burst = null;
 
 start();
 
@@ -29,7 +29,6 @@ async function start() {
     applyPlace(config.municipality);
     barangayNames = Object.fromEntries(config.barangays.map((b) => [b.barangay_id, b.name]));
   } catch {
-    // Names are a nicety; tiles fall back to barangay IDs.
   }
   showJoinAddresses();
   connect();
@@ -91,7 +90,7 @@ async function startBurst(event) {
   }
 
   $("burst-btn").disabled = true;
-  const storedBefore = storedNow; // before the message goes out, so no record is missed
+  const storedBefore = storedNow;
   const startedAt = Date.now();
   try {
     const { devices } = await api.fetchJson("/api/burst", {
@@ -160,7 +159,6 @@ function renderKpis(p, nodes) {
   $("kpi-accounted-sub").textContent = inPipeline > 0
     ? `${fmt(inPipeline)} still in the pipeline`
     : `${fmt(accounted)} of ${fmt(p.records_received)} · nothing lost`;
-  // Demo proof: 100% in green once everything is through.
   $("kpi-accounted-tile").classList.toggle("highlight", p.records_received > 0 && inPipeline === 0);
 }
 

@@ -1,10 +1,4 @@
-"""Parallel analytics (MapReduce): weekly case counts and outbreak thresholds.
-
-map:     one worker process per barangay counts cases per disease and week, and computes thresholds
-reduce:  the main process merges the rows and writes weekly_stats
-Thresholds: the same ISO week ±1 in up to 5 past years; alert = mean + 2 SD, epidemic = mean + 3 SD.
-Processes, not threads, because Python's GIL lets only one thread run Python code at a time.
-"""
+"""Parallel analytics (MapReduce): weekly case counts and outbreak thresholds."""
 
 import asyncio
 import logging
@@ -26,7 +20,7 @@ from rhu.synthetic import iso_week_mondays
 log = logging.getLogger(__name__)
 
 BASELINE_YEARS = 5
-BASELINE_WINDOW_WEEKS = 1  # weeks on each side of the same ISO week
+BASELINE_WINDOW_WEEKS = 1
 MIN_BASELINE_YEARS = 2
 
 ANALYTICS_QUERY = """
@@ -59,10 +53,10 @@ class Analytics:
         self.db_path = db_path
         self.workers = workers
         self._rewrite_all = rewrite_all
-        self._written: set[tuple] | None = None  # what the last run left in weekly_stats
+        self._written: set[tuple] | None = None
         # Created once and reused: starting processes is slow (especially on Windows).
         self._executor = ProcessPoolExecutor(max_workers=workers) if workers > 1 else None
-        self._lock = threading.Lock()  # the scheduler and a manual run must not overlap
+        self._lock = threading.Lock()
         self.last_result: AnalyticsResult | None = None
 
     def close(self) -> None:
@@ -145,7 +139,6 @@ def _write_changed_rows(conn: sqlite3.Connection, rows: set[tuple], stored: set[
     return len(changed) + len(gone)
 
 
-
 def _map_barangay(
     db_path: str, barangay_id: str, diseases: list[str], thresholded: set[str], weeks: list[date]
 ) -> tuple[int, list[tuple]]:
@@ -154,7 +147,6 @@ def _map_barangay(
     cases = 0
     uri = Path(db_path).as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True)) as conn:
-        # A case counts in its checkup week.
         for disease_code, consult in conn.execute(ANALYTICS_QUERY, (barangay_id,)):
             day = date.fromisoformat(consult)
             counts[disease_code, day - timedelta(days=day.weekday())] += 1
@@ -181,19 +173,17 @@ def baseline_values(counts: Counter, disease: str, monday: date, first_week: dat
     years_used = 0
     for back in range(1, BASELINE_YEARS + 1):
         past_year = year - back
-        # Week 53 exists only in some years; fall back to that year's last week.
         centre = date.fromisocalendar(past_year, min(week, _weeks_in_year(past_year)), 1)
         window = [centre + timedelta(weeks=offset) for offset in range(-BASELINE_WINDOW_WEEKS, BASELINE_WINDOW_WEEKS + 1)]
         if window[0] < first_week:
-            break  # no data that far back
+            break
         values.extend(counts[disease, w] for w in window)
         years_used += 1
     return values if years_used >= MIN_BASELINE_YEARS else None
 
 
 def _weeks_in_year(year: int) -> int:
-    return date(year, 12, 28).isocalendar().week  # Dec 28 is always in the last ISO week
-
+    return date(year, 12, 28).isocalendar().week
 
 
 async def run_when_cases_change(

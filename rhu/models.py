@@ -49,8 +49,8 @@ class CaseRecord(BaseModel):
     sex: Literal["M", "F"]
     purok: int | None = Field(default=None, ge=1, le=20)
     case_status: Literal["SUSPECTED", "CONFIRMED"]
-    revision: int = Field(default=0, ge=0)  # a higher revision of a record_id replaces the stored one
-    voided: bool = False  # entered by mistake: kept for audit, left out of the analytics
+    revision: int = Field(default=0, ge=0)
+    voided: bool = False
 
 
 class SubmitBatch(BaseModel):
@@ -60,11 +60,11 @@ class SubmitBatch(BaseModel):
     batch_id: UUID
     sent_at: datetime
     records: list[CaseRecord] = Field(min_length=1, max_length=MAX_RECORDS_PER_BATCH)
-    drill: bool = False  # stress-test data: stored and counted, but left out of analytics and alerts
+    drill: bool = False
 
 
 class GivePassword(BaseModel):
-    password: str | None = Field(default=None, min_length=MIN_PASSWORD_LENGTH, max_length=200)  # None = generate one
+    password: str | None = Field(default=None, min_length=MIN_PASSWORD_LENGTH, max_length=200)
 
 
 class BurstRequest(BaseModel):
@@ -121,7 +121,6 @@ class ConsultationFields(_FormFields):
 class FieldChange(BaseModel):
     field: str
     to: str
-    # "from" is a Python keyword
     previous: str = Field(alias="from", serialization_alias="from")
 
     def model_dump(self, **kwargs) -> dict:

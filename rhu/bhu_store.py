@@ -1,8 +1,4 @@
-"""Each BHU's records, one SQLite file per barangay. Names and clinical details never leave it.
-
-Transactional outbox: a checkup and its de-identified report are saved together, and OutboxRelay
-feeds the report into the pipeline until the RHU confirms it STORED.
-"""
+"""Each BHU's records, one SQLite file per barangay. Names and clinical details never leave it."""
 
 import json
 import logging
@@ -27,7 +23,7 @@ BACKUP_FORMAT = "healthpulz-bhu-backup"
 OTHER_CODE = "OTH"
 MAX_AGE = 110
 RELAY_POLL_SECONDS = 2.0
-RESEND_AFTER_SECONDS = 60.0  # a report sent but not confirmed by then is sent again
+RESEND_AFTER_SECONDS = 60.0
 BUSY_WAIT_SECONDS = 1.0
 
 SYNC_WAITING = "WAITING"
@@ -85,7 +81,6 @@ def to_case_record(client: dict, consultation: dict) -> dict:
         "consult_date": consultation["visit_date"],
         "age_years": age_on(client["birthdate"], consultation["visit_date"]),
         "sex": client["sex"],
-        # Purok at the visit; a later move doesn't change past reports.
         "purok": consultation.get("purok", client["purok"]),
         "case_status": consultation["case_status"],
     }
@@ -115,7 +110,6 @@ def _check_consultation(client: dict, fields: dict) -> None:
     disease = next((d for d in rules.diseases() if d["disease_code"] == fields["diagnosis_code"]), None)
     if disease is None:
         raise InvalidRecord("Unknown diagnosis.")
-    # One day of slack, so a device whose clock or timezone is slightly ahead isn't refused.
     latest = (date.today() + timedelta(days=1)).isoformat()
     if fields["visit_date"] > latest:
         raise InvalidRecord("The visit date can't be in the future.")
@@ -153,7 +147,6 @@ class BhuStores:
 
     def connect(self, barangay_id: str) -> sqlite3.Connection:
         conn = None
-        # Create the tables under the lock, so a barangay's first requests wait for them.
         with self._lock:
             if barangay_id not in self._ready:
                 self.directory.mkdir(parents=True, exist_ok=True)
@@ -372,7 +365,7 @@ class OutboxRelay:
     def __init__(self, stores: BhuStores, pipeline: IngestPipeline) -> None:
         self._stores = stores
         self._pipeline = pipeline
-        self._in_flight: dict[str, tuple[str, float]] = {}  # batch_id -> (barangay_id, time sent)
+        self._in_flight: dict[str, tuple[str, float]] = {}
         self._lock = threading.Lock()
         self._wake = threading.Event()
         self._stop = threading.Event()
@@ -416,7 +409,6 @@ class OutboxRelay:
                     self._stop.wait(BUSY_WAIT_SECONDS)
                     return
                 except ValidationError:
-                    # Can't happen with reports built here; never retry forever if it does.
                     log.exception("Malformed report %s", batch_id)
                     with self._lock:
                         self._in_flight.pop(batch_id, None)

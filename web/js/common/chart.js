@@ -11,7 +11,7 @@ export function lineChart(svg, series, { slots }) {
   svg.setAttribute("preserveAspectRatio", "none");
 
   const paths = series.map(({ values, className }) => {
-    const offset = slots - values.length; // right-align: the newest value is at the right edge
+    const offset = slots - values.length;
     const points = values
       .map((v, i) => (v == null ? null : `${offset + i},${(height - (v / max) * height).toFixed(2)}`))
       .filter(Boolean);

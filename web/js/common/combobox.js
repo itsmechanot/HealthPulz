@@ -18,7 +18,7 @@ export function createCombobox({ input, listbox, options, labelOf, onSelect }) {
             li.setAttribute("role", "option");
             li.textContent = labelOf(option);
             li.addEventListener("mousedown", (event) => {
-              event.preventDefault(); // keep focus in the input
+              event.preventDefault();
               choose(i);
             });
             return li;
@@ -50,7 +50,7 @@ export function createCombobox({ input, listbox, options, labelOf, onSelect }) {
   }
 
   input.addEventListener("input", () => {
-    onSelect(null); // typing again clears the previous choice
+    onSelect(null);
     render();
   });
   input.addEventListener("focus", render);

@@ -18,10 +18,10 @@ from pathlib import Path
 import httpx
 import websockets
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # so `rhu` can be imported
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from rhu import accounts, config  # noqa: E402
-from rhu.auth import COOKIE  # noqa: E402
+from rhu import accounts, config
+from rhu.auth import COOKIE
 
 DISEASES = ["ARI", "SKN", "PNE", "WND", "HTN", "TB", "FEV", "DIA", "DEN", "TYP"]
 STORED_TIMEOUT_SECONDS = 30
@@ -53,7 +53,7 @@ async def send_batch(client: httpx.AsyncClient, node_id: str, records: int, stat
         "batch_id": str(uuid.uuid4()),
         "sent_at": datetime.now(timezone.utc).isoformat(),
         "records": [random_record() for _ in range(records)],
-        "drill": True,  # load-test data must not raise outbreak alerts
+        "drill": True,
     }
     while True:
         res = await client.post("/api/batches", json=batch)
@@ -76,12 +76,11 @@ async def run_node(client: httpx.AsyncClient, barangay_id: str, args, stats: dic
     ws_url = args.url.replace("http", "ws", 1) + f"/ws/node/{node_id}"
     async with websockets.connect(ws_url, additional_headers={"Cookie": f"{COOKIE}={args.token}"}) as ws:
         await ws.send(json.dumps({"type": "HELLO", "node_id": node_id, "pending_batches": 0}))
-        json.loads(await ws.recv())  # WELCOME
+        json.loads(await ws.recv())
 
         waiting = {await send_batch(client, node_id, args.records, stats) for _ in range(args.batches)}
         stats["last_received"] = time.perf_counter()
 
-        # STORED messages may already have arrived while we were sending; they wait in the socket.
         accepted = 0
         while waiting:
             message = json.loads(await asyncio.wait_for(ws.recv(), STORED_TIMEOUT_SECONDS))
@@ -123,7 +122,6 @@ async def main(args) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    # 127.0.0.1, not localhost: on Windows, localhost tries IPv6 first and waits ~2 s per new connection.
     parser.add_argument("--url", default="http://127.0.0.1:8001")
     parser.add_argument("--password", help="LOADTEST password (default: read from var/accounts.txt)")
     parser.add_argument("--nodes", type=int, default=40)

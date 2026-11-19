@@ -14,7 +14,7 @@ export function createDayPicker(host, { getDay, onPick, loadMonth }) {
   pop.setAttribute("aria-label", "Choose a day to show on the map");
   host.append(button, pop);
 
-  let month = null; // the first day of the month on show
+  let month = null;
   let drawing = 0;
 
   button.addEventListener("click", (event) => {
@@ -55,7 +55,7 @@ export function createDayPicker(host, { getDay, onPick, loadMonth }) {
     };
 
     const cells = WEEKDAYS.map((d) => el("span", { className: "cal-wd", textContent: d }));
-    const blanks = (month.getDay() + 6) % 7; // Monday = 0
+    const blanks = (month.getDay() + 6) % 7;
     for (let i = 0; i < blanks; i++) cells.push(el("span"));
     const dayButtons = new Map();
     const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -81,10 +81,9 @@ export function createDayPicker(host, { getDay, onPick, loadMonth }) {
       el("p", { className: "cal-note", textContent: "● days with cases · by checkup date" }),
     );
 
-    // Dots come after the month is on screen, so the calendar opens at once.
     try {
       const { days } = await loadMonth(`${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`);
-      if (token !== drawing) return; // the month changed meanwhile
+      if (token !== drawing) return;
       for (const [iso, count] of Object.entries(days)) {
         const b = dayButtons.get(iso);
         if (!b) continue;
@@ -93,7 +92,6 @@ export function createDayPicker(host, { getDay, onPick, loadMonth }) {
         b.title = `${count} case${count === 1 ? "" : "s"}`;
       }
     } catch {
-      // Without the dots the calendar still works.
     }
   }
 

@@ -23,7 +23,7 @@ def _report(
         "record_id": record_id, "barangay_id": barangay_id, "disease_code": disease_code,
         "onset_date": onset_date, "consult_date": consult_date, "age_years": age_years, "sex": sex, "purok": purok,
         "case_status": case_status, "received_at": received_at, "revision": revision, "voided": bool(voided),
-        "counted_in_week": f"{year}-W{week:02d}",  # cases count in the week of the checkup
+        "counted_in_week": f"{year}-W{week:02d}",
         "counted_week_dates": week_dates(year, week),
     }
 
@@ -44,7 +44,6 @@ class LatestReports:
     def add(self, reports: Iterable[dict]) -> None:
         with self._lock:
             for report in reports:
-                # A correction or void replaces the earlier entry for that case.
                 earlier = [r for r in self._reports if r["record_id"] == report["record_id"]]
                 for entry in earlier:
                     self._reports.remove(entry)

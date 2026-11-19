@@ -1,6 +1,5 @@
 // Calls to the RHU server. The page is served by the RHU itself, so paths are relative.
 
-// WebSocket close code: not logged in.
 export const CLOSE_NOT_LOGGED_IN = 4401;
 
 export function toLogin() {

@@ -41,7 +41,6 @@ def import_history(
     today = today or date.today()
     rng = random.Random(seed)
     barangays, diseases = rules.barangays(), rules.tracked_diseases()
-    # Week 1 of `years` ago up to last week; this week is for live data.
     weeks = iso_week_mondays(date.fromisocalendar(today.year - years, 1, 1), today)
     outbreaks = plan_outbreaks(rng, barangays, diseases, weeks, outbreaks_per_year * (years + 1))
     batch_ids = {
@@ -67,7 +66,6 @@ def import_history(
             )
 
         total = 0
-        # History ends last week, so this week shows only what the BHUs send.
         last_sunday = today - timedelta(days=today.isoweekday())
         cases = generate_cases(rng, barangays, diseases, weeks, outbreaks, latest=last_sunday, scale=scale)
         for chunk in batched(cases, INSERT_CHUNK):

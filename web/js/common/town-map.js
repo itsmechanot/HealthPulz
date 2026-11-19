@@ -25,8 +25,7 @@ function svgEl(tag, attrs = {}) {
 
 const shortName = (name) => name.replace(/\s*\(Pob\.\)|\s*Pob\./g, "").replace(/^Padre /, "P. ");
 
-/** Renders the map. Returns { update(gridBarangays, diseaseCode | null), select(barangayId), corner }:
- *  corner is an empty box in the map's upper-right corner (the dashboard puts its calendar there). */
+/** Renders the map. */
 export async function createTownMap(container, { onSelect = null, ownBarangay = null, labels = true } = {}) {
   const map = await loadMapData();
   const town = map.municipality.name;
@@ -44,7 +43,7 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
 
   const tooltip = el("div", { className: "map-tooltip", hidden: true, role: "dialog", "aria-live": "polite" });
   const shapes = new Map();
-  const stats = new Map(); // barangay_id -> { cases, level, weekLevel, rate, population, levels }
+  const stats = new Map();
   let pinnedId = null;
 
   for (const b of map.barangays) {
@@ -53,7 +52,7 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
     shape.addEventListener("pointermove", (event) => pinnedId !== b.barangay_id && showTooltip(event, b, false));
     shape.addEventListener("pointerleave", () => pinnedId !== b.barangay_id && (tooltip.hidden = true));
     shape.addEventListener("click", (event) => {
-      pinnedId = b.barangay_id; // a click (or tap on a phone) keeps the details open
+      pinnedId = b.barangay_id;
       showTooltip(event, b, true);
       onSelect?.(b.barangay_id);
     });
@@ -74,7 +73,6 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
   if (labels) {
     const group = svgEl("g", { class: "barangay-labels", "aria-hidden": "true" });
     for (const b of map.barangays) {
-      // The small barangays around the poblacion sit close together: smaller labels there.
       const text = svgEl("text", { x: b.center[0], y: b.center[1] - 10, class: b.area_km2 < 1 ? "brgy-label small-area" : "brgy-label" });
       text.textContent = shortName(b.name);
       group.append(text);
@@ -117,7 +115,6 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
         row("cases", "Per 10,000 people", s.rate.toFixed(1)),
         ...LEVEL_LABELS.map(([level, label]) => row(level.toLowerCase(), `${label} diseases`, String(s.levels[level]))),
       );
-      // A day view: the week's outbreak still shows even when that day had no cases.
       if (s.level === "NORMAL" && s.weekLevel !== "NORMAL") rows.push(el("p", { className: "map-tooltip-population", textContent: `${s.weekLevel} this week` }));
     }
     tooltip.replaceChildren(...rows);
@@ -142,7 +139,6 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
         const worst = (key) => cells.reduce((w, c) => (LEVEL_RANK[c[key] ?? "NORMAL"] > LEVEL_RANK[w] ? c[key] : w), "NORMAL");
         const levels = { ALERT: 0, EPIDEMIC: 0, URGENT: 0 };
         for (const c of cells) if (c.level in levels) levels[c.level] += 1;
-        // A day view colors by that day's cases; week_level keeps the week's outbreak marked.
         stats.set(b.barangay_id, {
           cases, levels, population: b.population, level: worst("level"), weekLevel: worst("week_level"), rate: (cases / b.population) * 10_000,
         });
@@ -158,7 +154,6 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
         shape.style.setProperty("--intensity", (0.18 + 0.6 * (s.rate / maxRate)).toFixed(2));
       }
 
-      // Bigger circle = more cases, largest drawn first; a week on alert stays marked on a day view.
       const withCases = map.barangays
         .map((b) => ({ b, s: stats.get(b.barangay_id) }))
         .filter(({ s }) => s && (s.cases > 0 || s.weekLevel !== "NORMAL"))

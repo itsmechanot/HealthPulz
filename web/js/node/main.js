@@ -50,7 +50,6 @@ async function startStation(config, identity, barangay) {
   document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
   applyPlace(config.municipality);
-  // Phones hide the RHU part so the barangay name fits.
   $("station-sub").replaceChildren("Barangay Health Unit", Object.assign(document.createElement("span"), {
     className: "station-sub-more", textContent: fillPlace(" · connected to {rhu}"),
   }));
@@ -95,7 +94,6 @@ async function startStation(config, identity, barangay) {
   connection.addEventListener("message", ({ detail: message }) => {
     switch (message.type) {
       case "STORED":
-        // Either this device's demo batch (handled by the sender) or a report from this barangay's records.
         sender.confirmStored(message).then((own) => {
           if (!own) {
             recordStored(message);
@@ -105,7 +103,6 @@ async function startStation(config, identity, barangay) {
         });
         break;
       case "ALERT":
-        // Already acknowledged (re-sent after a reload): list it quietly, no pop-up or vibration.
         showAlert(message, config, { quiet: message.acknowledged });
         if (message.acknowledged) break;
         notifyAlert(message, config);
@@ -141,7 +138,6 @@ async function startStation(config, identity, barangay) {
   sender.addEventListener("changed", refreshPending);
 
   setupGenerator(config, identity, barangay, sender);
-  // Only unsent Demo Tools batches can be lost on logout.
   setupLogout({
     message: () => pendingBatches
       ? `${pendingBatches} batch(es) are still waiting on this device. They will send the next time this BHU signs in here. Sign out anyway?`
@@ -276,7 +272,6 @@ function toBatches(records, identity, drill) {
 }
 
 function recordStored(message) {
-  // From the WebSocket `rejected` is a list; from a status check it is a count.
   const rejected = Array.isArray(message.rejected) ? message.rejected.length : message.rejected ?? 0;
   totals.stored += message.accepted;
   totals.duplicates += message.duplicates;
@@ -316,7 +311,6 @@ function setUnseenAlerts(count) {
 function notifyAlert(alert, config) {
   if (router?.current() === "alerts") return;
   setUnseenAlerts(unseenAlerts + 1);
-  // Alerts arriving together share one notice, so pop-ups don't pile up.
   alertsToAnnounce.push(alert);
   clearTimeout(announceTimer);
   announceTimer = setTimeout(() => announceAlerts(config), ALERT_GROUPING_MS);
@@ -337,7 +331,7 @@ function announceAlerts(config) {
   });
 }
 
-const alertCards = new Map(); // alert_id -> card; an alert can arrive again (reconnect, escalation)
+const alertCards = new Map();
 
 function showAlert(alert, config, { quiet = false } = {}) {
   const disease = config.diseases.find((d) => d.disease_code === alert.disease_code)?.name ?? alert.disease_code;
@@ -362,21 +356,19 @@ function showAlert(alert, config, { quiet = false } = {}) {
     $("alerts-count").textContent = `${alertCards.size} alert${alertCards.size > 1 ? "s" : ""}`;
   }
   if (quiet) return;
-  // Attention cue: a pulse (unless reduced motion) and a short vibration.
   card.classList.remove("is-new");
-  void card.offsetWidth; // restart the animation
+  void card.offsetWidth;
   card.classList.add("is-new");
   navigator.vibrate?.([200, 100, 200]);
   log(`${isNew ? "Alert received" : "Alert updated"}: ${disease} (${alert.level})`, "error");
 }
 
-const OUTBREAK_FALLBACK_CASES = 12; // when the RHU can't be asked (offline) or has no threshold yet
+const OUTBREAK_FALLBACK_CASES = 12;
 
 /** Cases a simulated outbreak needs: comfortably above this week's epidemic threshold. */
 async function outbreakSize(diseaseCode, barangay, config) {
   try {
     const { weeks } = await api.fetchJson(api.trendUrl(diseaseCode, barangay.barangay_id, 1));
-    // An urgent disease needs only one case; the others go comfortably over the threshold.
     if (config.diseases.find((d) => d.disease_code === diseaseCode)?.single_case_alert) return 1;
     const threshold = weeks.at(-1)?.epidemic_threshold;
     return threshold == null ? OUTBREAK_FALLBACK_CASES : Math.ceil(threshold * 1.3) + 3;
@@ -407,7 +399,6 @@ function setConnectionState(state) {
   const labels = { online: "Online", connecting: "Connecting…", offline: "Offline" };
   $("connection").dataset.state = state;
   $("connection").textContent = labels[state];
-  // Phones: dot only; the words stay as tooltip and for screen readers.
   const words = { online: "Online: connected to the RHU", connecting: "Connecting to the RHU", offline: "Offline: the RHU cannot be reached" }[state];
   Object.assign($("connection-dot").dataset, { state });
   $("connection-dot").title = words;

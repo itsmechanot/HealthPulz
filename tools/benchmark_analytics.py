@@ -12,9 +12,9 @@ import statistics
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # run from the project root
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from rhu.analytics import Analytics  # noqa: E402
+from rhu.analytics import Analytics
 
 
 def benchmark(db_path: Path, worker_counts: list[int], repeat: int) -> list[dict]:
@@ -22,7 +22,7 @@ def benchmark(db_path: Path, worker_counts: list[int], repeat: int) -> list[dict
     pools = {n: Analytics(db_path, workers=n, rewrite_all=True) for n in worker_counts}
     try:
         for analytics in pools.values():
-            analytics.run()  # warm-up: starts the worker processes and fills the OS file cache
+            analytics.run()
         runs = {n: [] for n in worker_counts}
         for _ in range(repeat):
             for n, analytics in pools.items():

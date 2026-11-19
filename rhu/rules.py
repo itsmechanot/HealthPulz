@@ -1,5 +1,4 @@
-"""Rules files (municipality, diseases, barangays), also served to the browsers through GET /api/config.
-Moving the system to another municipality changes these files, not the code (docs/new-municipality.md)."""
+"""Rules files (municipality, diseases, barangays), also served to the browsers through GET /api/config."""
 
 import json
 from functools import lru_cache

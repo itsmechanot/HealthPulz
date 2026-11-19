@@ -17,10 +17,10 @@ ROOT = Path(__file__).resolve().parent.parent
 BARANGAYS_FILE = ROOT / "rhu" / "data" / "barangays.json"
 MUNICIPALITY_FILE = ROOT / "rhu" / "data" / "municipality.json"
 MAP_FILE = ROOT / "web" / "data" / "map.json"
-PLACEHOLDER_POPULATION = 1000  # for --new: replace with census figures, which the rates per 10,000 use
-MAX_BARANGAYS = 99  # IDs are BRGY-01 to BRGY-99
-WIDTH = 1000  # SVG units; the height follows from the shape of the framed area
-PADDING = 0.12  # extra space around the municipality, so neighboring towns show at the edges
+PLACEHOLDER_POPULATION = 1000
+MAX_BARANGAYS = 99
+WIDTH = 1000
+PADDING = 0.12
 ATTRIBUTION = "Boundaries: PSA PSGC 3Q 2026 via faeldon/philippines-json-maps (MIT)"
 
 
@@ -84,8 +84,7 @@ def touching(a: dict, b: dict, tolerance: float = 0.0004) -> bool:
 
 
 def new_barangay_list(shapes: dict[int, dict], old: list[dict]) -> list[dict]:
-    """A new municipality: one entry per boundary, IDs BRGY-01, BRGY-02, … in name order.
-    A population already in the old list (same PSGC code) is kept; others get a placeholder."""
+    """A new municipality: one entry per boundary, IDs BRGY-01, BRGY-02, … in name order."""
     if len(shapes) > MAX_BARANGAYS:
         raise SystemExit(f"{len(shapes)} barangays; IDs allow at most {MAX_BARANGAYS}")
     known = {b["psgc"]: b["population"] for b in old}
@@ -129,7 +128,6 @@ def main() -> None:
 
     project = Projection([town])
 
-    # Neighbors: barangays whose boundaries touch.
     by_psgc = {b["psgc"]: b for b in barangays}
     for b in barangays:
         b["neighbors"] = []
@@ -169,7 +167,6 @@ def main() -> None:
     args.map_out.parent.mkdir(parents=True, exist_ok=True)
     args.map_out.write_text(json.dumps(map_data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
-    # One barangay per line, like the hand-written file.
     lines = [json.dumps(b, ensure_ascii=False).replace('{"', '{ "').replace("]}", "] }") for b in barangays]
     args.barangays.write_text("[\n  " + ",\n  ".join(lines) + "\n]\n", encoding="utf-8")
 

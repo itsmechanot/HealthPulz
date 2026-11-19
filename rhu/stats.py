@@ -12,7 +12,7 @@ def week_info(year: int, week: int) -> dict:
     return {
         "iso_year": year,
         "iso_week": week,
-        "label": f"{year}-W{week:02d}",  # for API parameters; pages show `dates`
+        "label": f"{year}-W{week:02d}",
         "dates": week_dates(year, week),
         "start": date.fromisocalendar(year, week, 1).isoformat(),
     }
@@ -147,9 +147,7 @@ def barangay_grid(conn: sqlite3.Connection, year: int, week: int) -> dict:
 
 
 def _real_cases(diseases: list[str]) -> tuple[str, list[str]]:
-    """Real reports only (no voided checkups, no stress-test data), as in the weekly analytics.
-    Naming every barangay and disease lets SQLite jump to them in the analytics index
-    (idx_cases_weekly) instead of reading the whole cases table."""
+    """Real reports only (no voided checkups, no stress-test data), as in the weekly analytics."""
     barangays = [b["barangay_id"] for b in rules.barangays()]
     where = (
         f"barangay_id IN ({','.join('?' * len(barangays))}) AND voided = 0 "
@@ -160,8 +158,7 @@ def _real_cases(diseases: list[str]) -> tuple[str, list[str]]:
 
 
 def day_grid(conn: sqlite3.Connection, day: date) -> dict:
-    """Every barangay's cases checked up on one day (the map's calendar). Outbreak levels are
-    weekly, so each cell also carries its week's level as `week_level`."""
+    """Every barangay's cases checked up on one day (the map's calendar). Outbreak levels are"""
     diseases = {d["disease_code"]: d for d in rules.diseases()}
     year, week, _ = day.isocalendar()
     week_levels = {
@@ -181,7 +178,6 @@ def day_grid(conn: sqlite3.Connection, day: date) -> dict:
             other[barangay_id] = other.get(barangay_id, 0) + count
             continue
         cells.setdefault(barangay_id, {})[code] = {"cases": count, "level": "NORMAL"}
-    # A barangay on alert that week stays marked, even on a day without cases.
     for (barangay_id, code), level in week_levels.items():
         cells.setdefault(barangay_id, {}).setdefault(code, {"cases": 0, "level": "NORMAL"})["week_level"] = level
 

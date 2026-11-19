@@ -27,15 +27,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from seed_patients import ATTENDING, MALE, FEMALE, SITIOS, SURNAMES, vitals  # noqa: E402
+from seed_patients import ATTENDING, MALE, FEMALE, SITIOS, SURNAMES, vitals
 
-from rhu import config, db, rules  # noqa: E402
-from rhu.bhu_store import BhuStores, RecordNotFound, station_id  # noqa: E402
-from rhu.models import ClientFields, ConsultationFields  # noqa: E402
+from rhu import config, db, rules
+from rhu.bhu_store import BhuStores, RecordNotFound, station_id
+from rhu.models import ClientFields, ConsultationFields
 
 NAMESPACE = uuid.UUID("a3d0f6a2-1e0b-4c55-8f0e-2f6c1b9d7e44")
 
-# How each disease presents. ages: (youngest, oldest, weight) bands; male: share of men.
 DISEASES = {
     "DEN": {
         "ages": [(5, 14, 5), (15, 29, 4), (30, 60, 2)], "male": 0.5, "status": ["SUSPECTED", "CONFIRMED", "CONFIRMED"],
@@ -67,16 +66,15 @@ DISEASES = {
     },
 }
 
-# (barangay, disease, cases in the week of Nov 2, of Nov 9, of Nov 16 so far)
 OUTBREAKS = [
-    ("BRGY-08", "DEN", (3, 5, 8)),  # Caraycaray: where it starts (+1 lab-confirmed case last week, below)
-    ("BRGY-18", "DEN", (0, 2, 3)),  # P. Inocentes Garcia, next door
-    ("BRGY-06", "DEN", (0, 0, 3)),  # Calumpang
-    ("BRGY-05", "DEN", (0, 0, 1)),  # Cabungaan: first case
-    ("BRGY-20", "DIA", (0, 3, 5)),  # Sabang, coastal
-    ("BRGY-01", "DIA", (0, 0, 3)),  # Agpangi, coastal
-    ("BRGY-16", "LEP", (0, 1, 3)),  # Lucsoon, rice fields
-    ("BRGY-11", "LEP", (0, 0, 1)),  # Lico: one case stays below the 3-case minimum, so no alert (no false alarm)
+    ("BRGY-08", "DEN", (3, 5, 8)),
+    ("BRGY-18", "DEN", (0, 2, 3)),
+    ("BRGY-06", "DEN", (0, 0, 3)),
+    ("BRGY-05", "DEN", (0, 0, 1)),
+    ("BRGY-20", "DIA", (0, 3, 5)),
+    ("BRGY-01", "DIA", (0, 0, 3)),
+    ("BRGY-16", "LEP", (0, 1, 3)),
+    ("BRGY-11", "LEP", (0, 0, 1)),
 ]
 
 
@@ -133,7 +131,6 @@ def main() -> None:
     added = skipped = 0
 
     def register(bid: str) -> None:
-        # As the BHU page does before sending: the RHU only accepts reports from a registered station.
         with closing(db.connect(args.db)) as conn, conn:
             conn.execute("INSERT OR IGNORE INTO nodes (node_id, barangay_id, registered_at) VALUES (?, ?, ?)",
                          (station_id(bid), bid, db.utc_now()))
@@ -152,7 +149,6 @@ def main() -> None:
         stores.save_consultation(bid, client_id, visit_id, ConsultationFields.model_validate(fields).model_dump(mode="json"))
         return visit_id
 
-    # 1-3. The outbreaks, week by week.
     for bid, code, per_week in OUTBREAKS:
         register(bid)
         rng = random.Random(f"healthpulz-scenario-{bid}-{code}")
@@ -160,7 +156,7 @@ def main() -> None:
         for weeks_ago, count in zip((2, 1, 0), per_week):
             days = week_days(today, weeks_ago)
             for n in range(count):
-                visit_day = sorted(rng.choice(days) for _ in range(2))[1] if weeks_ago == 0 else rng.choice(days)  # this week: lean recent
+                visit_day = sorted(rng.choice(days) for _ in range(2))[1] if weeks_ago == 0 else rng.choice(days)
                 person = make_person(rng, DISEASES[code], visit_day)
                 case = make_case(rng, code, person, visit_day, today)
                 key = f"{bid}/{code}/w{weeks_ago}/{n}"
@@ -173,7 +169,6 @@ def main() -> None:
         added += made
         print(f"  {names[bid]:32} {made:2} {code} case(s)")
 
-    # 4a. A suspected dengue case in Caraycaray, confirmed two days later by a lab test.
     bid, rng = "BRGY-08", random.Random("healthpulz-scenario-correction")
     visit_day = today - timedelta(days=3)
     person = make_person(rng, DISEASES["DEN"], visit_day)
@@ -189,7 +184,6 @@ def main() -> None:
         added += 1
         print(f"  {names[bid]:32}  1 dengue case corrected: suspected -> confirmed (NS1 positive)")
 
-    # 4b. A diarrhea consultation saved under the wrong child in Sabang: voided, then entered for the right one.
     bid, rng = "BRGY-20", random.Random("healthpulz-scenario-void")
     visit_day = today - timedelta(days=1)
     sibling_a = make_person(rng, DISEASES["DIA"], visit_day)
