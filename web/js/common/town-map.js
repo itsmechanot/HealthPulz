@@ -9,7 +9,8 @@ const LEVEL_LABELS = [["ALERT", "Alert"], ["EPIDEMIC", "Epidemic"], ["URGENT", "
 let mapData = null;
 
 async function loadMapData() {
-  mapData ??= fetch("/data/map.json").then((res) => {
+  // no-cache: always ask the server, because the municipality can be switched (rhu/config.py).
+  mapData ??= fetch("/data/map.json", { cache: "no-cache" }).then((res) => {
     if (!res.ok) throw new Error(`Map data: HTTP ${res.status}`);
     return res.json();
   });

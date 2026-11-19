@@ -159,7 +159,12 @@ class GuardedPages(StaticFiles):
         role = PAGE_ROLES.get(folder)
         is_login_page = parts in ((), ("index.html",))
         if role is None and not is_login_page:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
+            # The municipality can be switched (rhu/config.py PLACE): browsers must check its map,
+            # seal and barangay logos again instead of reusing another municipality's copy.
+            if path.replace("\\", "/").lower().startswith(("data/", "img/seal", "img/barangays/")):
+                response.headers["Cache-Control"] = "no-cache"
+            return response
 
         session = await asyncio.to_thread(optional_session, Request(scope))
         if is_login_page and session and session.home != "/":
