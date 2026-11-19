@@ -85,7 +85,7 @@ def to_case_record(client: dict, consultation: dict) -> dict:
         "consult_date": consultation["visit_date"],
         "age_years": age_on(client["birthdate"], consultation["visit_date"]),
         "sex": client["sex"],
-        # Where the client lived at the visit; moving later doesn't change past reports.
+        # Purok at the visit; a later move doesn't change past reports.
         "purok": consultation.get("purok", client["purok"]),
         "case_status": consultation["case_status"],
     }
@@ -168,7 +168,6 @@ class BhuStores:
     def barangays_with_records(self) -> list[str]:
         return [p.stem for p in self.directory.glob("BRGY-*.db")] if self.directory.exists() else []
 
-    # ---- clients ---------------------------------------------------------------------
 
     def list_clients(self, barangay_id: str) -> list[dict]:
         with closing(self.connect(barangay_id)) as conn:
@@ -210,7 +209,6 @@ class BhuStores:
                     self._write_revision(conn, barangay_id, client, visit, {}, entry)
         return client
 
-    # ---- consultations ----------------------------------------------------------------
 
     @staticmethod
     def _consultations(conn: sqlite3.Connection, where: str = "1", params: tuple = ()) -> list[dict]:
@@ -305,7 +303,6 @@ class BhuStores:
             entry = {"action": "VOIDED", "reason": reason, "changes": []}
             return self._write_revision(conn, barangay_id, client, current, {"voided": True}, entry)
 
-    # ---- delivery ------------------------------------------------------------------------
 
     def pending_reports(self, barangay_id: str) -> list[tuple[str, str]]:
         """(batch_id, payload), oldest first."""
@@ -323,7 +320,6 @@ class BhuStores:
                     (json.dumps(updated), visit["consultation_id"]),
                 )
 
-    # ---- backup -----------------------------------------------------------------------------
 
     def export_backup(self, barangay_id: str) -> dict:
         return {

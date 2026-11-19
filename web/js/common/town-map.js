@@ -9,7 +9,7 @@ const LEVEL_LABELS = [["ALERT", "Alert"], ["EPIDEMIC", "Epidemic"], ["URGENT", "
 let mapData = null;
 
 async function loadMapData() {
-  // no-cache: always ask the server, because the municipality can be switched (rhu/config.py).
+  // no-cache: the municipality can be switched.
   mapData ??= fetch("/data/map.json", { cache: "no-cache" }).then((res) => {
     if (!res.ok) throw new Error(`Map data: HTTP ${res.status}`);
     return res.json();
@@ -158,8 +158,7 @@ export async function createTownMap(container, { onSelect = null, ownBarangay = 
         shape.style.setProperty("--intensity", (0.18 + 0.6 * (s.rate / maxRate)).toFixed(2));
       }
 
-      // Markers: bigger circle = more cases; drawn largest first so small ones stay visible.
-      // A barangay on alert that week keeps a marker on a day view, even with no cases that day.
+      // Bigger circle = more cases, largest drawn first; a week on alert stays marked on a day view.
       const withCases = map.barangays
         .map((b) => ({ b, s: stats.get(b.barangay_id) }))
         .filter(({ s }) => s && (s.cases > 0 || s.weekLevel !== "NORMAL"))

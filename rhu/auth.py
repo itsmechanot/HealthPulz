@@ -61,7 +61,6 @@ class LoginThrottle:
             self._failures.pop(key, None)
 
 
-# ---- who is asking ---------------------------------------------------------------------
 
 def optional_session(connection: HTTPConnection) -> Session | None:
     token = connection.cookies.get(COOKIE)
@@ -94,7 +93,6 @@ def require_may_send_for(session: Session, barangay_id: str) -> None:
         raise HTTPException(status_code=403, detail="This account cannot send reports for that barangay.")
 
 
-# ---- endpoints -------------------------------------------------------------------------
 
 def _describe(session: Session) -> dict:
     return {
@@ -148,7 +146,6 @@ def who_am_i(session: Session = Depends(current_session)) -> dict:
     return _describe(session)
 
 
-# ---- pages -----------------------------------------------------------------------------
 
 class GuardedPages(StaticFiles):
     """Serves web/, and sends people to the login page or to their own side."""
@@ -160,8 +157,7 @@ class GuardedPages(StaticFiles):
         is_login_page = parts in ((), ("index.html",))
         if role is None and not is_login_page:
             response = await super().get_response(path, scope)
-            # The municipality can be switched (rhu/config.py PLACE): browsers must check its map,
-            # seal and barangay logos again instead of reusing another municipality's copy.
+            # Municipality can be switched: re-check its map, seal and logos.
             if path.replace("\\", "/").lower().startswith(("data/", "img/seal", "img/barangays/")):
                 response.headers["Cache-Control"] = "no-cache"
             return response

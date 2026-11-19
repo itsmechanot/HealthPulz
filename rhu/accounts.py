@@ -56,7 +56,6 @@ class Session:
         return self.role == LOADTEST or self.may_open_records(barangay_id)
 
 
-# ---- passwords ------------------------------------------------------------------------
 
 def new_password() -> str:
     letters = "".join(secrets.choice(_PASSWORD_LETTERS) for _ in range(8))
@@ -82,7 +81,6 @@ def password_matches(password: str, stored: str) -> bool:
     return hmac.compare_digest(actual, base64.b64decode(digest))
 
 
-# ---- accounts -------------------------------------------------------------------------
 
 def _all_accounts() -> list[tuple[str, str, str | None, str]]:
     """(username, role, barangay_id, name to show)"""
@@ -192,7 +190,6 @@ def assign_missing(db_path: Path) -> list[dict]:
     ]
 
 
-# ---- sessions -------------------------------------------------------------------------
 
 def _session_key(token: str) -> str:
     """Only a hash of the token is stored, so reading the database doesn't give anyone a login."""
@@ -233,7 +230,6 @@ def log_out(conn: sqlite3.Connection, token: str) -> None:
         conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_session_key(token),))
 
 
-# ---- command line ---------------------------------------------------------------------
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Show or change the HealthPulz login passwords.")

@@ -6,17 +6,13 @@ from pathlib import Path
 PACKAGE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = PACKAGE_DIR.parent
 
-# ---- Which municipality this server runs for ------------------------------------------------
-# Naval is the default. To run the Caibiran demo instead: put a # in front of the first line,
-# remove the # from the second, and restart the server. Each municipality keeps its own
-# database (var/ for Naval, var/caibiran/ for Caibiran), so switching never mixes their data.
+# Municipality: swap the # on the two PLACE lines, then restart. Each has its own database (var/, var/caibiran/).
 PLACE = "naval"
 # PLACE = "caibiran"
 PLACE = os.environ.get("HEALTHPULZ_PLACE", PLACE)
 
 BASE_DATA_DIR = PACKAGE_DIR / "data"  # diseases.json here is shared by every municipality
-# Naval's files are in rhu/data/; another municipality's in rhu/data/places/<name>/
-# (municipality.json, barangays.json, map.json, and optionally seal.png and barangays/<id>.png).
+# Naval: rhu/data/. Others: rhu/data/places/<name>/ (map.json; optional seal.png, barangays/<id>.png).
 DATA_DIR = BASE_DATA_DIR if PLACE == "naval" else BASE_DATA_DIR / "places" / PLACE
 SCHEMA_PATH = PACKAGE_DIR / "schema.sql"
 WEB_DIR = ROOT_DIR / "web"

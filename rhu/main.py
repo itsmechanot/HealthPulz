@@ -43,7 +43,7 @@ def create_app(
         db.init_db(db_path)
         accounts.ensure_accounts(db_path)
         reword_old_messages(db_path)
-        hub = Hub()  #switch board
+        hub = Hub()
         hub.bind_loop(asyncio.get_running_loop())
         stores = BhuStores(db_path.parent / "bhu")
 
@@ -73,7 +73,7 @@ def create_app(
         app.state.alerts = alerts
 
         async def after_analytics(result) -> None:
-            # Tell the dashboards right away, before the alert check, so their numbers don't wait.
+            # Dashboards first, alert check after.
             await hub.broadcast_to_monitors({"type": "ANALYTICS_DONE", "finished_at": result.finished_at})
             await alerts.check_and_publish()
 
@@ -88,7 +88,7 @@ def create_app(
             task.cancel()
             with suppress(asyncio.CancelledError):
                 await task
-        # Finish queued batches before shutting down (in a thread, so STORED messages still go out).
+        # Drain the queues before shutdown (in a thread, so STORED still goes out).
         await asyncio.to_thread(relay.stop)
         await asyncio.to_thread(pipeline.stop)
         analytics.close()

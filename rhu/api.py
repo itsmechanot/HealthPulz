@@ -43,7 +43,7 @@ def server_addresses(request: Request) -> dict:
     """LAN addresses for the join banner, and whether phones can reach them."""
     addresses = network.lan_addresses()
     port = request.url.port
-    # Only known to be closed if it can be checked; without a port or address, don't raise a false alarm.
+    # Unknown is not closed: no false alarm without a port or address.
     reachable = not (port and addresses) or any(network.accepts_connections(a, port) for a in addresses)
     return {"addresses": addresses, "port": port, "reachable": reachable}
 

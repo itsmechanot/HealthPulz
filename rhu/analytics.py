@@ -80,7 +80,6 @@ class Analytics:
         thresholded = {d["disease_code"] for d in rules.diseases() if d["threshold_alerts"]}
         barangay_ids = [b["barangay_id"] for b in rules.barangays()]
         first_case = self._first_checkup()
-        # Every week from the first case up to and including the current week.
         weeks = iso_week_mondays(first_case, today + timedelta(weeks=1)) if first_case else []
 
         start = time.perf_counter()
@@ -146,7 +145,6 @@ def _write_changed_rows(conn: sqlite3.Connection, rows: set[tuple], stored: set[
     return len(changed) + len(gone)
 
 
-# ---- map step (runs in the worker processes; top-level so it can be pickled) ------
 
 def _map_barangay(
     db_path: str, barangay_id: str, diseases: list[str], thresholded: set[str], weeks: list[date]
@@ -156,7 +154,7 @@ def _map_barangay(
     cases = 0
     uri = Path(db_path).as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True)) as conn:
-        # A case counts in the week of its checkup, so what a BHU sends today shows in this week's numbers.
+        # A case counts in its checkup week.
         for disease_code, consult in conn.execute(ANALYTICS_QUERY, (barangay_id,)):
             day = date.fromisoformat(consult)
             counts[disease_code, day - timedelta(days=day.weekday())] += 1
@@ -197,7 +195,6 @@ def _weeks_in_year(year: int) -> int:
     return date(year, 12, 28).isocalendar().week  # Dec 28 is always in the last ISO week
 
 
-# ---- scheduler (runs in the server) ---------------------------------------------
 
 async def run_when_cases_change(
     analytics: Analytics,

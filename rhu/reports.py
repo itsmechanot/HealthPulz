@@ -31,7 +31,7 @@ def _report(
 class LatestReports:
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._reports: deque[dict] = deque(maxlen=MAX_REPORTS)  # newest first
+        self._reports: deque[dict] = deque(maxlen=MAX_REPORTS)
 
     def load(self, db_path: Path) -> None:
         """Fills the list at startup, so a restart doesn't empty it."""

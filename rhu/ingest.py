@@ -18,7 +18,7 @@ from rhu.models import CaseRecord, SubmitBatch, barangay_of
 
 log = logging.getLogger(__name__)
 
-# Tells a thread to finish. Queued before it, all real work is still processed (graceful drain).
+# Sentinel: work queued before it still finishes (graceful drain).
 _STOP = object()
 
 StoredCallback = Callable[[str, dict], None]
@@ -56,7 +56,7 @@ class PipelineStats:
     batches_busy: int = 0  # refused with 503 because the queue was full
     batches_stored: int = 0
     batches_resent: int = 0  # a batch that was already stored arrived again
-    # Once the queues are empty: records_received = accepted + updated + duplicate + rejected (nothing lost).
+    # When idle: received = accepted + updated + duplicate + rejected.
     records_received: int = 0
     records_accepted: int = 0
     records_updated: int = 0  # corrections and voids of earlier reports
@@ -96,7 +96,6 @@ class IngestPipeline:
         self.stats = PipelineStats()
         self.latest_reports = reports.LatestReports()
 
-    # ---- lifecycle -------------------------------------------------------
 
     def start(self) -> None:
         self.latest_reports.load(self._db_path)
@@ -118,7 +117,6 @@ class IngestPipeline:
             self._write_queue.put(_STOP)
             self._writer.join()
 
-    # ---- receiver side (called by the HTTP endpoint) --------------------
 
     def submit(self, batch: SubmitBatch) -> int:
         """Queue a batch without waiting for it to be processed. Returns the queue depth."""
@@ -140,7 +138,6 @@ class IngestPipeline:
             "validator_threads": self._worker_count,
         }
 
-    # ---- validator threads -----------------------------------------------
 
     def _validate_loop(self) -> None:
         while (item := self._ingest_queue.get()) is not _STOP:
@@ -174,7 +171,6 @@ class IngestPipeline:
             return "FUTURE_DATE"
         return None
 
-    # ---- DB writer thread --------------------------------------------------
 
     def _write_loop(self) -> None:
         conn = db.connect(self._db_path)
@@ -214,7 +210,7 @@ class IngestPipeline:
                 except sqlite3.Error:
                     log.exception("Could not store batch %s", item.batch.batch_id)
 
-        # Count and notify only after the commit, so STORED always means the data is safe on disk.
+        # After the commit only: STORED means safe on disk.
         for item, node_id, message, resent in messages:
             if resent:
                 # Every record of a resent batch is already stored, so all of them count as duplicates.

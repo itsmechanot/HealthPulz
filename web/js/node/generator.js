@@ -48,8 +48,6 @@ function makeRecord(disease) {
 
 const latest = (a, b) => (a > b ? a : b);
 
-// ---- random helpers ------------------------------------------------------
-
 function uniform(min, max) {
   return min + Math.random() * (max - min);
 }
@@ -79,8 +77,6 @@ function poisson(lambda) {
   } while (p > limit);
   return k - 1;
 }
-
-// ---- dates ---------------------------------------------------------------
 
 function addDays(date, days) {
   const copy = new Date(date);

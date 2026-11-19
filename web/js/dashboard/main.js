@@ -44,7 +44,7 @@ const state = {
 };
 const data = { summary: null, grids: {}, dayGrid: null, alerts: [], nodes: [], reports: [] };
 let config;
-let tracked; // diseases under outbreak surveillance (config.diseases also has "Other consultations")
+let tracked;  // outbreak-tracked diseases (not "Other")
 let router;
 let overviewMap;
 let bigMap;
@@ -91,8 +91,6 @@ async function start() {
   router.start();
   setInterval(refresh, REFRESH_MS);
 }
-
-// ---- data -----------------------------------------------------------------------
 
 let refreshing = false;
 let refreshAgain = false;
@@ -167,8 +165,6 @@ function setConnection(stateName, text) {
 
 const activeAlerts = () => data.alerts.filter((a) => a.status !== "RESOLVED");
 
-// ---- chrome (top bar, sidebar badge) ------------------------------------------------
-
 function renderChrome() {
   const { week } = data.summary;
   $("week-chip-dates").textContent = week.dates;
@@ -180,8 +176,6 @@ function renderChrome() {
 function renderScreen(screen) {
   ({ overview: renderOverview, map: renderMapScreen, alerts: renderAlertsScreen, trends: renderTrends, barangays: renderGrid })[screen]?.();
 }
-
-// ---- Latest reports --------------------------------------------------------------------
 
 const seenReports = new Set(); // `${record_id}.${revision}`, so only what just arrived flashes
 let reportsKey = null;
@@ -235,8 +229,6 @@ function weekName(report) {
   if (report.counted_in_week === data.summary?.previous_week.label) return "last week";
   return `the week of ${report.counted_week_dates}`;
 }
-
-// ---- Overview ------------------------------------------------------------------------
 
 let commonListDrawing = 0;
 
@@ -320,16 +312,12 @@ function illnessRow(d, spark = null) {
   return row;
 }
 
-// ---- Map -------------------------------------------------------------------------------
-
 function renderMapScreen() {
   bigMap.update(mapGrid(), state.mapDisease);
   $("big-map-hint").textContent = mapHint();
   bigMap.select(state.selected);
   renderDetail();
 }
-
-// ---- the map's calendar ----------------------------------------------------------------
 
 const dayUrl = (day) => `/api/stats/day?date=${day}`;
 
@@ -360,7 +348,7 @@ function clearDay() {
   dayPickers.forEach((picker) => picker.refresh());
 }
 
-/** Says which week or day the map shows; early in a week, or before real entries, it can be nearly empty. */
+/** Which week or day the map shows. */
 function mapHint() {
   if (state.mapDay && data.dayGrid) {
     const g = data.dayGrid;
@@ -446,8 +434,6 @@ function renderDetail() {
   );
   revealDetail();
 }
-
-// ---- Alerts ------------------------------------------------------------------------------
 
 function renderAlertsScreen() {
   const byStatus = data.alerts.filter((a) =>
@@ -540,7 +526,7 @@ function alertRow(alert, { compact = false } = {}) {
         : contextItem(`${levelName[0].toUpperCase()}${levelName.slice(1)} threshold`, `${Number(alert.threshold).toFixed(2)} cases`, "Calculated from past reports"),
       contextItem("Case reporting period", alert.week_dates),
     ),
-    // BHU corrections can lower the count after the alert was raised; staff decide if it still applies.
+    // BHU corrections can lower the count; staff decide.
     alert.status !== "RESOLVED" && alert.current_count != null && alert.current_count < alert.observed
       ? el("div", {
         className: "note note-danger alert-correction",
@@ -550,8 +536,6 @@ function alertRow(alert, { compact = false } = {}) {
     el("div", { className: "alert-row-footer" }, statusDetails, actions),
   );
 }
-
-// ---- Trends ------------------------------------------------------------------------------
 
 let trendRequest = 0;
 
@@ -589,8 +573,6 @@ async function renderTrends() {
   $("trend-axis").replaceChildren(...labels.map((w, i) => el("span", { textContent: i === 2 ? `${weekStart(w)} (so far)` : weekStart(w) })));
 }
 
-// ---- Barangays -----------------------------------------------------------------------------
-
 const GRID_LEVEL_RANK = { NORMAL: 0, ALERT: 1, EPIDEMIC: 2, URGENT: 3 };
 
 function renderGrid() {
@@ -602,7 +584,7 @@ function renderGrid() {
   const worst = (b, codes) => codes.reduce((w, code) => Math.max(w, GRID_LEVEL_RANK[cellOf(b, code).level] ?? 0), 0);
   const shownCases = (b) => columns.reduce((sum, d) => sum + cellOf(b, d.disease_code).cases, 0);
 
-  // The headline: where something is happening, across every tracked disease this week.
+  // Headline: where something is happening this week.
   const allCodes = tracked.map((d) => d.disease_code);
   const flagged = all.filter((b) => worst(b, allCodes) > 0).length;
   const byDisease = tracked.map((d) => [d, all.reduce((sum, b) => sum + cellOf(b, d.disease_code).cases, 0)]).sort((a, b) => b[1] - a[1]);
@@ -615,7 +597,7 @@ function renderGrid() {
     ]
     : ["No tracked cases reported yet for this week."]));
 
-  // Sorting: "attention" = over a threshold first, then the most cases; or one column, highest first.
+  // "attention": over a threshold first, then most cases.
   const sortValue = {
     total: (b) => b.total, other: (b) => b.other_consultations, rate: (b) => b.rate_per_10k,
     ...Object.fromEntries(columns.map((d) => [d.disease_code, (b) => cellOf(b, d.disease_code).cases])),
@@ -646,7 +628,7 @@ function renderGrid() {
     heading("rate", "Per 10,000", "cases per 10,000 people"),
   );
 
-  // Heat: a cell's tint grows with its count, relative to the busiest cell in this view.
+  // Heat: darker tint = more cases (relative to the busiest cell).
   const peak = Math.max(1, ...visible.flatMap((b) => columns.map((d) => cellOf(b, d.disease_code).cases)));
   const count = (n, extra = {}) => n
     ? el("td", { textContent: fmt(n), ...extra })
@@ -688,15 +670,13 @@ function renderGrid() {
     }),
     ...(visible.length ? [] : [el("tr", {}, el("td", { colSpan: columns.length + 4, className: "grid-empty", textContent: "No barangay has a case of these diseases this week." }))]),
   );
-  // Below the table, so it never scrolls sideways out of sight with the table on a phone.
+  // Outside the table, so it doesn't scroll away on phones.
   $("grid-hidden").hidden = !hidden;
   $("grid-hidden").replaceChildren(...(hidden ? [
     `${hidden} barangay${hidden === 1 ? "" : "s"} with no cases of these diseases ${hidden === 1 ? "is" : "are"} hidden. `,
     el("button", { type: "button", className: "link-btn small", textContent: "Show all", onclick: () => { $("grid-only-cases").checked = false; state.gridOnlyCases = false; renderGrid(); } }),
   ] : []));
 }
-
-// ---- controls & helpers ---------------------------------------------------------------------
 
 function buildControls() {
   const sorted = [...config.barangays].sort((a, b) => a.name.localeCompare(b.name));
@@ -727,7 +707,7 @@ function buildControls() {
     state.gridOnlyCases = e.target.checked;
     renderGrid();
   });
-  pressGroup("[data-map-week]", "mapWeek", () => { // on both Overview and Map; a week replaces a chosen day
+  pressGroup("[data-map-week]", "mapWeek", () => {  // both maps; a week replaces a chosen day
     clearDay();
     renderScreen(router.current());
   });

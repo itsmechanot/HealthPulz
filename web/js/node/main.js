@@ -50,7 +50,7 @@ async function startStation(config, identity, barangay) {
   document.querySelector(".menu-btn").hidden = false;
   $("station-name").textContent = `Brgy. ${barangay.name}`;
   applyPlace(config.municipality);
-  // On phones the part after "Barangay Health Unit" is hidden, so the barangay's name has room.
+  // Phones hide the RHU part so the barangay name fits.
   $("station-sub").replaceChildren("Barangay Health Unit", Object.assign(document.createElement("span"), {
     className: "station-sub-more", textContent: fillPlace(" · connected to {rhu}"),
   }));
@@ -141,7 +141,7 @@ async function startStation(config, identity, barangay) {
   sender.addEventListener("changed", refreshPending);
 
   setupGenerator(config, identity, barangay, sender);
-  // Records are on the server, so only unsent Demo Tools batches are worth a warning.
+  // Only unsent Demo Tools batches can be lost on logout.
   setupLogout({
     message: () => pendingBatches
       ? `${pendingBatches} batch(es) are still waiting on this device. They will send the next time this BHU signs in here. Sign out anyway?`
@@ -275,8 +275,6 @@ function toBatches(records, identity, drill) {
   }));
 }
 
-// ---- rendering -------------------------------------------------------------
-
 function recordStored(message) {
   // From the WebSocket `rejected` is a list; from a status check it is a count.
   const rejected = Array.isArray(message.rejected) ? message.rejected.length : message.rejected ?? 0;
@@ -409,7 +407,7 @@ function setConnectionState(state) {
   const labels = { online: "Online", connecting: "Connecting…", offline: "Offline" };
   $("connection").dataset.state = state;
   $("connection").textContent = labels[state];
-  // Phones show only this dot on the logo; the words stay for screen readers and as a tooltip.
+  // Phones: dot only; the words stay as tooltip and for screen readers.
   const words = { online: "Online: connected to the RHU", connecting: "Connecting to the RHU", offline: "Offline: the RHU cannot be reached" }[state];
   Object.assign($("connection-dot").dataset, { state });
   $("connection-dot").title = words;
@@ -423,8 +421,6 @@ function log(text, kind = "") {
   $("log").prepend(item);
   while ($("log").children.length > MAX_LOG_ENTRIES) $("log").lastChild.remove();
 }
-
-// ---- helpers ---------------------------------------------------------------
 
 function chunk(items, size) {
   const parts = [];

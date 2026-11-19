@@ -21,7 +21,7 @@ class Presence:
 class Hub:
     def __init__(self) -> None:
         self._loop: asyncio.AbstractEventLoop | None = None
-        # A station can have many open connections: every device logged in as that barangay.
+        # One station, many devices (every phone logged in as that barangay).
         self._nodes: dict[str, set[WebSocket]] = {}
         self._presence: dict[str, Presence] = {}
         self._monitors: set[WebSocket] = set()
@@ -29,7 +29,6 @@ class Hub:
     def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
 
-    # ---- nodes -----------------------------------------------------------
 
     def add_node(self, node_id: str, ws: WebSocket) -> None:
         self._nodes.setdefault(node_id, set()).add(ws)
@@ -79,7 +78,6 @@ class Hub:
                 self.remove_node(node_id, ws)
         return sum(results)
 
-    # ---- monitors --------------------------------------------------------
 
     def add_monitor(self, ws: WebSocket) -> None:
         self._monitors.add(ws)

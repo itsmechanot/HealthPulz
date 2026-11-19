@@ -1,5 +1,4 @@
-// The map's calendar: a month view in the map's corner. Days with cases get a dot; picking a day
-// shows that day on the map, and "Back to this week" returns to the weekly view.
+// Map calendar: dots on days with cases; picking a day shows it on both maps.
 
 import { el } from "../common/dom.js";
 

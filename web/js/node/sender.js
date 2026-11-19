@@ -1,5 +1,4 @@
-// Sends outbox batches until each is STORED. Without STORED after 30 s it checks the batch
-// status and resends; resending is safe because the RHU ignores duplicates.
+// Sends outbox batches until STORED; after 30 s it checks and resends (duplicates are ignored).
 
 import * as api from "../common/api.js";
 import * as outbox from "./outbox.js";

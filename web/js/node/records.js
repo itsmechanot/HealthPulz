@@ -34,8 +34,6 @@ const orNull = (promise) => promise.catch((error) => {
   throw error;
 });
 
-// ---- helpers ------------------------------------------------------------------------
-
 /** Completed years between two YYYY-MM-DD dates. */
 export function ageOn(birthdate, date) {
   const [by, bm, bd] = birthdate.split("-").map(Number);
@@ -45,15 +43,11 @@ export function ageOn(birthdate, date) {
 
 export const fullName = (c) => `${c.last_name}, ${c.first_name}${c.middle_name ? ` ${c.middle_name}` : ""}`;
 
-// ---- clients ----------------------------------------------------------------------------
-
 export const listClients = () => request("/clients");
 export const getClient = (clientId) => orNull(request(`/clients/${clientId}`));
 
 /** The caller keeps `clientId` across retries, so a retry can't register the client twice. */
 export const saveClient = (clientId, fields) => request(`/clients/${clientId}`, { method: "PUT", body: fields });
-
-// ---- checkups -----------------------------------------------------------------------------
 
 export const newId = uuid4;
 export const listConsultations = () => request("/consultations");
@@ -68,8 +62,6 @@ export const correctConsultation = (id, fields, reason, changes) =>
   request(`/consultations/${id}/correct`, { method: "POST", body: { fields, reason, changes } });
 
 export const voidConsultation = (id, reason) => request(`/consultations/${id}/void`, { method: "POST", body: { reason } });
-
-// ---- backup ---------------------------------------------------------------------------------
 
 export const exportBackup = () => request("/backup");
 export const importBackup = (backup) => request("/backup", { method: "POST", body: backup });

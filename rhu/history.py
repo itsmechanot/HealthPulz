@@ -41,7 +41,7 @@ def import_history(
     today = today or date.today()
     rng = random.Random(seed)
     barangays, diseases = rules.barangays(), rules.tracked_diseases()
-    # From ISO week 1 of `years` years ago up to the end of last week; the current week is left for live data.
+    # Week 1 of `years` ago up to last week; this week is for live data.
     weeks = iso_week_mondays(date.fromisocalendar(today.year - years, 1, 1), today)
     outbreaks = plan_outbreaks(rng, barangays, diseases, weeks, outbreaks_per_year * (years + 1))
     batch_ids = {

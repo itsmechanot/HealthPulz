@@ -142,7 +142,6 @@ def _pending_batches(message: dict) -> int:
     return value if isinstance(value, int) and value >= 0 else 0
 
 
-# ---- blocking DB helpers (run with asyncio.to_thread) ----------------------
 
 def _node_exists(db_path: Path, node_id: str) -> bool:
     with closing(db.connect(db_path)) as conn:

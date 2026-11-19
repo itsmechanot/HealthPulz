@@ -1,5 +1,4 @@
-// The municipality's names (rhu/data/municipality.json, from /api/config), so no page has them
-// built in. The HTML keeps Naval's names as the text shown before the config arrives.
+// Municipality names from /api/config; the HTML holds Naval's only as placeholders.
 
 let place = { name: "Naval", province: "Biliran", rhu_name: "RHU Naval" };
 

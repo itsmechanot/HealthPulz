@@ -80,8 +80,6 @@ export function createClinic({ config, router }) {
 
   const diagnosisLabel = (c) => (c.diagnosis_code === OTHER_CODE ? c.diagnosis_text : diseases.get(c.diagnosis_code)?.name ?? c.diagnosis_code);
 
-  // ---- reusable pieces --------------------------------------------------------------
-
   function syncLabel(consultation) {
     const [label, level] = SYNC_LABELS[consultation.sync];
     if (!consultation.voided || consultation.sync === records.SYNC.REJECTED) return [label, level];
@@ -113,7 +111,7 @@ export function createClinic({ config, router }) {
     );
   }
 
-  /** One consultation as a timeline entry: when, what it was, how they presented, what was done. */
+  /** One consultation as a timeline entry. */
   function consultationProfile(consultation) {
     const disease = diseases.get(consultation.diagnosis_code);
     const kind = consultation.voided ? "voided" : disease?.single_case_alert ? "urgent" : disease?.tracked ? "tracked" : "other";
@@ -168,8 +166,7 @@ export function createClinic({ config, router }) {
     );
   }
 
-  /** Vital signs as chips. Out of range is highlighted: adult ranges, and only fever for children
-   *  (their normal pulse and breathing run higher). */
+  /** Vital-sign chips; out of range in red (adult ranges, fever only for children). */
   function vitalsOf(c, birthdate) {
     const adult = birthdate ? records.ageOn(birthdate, c.visit_date) >= 18 : true;
     return [
@@ -198,8 +195,6 @@ export function createClinic({ config, router }) {
   let visitBirthdate = null; // the profile's patient, for each consultation's age
 
   const empty = (text) => el("p", { className: "empty", textContent: text });
-
-  // ---- client list -------------------------------------------------------------------
 
   async function showClients() {
     const [clients, consultations] = await Promise.all([records.listClients(), records.listConsultations()]);
@@ -246,8 +241,6 @@ export function createClinic({ config, router }) {
 
   $("client-search").addEventListener("input", showClients);
 
-  // ---- client profile ------------------------------------------------------------------
-
   async function showClient(clientId) {
     const client = clientId && (await records.getClient(clientId));
     if (!client) return router.go("clients");
@@ -261,7 +254,7 @@ export function createClinic({ config, router }) {
     $("profile-edit").href = `#/client-form/${client.client_id}`;
     $("profile-new-visit").href = `#/visit-form/${client.client_id}`;
 
-    // Reference details: what is recorded, and one line for what is not.
+    // Recorded details; missing ones on one line.
     const details = [
       ["Date of birth", formatDate(client.birthdate)],
       ["Civil status", client.civil_status],
@@ -284,7 +277,7 @@ export function createClinic({ config, router }) {
     $("profile-history-empty").hidden = visits.length > 0;
     $("profile-visits").replaceChildren(...visits.map(consultationProfile));
 
-    // The story at a glance: what is going on now, then three numbers.
+    // Status first, then three key numbers.
     const recent = counted.find((v) => diseases.get(v.diagnosis_code)?.tracked && daysBetween(v.visit_date, today()) <= 14);
     const followUp = counted.map((v) => v.follow_up_date).filter((d) => d && d >= today()).sort()[0];
     const lines = [];
@@ -317,8 +310,6 @@ export function createClinic({ config, router }) {
       el("span", { className: "muted small", textContent: detail }),
     );
   }
-
-  // ---- client form ----------------------------------------------------------------------
 
   async function showClientForm(clientId) {
     const form = $("client-form");
@@ -392,8 +383,6 @@ export function createClinic({ config, router }) {
       (c) => same(c.last_name, client.last_name) && same(c.first_name, client.first_name) && c.birthdate === client.birthdate,
     );
   }
-
-  // ---- consultation form ------------------------------------------------------------------------
 
   const diagnosisSelect = $("v-diagnosis");
   diagnosisSelect.replaceChildren(
@@ -501,7 +490,7 @@ export function createClinic({ config, router }) {
       ...values,
       chief_complaint: values.chief_complaint.trim(),
       diagnosis_text: tracked ? "" : values.diagnosis_text.trim(),
-      case_status: tracked ? values.case_status : "CONFIRMED", // the protocol requires a status; "Other" visits aren't surveillance cases
+      case_status: tracked ? values.case_status : "CONFIRMED",  // protocol needs a status; "Other" isn't surveillance
     };
 
     let changes = [];
@@ -519,8 +508,6 @@ export function createClinic({ config, router }) {
       router.go("visit", saved.consultation_id);
     });
   });
-
-  // ---- visit list -----------------------------------------------------------------------------
 
   async function showVisits() {
     const [consultations, clients] = await Promise.all([records.listConsultations(), records.listClients()]);
@@ -544,8 +531,6 @@ export function createClinic({ config, router }) {
 
   $("visit-search").addEventListener("input", showVisits);
 
-  // ---- visit record -----------------------------------------------------------------------------
-
   async function showVisit(id) {
     const v = id && (await records.getConsultation(id));
     if (!v) return router.go("visits");
@@ -555,7 +540,6 @@ export function createClinic({ config, router }) {
     const urgent = Boolean(disease?.single_case_alert);
     const age = client ? records.ageOn(client.birthdate, v.visit_date) : null;
 
-    // Who, what, when.
     $("visit-back").href = `#/client/${v.client_id}`;
     $("visit-back").replaceChildren(el("span", { "aria-hidden": "true", textContent: "←" }), " Back to patient profile");
     $("visit-client-link").href = `#/client/${v.client_id}`;
@@ -578,7 +562,6 @@ export function createClinic({ config, router }) {
     );
     $("visit-when").textContent = `Consultation on ${formatDate(v.visit_date)} · ${relativeDay(v.visit_date)}${v.attended_by ? ` · attended by ${v.attended_by}` : ""}`;
 
-    // What matters about this record right now.
     const [syncText, syncLevel] = syncLabel(v);
     const voidEntry = v.voided ? v.history.findLast((entry) => entry.action === "VOIDED") : null;
     const lines = [];
@@ -593,7 +576,6 @@ export function createClinic({ config, router }) {
     $("visit-correct").href = `#/visit-form/${v.client_id}/${v.consultation_id}`;
     $("visit-actions").hidden = v.voided;
 
-    // The consultation, told in order.
     const notRecorded = () => el("p", { className: "muted small record-none", textContent: "Not recorded" });
     const notes = (rows) => {
       const shown = rows.filter(([, value]) => value);
@@ -646,7 +628,7 @@ export function createClinic({ config, router }) {
     $("visit-history").replaceChildren(...history);
   }
 
-  /** Who changed what, newest first, as timeline entries. Kept on this device; only the corrected report goes to the RHU. */
+  /** Change history, newest first. Stays at the BHU; only the corrected report goes to the RHU. */
   function changeHistory(v) {
     const titles = { CORRECTED: "Corrected", VOIDED: "Voided", CLIENT_CORRECTED: "Report re-sent" };
     const kinds = { CORRECTED: "other", VOIDED: "tracked", CLIENT_CORRECTED: "other" };
@@ -692,8 +674,6 @@ export function createClinic({ config, router }) {
     showVisit(visit.consultation_id);
   });
   $("void-reason").addEventListener("input", (event) => event.target.setCustomValidity(""));
-
-  // ---- routing ---------------------------------------------------------------------------------
 
   let lastScreen = { name: null, param: null };
   const handlers = {

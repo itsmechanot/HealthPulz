@@ -6,7 +6,7 @@ import { applyPlace } from "../common/place.js";
 
 const $ = (id) => document.getElementById(id);
 
-// The background video plays on laptops only: phones never download it (it is large).
+// Video on laptops only: phones never download it.
 const backgroundVideo = document.querySelector(".login-video-bg video");
 const wideScreen = window.matchMedia("(min-width: 761px)").matches;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
