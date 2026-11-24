@@ -83,8 +83,8 @@ export function startTrendsPanel(config, barangay) {
       $("trend-chart"),
       [
         { values: weeks.map((w) => w.cases), className: "series-accent" },
-        { values: weeks.map((w) => w.alert_threshold), className: "series-warn series-dashed" },
-        { values: weeks.map((w) => w.epidemic_threshold), className: "series-danger series-dashed" },
+        { values: weeks.map((w) => w.alert_threshold), className: "series-alert series-dashed" },
+        { values: weeks.map((w) => w.epidemic_threshold), className: "series-epidemic series-dashed" },
       ],
       { slots: Math.max(weeks.length, 2) },
     );

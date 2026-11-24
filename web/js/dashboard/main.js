@@ -550,8 +550,8 @@ async function renderTrends() {
   const series = [{ values: weeks.map((w) => w.cases), className: "series-accent" }];
   if (withThresholds) {
     series.push(
-      { values: weeks.map((w) => w.alert_threshold), className: "series-warn series-dashed" },
-      { values: weeks.map((w) => w.epidemic_threshold), className: "series-danger series-dashed" },
+      { values: weeks.map((w) => w.alert_threshold), className: "series-alert series-dashed" },
+      { values: weeks.map((w) => w.epidemic_threshold), className: "series-epidemic series-dashed" },
     );
   }
   const max = lineChart($("trend-chart"), series, { slots: Math.max(weeks.length, 2) });

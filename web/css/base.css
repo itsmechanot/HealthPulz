@@ -305,12 +305,12 @@ a { color: var(--accent); }
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
   animation: slide-in 0.25s ease-out;
 }
-.toast[data-level="EPIDEMIC"] { border-left-color: var(--danger); }
+.toast[data-level="EPIDEMIC"] { border-left-color: var(--sev-epidemic); }
 .toast[data-level="OK"] { border-left-color: var(--accent); }
-.toast[data-level="URGENT"] { border-left-color: var(--urgent); }
+.toast[data-level="URGENT"] { border-left-color: var(--sev-urgent); }
 .toast .icon { color: var(--warn); margin-top: 2px; }
-.toast[data-level="URGENT"] .icon { color: var(--urgent); }
-.toast[data-level="EPIDEMIC"] .icon { color: var(--danger); }
+.toast[data-level="URGENT"] .icon { color: var(--sev-urgent-text); }
+.toast[data-level="EPIDEMIC"] .icon { color: var(--sev-epidemic-text); }
 .toast[data-level="OK"] .icon { color: var(--accent); }
 .toast .grow { flex: 1; display: grid; gap: 2px; font-size: 0.88rem; }
 
@@ -363,10 +363,10 @@ a { color: var(--accent); }
 .map .brgy.selected { stroke: var(--text); stroke-width: 2.5; }
 .map .brgy.own { stroke: var(--accent-strong); stroke-width: 3; }
 .map .town-outline { fill: none; stroke: var(--accent-strong); stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
-.map .marker { stroke: var(--surface); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; opacity: 0.92; fill: var(--accent-strong); }
-.map .marker[data-level="ALERT"] { fill: var(--warn); }
-.map .marker[data-level="EPIDEMIC"] { fill: var(--danger); }
-.map .marker[data-level="URGENT"] { fill: var(--urgent); }
+.map .marker { stroke: var(--surface); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; opacity: 0.92; fill: var(--sev-normal); }
+.map .marker[data-level="ALERT"] { fill: var(--sev-alert); }
+.map .marker[data-level="EPIDEMIC"] { fill: var(--sev-epidemic); }
+.map .marker[data-level="URGENT"] { fill: var(--sev-urgent); }
 .map .marker.pulse { animation: marker-pulse 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes marker-pulse { 50% { transform: scale(1.25); opacity: 0.7; } }
 .map .brgy-label {
@@ -421,10 +421,10 @@ a { color: var(--accent); }
 
 /* Barangay fill = cases per 10,000 (darker = more) or its alert level; circles = number of cases. */
 .map .brgy { stroke: #fff; stroke-width: 1.25; }
-.map .brgy[data-level="CASES"] { fill: color-mix(in srgb, var(--accent) calc(var(--intensity, 0.3) * 100%), var(--land)); }
-.map .brgy[data-level="ALERT"] { fill: color-mix(in srgb, var(--warn) 55%, var(--land)); }
-.map .brgy[data-level="EPIDEMIC"] { fill: color-mix(in srgb, var(--danger) 65%, var(--land)); }
-.map .brgy[data-level="URGENT"] { fill: color-mix(in srgb, var(--urgent) 70%, var(--land)); }
+.map .brgy[data-level="CASES"] { fill: color-mix(in srgb, var(--sev-normal) calc(var(--intensity, 0.3) * 100%), var(--land)); }
+.map .brgy[data-level="ALERT"] { fill: color-mix(in srgb, var(--sev-alert) 55%, var(--land)); }
+.map .brgy[data-level="EPIDEMIC"] { fill: color-mix(in srgb, var(--sev-epidemic) 65%, var(--land)); }
+.map .brgy[data-level="URGENT"] { fill: color-mix(in srgb, var(--sev-urgent) 70%, var(--land)); }
 .map .brgy:hover,
 .map .brgy:focus-visible { filter: brightness(.95); stroke: #527e75; stroke-width: 2.4; outline: none; }
 .map .brgy.selected { stroke: #176b50; stroke-width: 3; }
@@ -453,10 +453,10 @@ a { color: var(--accent); }
 .map-status-dot,
 .map-legend-swatch { display: inline-block; width: 11px; height: 11px; flex: 0 0 auto; border: 1px solid rgb(30 57 70 / 14%); border-radius: 3px; vertical-align: -1px; }
 .map-status-none { background: var(--land); }
-.map-status-cases { background: color-mix(in srgb, var(--accent) 45%, var(--land)); }
-.map-status-alert { background: var(--warn); }
-.map-status-epidemic { background: var(--danger); }
-.map-status-urgent { background: var(--urgent); }
+.map-status-cases { background: color-mix(in srgb, var(--sev-normal) 45%, var(--land)); }
+.map-status-alert { background: var(--sev-alert); }
+.map-status-epidemic { background: var(--sev-epidemic); }
+.map-status-urgent { background: var(--sev-urgent); }
 .map-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .map-legend-note { flex-basis: 100%; font-size: .72rem; }
 
@@ -672,10 +672,10 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
   color: var(--text-muted);
   white-space: nowrap;
 }
-.badge[data-level="ALERT"] { background: var(--warn-soft); color: var(--warn); }
-.badge[data-level="EPIDEMIC"] { background: var(--danger-soft); color: var(--danger); }
-.badge[data-level="URGENT"] { background: var(--urgent-soft); color: var(--urgent); }
-.badge[data-level="RESOLVED"], .badge[data-level="OK"] { background: var(--ok-soft); color: var(--ok); }
+.badge[data-level="ALERT"] { background: var(--sev-alert-soft); color: var(--sev-alert-text); }
+.badge[data-level="EPIDEMIC"] { background: var(--sev-epidemic-soft); color: var(--sev-epidemic-text); }
+.badge[data-level="URGENT"] { background: var(--sev-urgent-soft); color: var(--sev-urgent-text); }
+.badge[data-level="RESOLVED"], .badge[data-level="OK"] { background: var(--sev-normal-soft); color: var(--sev-normal-text); }
 
 .chip {
   display: inline-block;
@@ -724,8 +724,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
   border-radius: var(--radius-sm);
   padding: 12px 14px;
 }
-.alert-card[data-level="EPIDEMIC"] { border-color: var(--danger); background: var(--danger-soft); }
-.alert-card[data-level="URGENT"] { border-color: var(--urgent); background: var(--urgent-soft); }
+.alert-card[data-level="EPIDEMIC"] { border-color: var(--sev-epidemic); background: var(--sev-epidemic-soft); }
+.alert-card[data-level="URGENT"] { border-color: var(--sev-urgent); background: var(--sev-urgent-soft); }
 .alert-card strong { display: block; font-size: 1rem; }
 .alert-card.is-new { animation: attention 1.2s ease-out 3; }
 
@@ -772,6 +772,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 .series-warn { stroke: var(--warn); }
 .series-danger { stroke: var(--danger); }
 .series-muted { stroke: var(--text-muted); }
+.series-alert { stroke: var(--sev-alert); }
+.series-epidemic { stroke: var(--sev-epidemic); }
 .series-dashed { stroke-dasharray: 6 4; stroke-width: 1.5 !important; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; color: var(--text-muted); }
 .legend span::before {
@@ -790,9 +792,9 @@ table.heat thead th { color: var(--text-muted); font-weight: 600; font-size: 0.8
 table.heat tbody tr { cursor: pointer; }
 table.heat tbody tr:hover { background: var(--surface-2); }
 table.heat tbody tr[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); }
-table.heat td[data-level="ALERT"] { background: var(--warn-soft); color: var(--warn); font-weight: 700; }
-table.heat td[data-level="EPIDEMIC"] { background: var(--danger-soft); color: var(--danger); font-weight: 700; }
-table.heat td[data-level="URGENT"] { background: var(--urgent-soft); color: var(--urgent); font-weight: 700; }
+table.heat td[data-level="ALERT"] { background: var(--sev-alert-soft); color: var(--sev-alert-text); font-weight: 700; }
+table.heat td[data-level="EPIDEMIC"] { background: var(--sev-epidemic-soft); color: var(--sev-epidemic-text); font-weight: 700; }
+table.heat td[data-level="URGENT"] { background: var(--sev-urgent-soft); color: var(--sev-urgent-text); font-weight: 700; }
 table.heat td.zero { color: var(--text-muted); }
 
 /* ---- BHS Node ---- */
@@ -863,7 +865,7 @@ table.heat td.zero { color: var(--text-muted); }
 .rank-row svg { width: 90px; height: 26px; flex-shrink: 0; }
 .rank-row polyline { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .rank-row .rank-value { min-width: 2.5ch; text-align: right; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.rank-row.urgent { background: var(--urgent-soft); color: var(--urgent); }
+.rank-row.urgent { background: var(--sev-urgent-soft); color: var(--sev-urgent-text); }
 @media (max-width: 480px) { .rank-row svg { display: none; } }
 .alert-row {
   border: 1px solid var(--border);
@@ -873,8 +875,8 @@ table.heat td.zero { color: var(--text-muted); }
   display: grid;
   gap: 6px;
 }
-.alert-row[data-level="EPIDEMIC"] { border-left-color: var(--danger); }
-.alert-row[data-level="URGENT"] { border-left-color: var(--urgent); }
+.alert-row[data-level="EPIDEMIC"] { border-left-color: var(--sev-epidemic); }
+.alert-row[data-level="URGENT"] { border-left-color: var(--sev-urgent); }
 .alert-row[data-status="RESOLVED"] { border-left-color: var(--border); opacity: 0.7; }
 .alert-row .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 
@@ -1874,9 +1876,9 @@ body.login-page {
 .app .alert-severity-tabs .severity-new-dot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--surface); }
 .app .alert-severity-tabs .severity-new-dot[hidden] { display: none; }
 .app .alert-severity-tabs button[aria-pressed="true"] { box-shadow: 0 1px 3px rgb(16 47 77 / 9%); }
-.app .alert-severity-tabs button[data-alert-level="ALERT"][aria-pressed="true"] { border-color: #f0d9a8; background: #fff4d9; color: #80510a; }
-.app .alert-severity-tabs button[data-alert-level="EPIDEMIC"][aria-pressed="true"] { border-color: #f1c7c3; background: #fff0ee; color: #96372f; }
-.app .alert-severity-tabs button[data-alert-level="URGENT"][aria-pressed="true"] { border-color: #d9cbed; background: #f4effb; color: #62468b; }
+.app .alert-severity-tabs button[data-alert-level="ALERT"][aria-pressed="true"] { border-color: color-mix(in srgb, var(--sev-alert) 45%, transparent); background: var(--sev-alert-soft); color: var(--sev-alert-text); }
+.app .alert-severity-tabs button[data-alert-level="EPIDEMIC"][aria-pressed="true"] { border-color: color-mix(in srgb, var(--sev-epidemic) 45%, transparent); background: var(--sev-epidemic-soft); color: var(--sev-epidemic-text); }
+.app .alert-severity-tabs button[data-alert-level="URGENT"][aria-pressed="true"] { border-color: color-mix(in srgb, var(--sev-urgent) 45%, transparent); background: var(--sev-urgent-soft); color: var(--sev-urgent-text); }
 @media (max-width: 560px) {
   .app .alert-toolbar { align-items: stretch; gap: 12px; }
   .app .alert-severity-tabs { gap: 6px; }
@@ -2904,10 +2906,10 @@ html[data-text-size="large"] { font-size: 18px; }
   border: 1px solid var(--border); background: var(--surface-2);
 }
 .profile-status-dot { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: var(--ok); align-self: center; }
-.profile-status-line[data-kind="tracked"] { border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
-.profile-status-line[data-kind="tracked"] .profile-status-dot { background: var(--danger); }
-.profile-status-line[data-kind="urgent"] { border-color: color-mix(in srgb, var(--urgent) 40%, transparent); background: color-mix(in srgb, var(--urgent) 9%, var(--surface)); }
-.profile-status-line[data-kind="urgent"] .profile-status-dot { background: var(--urgent); }
+.profile-status-line[data-kind="tracked"] { border-color: color-mix(in srgb, var(--sev-epidemic) 35%, transparent); background: color-mix(in srgb, var(--sev-epidemic) 8%, var(--surface)); }
+.profile-status-line[data-kind="tracked"] .profile-status-dot { background: var(--sev-epidemic); }
+.profile-status-line[data-kind="urgent"] { border-color: color-mix(in srgb, var(--sev-urgent) 40%, transparent); background: color-mix(in srgb, var(--sev-urgent) 9%, var(--surface)); }
+.profile-status-line[data-kind="urgent"] .profile-status-dot { background: var(--sev-urgent); }
 .profile-status-line[data-kind="follow-up"] { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
 .profile-status-line[data-kind="follow-up"] .profile-status-dot { background: var(--warn); }
 
@@ -2929,8 +2931,8 @@ html[data-text-size="large"] { font-size: 18px; }
 .timeline-item::before { content: ""; position: absolute; left: 6px; top: 18px; bottom: -14px; width: 2px; background: var(--border); }
 .timeline-item:last-child::before { display: none; }
 .timeline-dot { position: absolute; left: 0; top: 12px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--surface); background: var(--text-muted); box-shadow: 0 0 0 1px var(--border); }
-.timeline-item[data-kind="tracked"] .timeline-dot { background: var(--danger); }
-.timeline-item[data-kind="urgent"] .timeline-dot { background: var(--urgent); }
+.timeline-item[data-kind="tracked"] .timeline-dot { background: var(--sev-epidemic); }
+.timeline-item[data-kind="urgent"] .timeline-dot { background: var(--sev-urgent); }
 .timeline-item[data-kind="other"] .timeline-dot { background: var(--accent); }
 .timeline-item[data-kind="voided"] .timeline-card { opacity: .65; }
 .timeline-card { display: grid; gap: 10px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
@@ -2939,7 +2941,7 @@ html[data-text-size="large"] { font-size: 18px; }
 .timeline-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .timeline-title h3 { margin: 0; font-size: 1.1rem; }
 .chip[data-status="CONFIRMED"] { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); color: var(--danger); }
-.chip-urgent { background: color-mix(in srgb, var(--urgent) 14%, var(--surface)); color: var(--urgent); }
+.chip-urgent { background: color-mix(in srgb, var(--sev-urgent) 14%, var(--surface)); color: var(--sev-urgent-text); }
 .timeline-complaint { margin: 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 8px 8px 0; font-style: italic; }
 .timeline-complaint .muted { font-style: normal; }
 .vital-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -3147,3 +3149,26 @@ html[data-text-size="large"] { font-size: 18px; }
 @media (max-width: 640px) {
   .app:not(.has-tabbar) .topbar .week-chip { display: none; }
 }
+
+/* Severity colors follow the government warning ramp: Normal green, Alert yellow, Epidemic orange, Urgent red. */
+:root, .app {
+  --sev-normal: #2e9d5b; --sev-normal-soft: #e5f5ec; --sev-normal-text: #1d6b3d;
+  --sev-alert: #f2c300; --sev-alert-soft: #fff6cc; --sev-alert-text: #6e5600;
+  --sev-epidemic: #f07c12; --sev-epidemic-soft: #fdead8; --sev-epidemic-text: #9a4300;
+  --sev-urgent: #d32f2f; --sev-urgent-soft: #fbe2e2; --sev-urgent-text: #a61b1b;
+}
+/* Severity edge on alert rows (RHU), alert cards (BHU) and notices. */
+.app .alert-row[data-level], .app .alert-card[data-level] { border-left-width: 5px; border-left-style: solid; }
+.app .alert-row[data-level="ALERT"], .app .alert-card[data-level="ALERT"], .toast[data-level="ALERT"] { border-left-color: var(--sev-alert); }
+.app .alert-row[data-level="EPIDEMIC"], .app .alert-card[data-level="EPIDEMIC"], .toast[data-level="EPIDEMIC"] { border-left-color: var(--sev-epidemic); }
+.app .alert-row[data-level="URGENT"], .app .alert-card[data-level="URGENT"], .toast[data-level="URGENT"] { border-left-color: var(--sev-urgent); }
+.app .alert-card[data-level="ALERT"] { background: var(--sev-alert-soft); }
+.app .alert-card[data-level="EPIDEMIC"] { background: var(--sev-epidemic-soft); }
+.app .alert-card[data-level="URGENT"] { background: var(--sev-urgent-soft); }
+.toast[data-level="ALERT"] .icon { color: var(--sev-alert-text); }
+.app .alert-severity-tabs button[data-alert-level="ALERT"][aria-pressed="true"],
+.app .alert-severity-tabs button[data-alert-level="ALERT"][aria-pressed="true"]:hover { border-color: var(--sev-alert); background: var(--sev-alert-soft); color: var(--sev-alert-text); }
+.app .alert-severity-tabs button[data-alert-level="EPIDEMIC"][aria-pressed="true"],
+.app .alert-severity-tabs button[data-alert-level="EPIDEMIC"][aria-pressed="true"]:hover { border-color: var(--sev-epidemic); background: var(--sev-epidemic-soft); color: var(--sev-epidemic-text); }
+.app .alert-severity-tabs button[data-alert-level="URGENT"][aria-pressed="true"],
+.app .alert-severity-tabs button[data-alert-level="URGENT"][aria-pressed="true"]:hover { border-color: var(--sev-urgent); background: var(--sev-urgent-soft); color: var(--sev-urgent-text); }
